@@ -81,6 +81,41 @@ class Lesson(models.Model):
             self.order_index = (last_order or 0) + 1
         super().save(*args, **kwargs)
     
+    def is_first_lesson(self):
+        """Verifica si es la primera lección del curso"""
+        return self.order_index == 1
+    
+    def is_last_lesson(self):
+        """Verifica si es la última lección del curso"""
+        last_lesson = Lesson.objects.filter(
+            course=self.course
+        ).order_by('-order_index').first()
+        return self == last_lesson
+    
+    def is_unlocked_for_user(self, user):
+        """Verifica si la lección está desbloqueada para un usuario
+        
+        Una lección se desbloquea cuando:
+        - Es la primera lección del curso, O
+        - La lección anterior está marcada como completed=True
+        """
+        from .progress import LessonProgress
+        
+        if self.is_first_lesson():
+            return True
+        
+        previous_lesson = self.previous_lesson
+        if not previous_lesson:
+            return True
+        
+        progress = LessonProgress.objects.filter(
+            user=user,
+            lesson=previous_lesson,
+            completed=True
+        ).exists()
+        
+        return progress
+    
     @property
     def next_lesson(self):
         """Retorna la siguiente lección del curso"""

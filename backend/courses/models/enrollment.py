@@ -3,10 +3,12 @@ from django.db import models
 from django.conf import settings
 from .course import Course
 from .lesson import Lesson
+from .progress import LessonProgress
+
 
 class CourseEnrollment(models.Model):
     """Inscripciones de usuarios a cursos"""
-    
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -36,7 +38,7 @@ class CourseEnrollment(models.Model):
         related_name='+',
         verbose_name='lección actual'
     )
-    
+
     class Meta:
         db_table = 'course_enrollments'
         verbose_name = 'Inscripción'
@@ -47,33 +49,63 @@ class CourseEnrollment(models.Model):
             models.Index(fields=['enrolled_at']),
             models.Index(fields=['completed_at']),
         ]
-    
+
     def __str__(self):
         status = "Completado" if self.completed_at else "En progreso"
         return f"{self.user.first_name} - {self.course.name} ({status})"
-    
+
     @property
     def progress_percentage(self):
         """Calcula el porcentaje de progreso del curso"""
         total_lessons = self.course.total_lessons
         if total_lessons == 0:
             return 0
-        
+
         completed_lessons = LessonProgress.objects.filter(
             user=self.user,
             lesson__course=self.course,
             completed=True
         ).count()
-        
+
         return (completed_lessons / total_lessons) * 100
-    
+
     @property
     def is_completed(self):
         """Verifica si el curso está completado"""
         return self.completed_at is not None
-    
+
+    @property
+    def total_xp_earned(self):
+        """Calcula el total de XP ganado en el curso"""
+        return LessonProgress.objects.filter(
+            user=self.user,
+            lesson__course=self.course
+        ).aggregate(
+            total=models.Sum('xp_earned')
+        )['total'] or 0
+
+    def get_lesson_progress(self, lesson):
+        """Obtiene el progreso de una lección específica"""
+        return LessonProgress.objects.filter(
+            user=self.user,
+            lesson=lesson
+        ).first()
+
+    def get_all_progress(self):
+        """Obtiene todo el progreso del usuario en el curso"""
+        return LessonProgress.objects.filter(
+            user=self.user,
+            lesson__course=self.course
+        ).select_related('lesson').order_by('lesson__order_index')
+
     def complete_course(self):
         """Marca el curso como completado"""
         from django.utils import timezone
         self.completed_at = timezone.now()
         self.save()
+
+    def can_access_lesson(self, lesson):
+        """Verifica si el usuario puede acceder a una lección"""
+        if lesson.course != self.course:
+            return False
+        return lesson.is_unlocked_for_user(self.user)

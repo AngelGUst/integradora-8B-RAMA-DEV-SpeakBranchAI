@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
+
 # settings.py
 from pathlib import Path
 import os
@@ -134,3 +134,122 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
+
+LOGS_DIR = BASE_DIR.parent / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {name} {funcName}:{lineno} - {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {name} - {message}',
+            'style': '{',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            'level': LOG_LEVEL,
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'debug.log',
+            'formatter': 'verbose',
+            'level': LOG_LEVEL,
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 3,
+        },
+        'file_django': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'django.log',
+            'formatter': 'verbose',
+            'level': 'INFO',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 3,
+        },
+        'file_db': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'database.log',
+            'formatter': 'verbose',
+            'level': 'DEBUG',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 3,
+        },
+        'file_errors': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOGS_DIR / 'errors.log',
+            'formatter': 'verbose',
+            'level': 'ERROR',
+            'maxBytes': 1024 * 1024 * 5,
+            'backupCount': 3,
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file_django'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console', 'file_db'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'speakbranch': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.users': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.attempts': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.exams': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.questions': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.courses': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.vocabulary': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'speakbranch.external_api': {
+            'handlers': ['console', 'file', 'file_errors'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+    },
+}

@@ -1,0 +1,36 @@
+# users/urls.py
+from django.urls import path
+from rest_framework_simplejwt.views import TokenRefreshView
+
+from users.views.auth_views import (
+    ConfirmEmailView,
+    LoginView,
+    LogoutView,
+    PasswordChangeView,
+    PasswordResetConfirmView,
+    PasswordResetRequestView,
+    RegisterView,
+)
+from users.views.oauth_views import GoogleOAuthCallbackView, GoogleOAuthRedirectView
+
+urlpatterns = [
+    # --- Registration & email confirmation ---
+    path('register/', RegisterView.as_view(), name='auth-register'),
+    path('confirm-email/<str:token>/', ConfirmEmailView.as_view(), name='auth-confirm-email'),
+
+    # --- Session ---
+    path('login/', LoginView.as_view(), name='auth-login'),
+    path('logout/', LogoutView.as_view(), name='auth-logout'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),
+
+    # --- Password reset (unauthenticated) ---
+    path('password/reset/', PasswordResetRequestView.as_view(), name='auth-password-reset'),
+    path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='auth-password-reset-confirm'),
+
+    # --- Password change (requires JWT) ---
+    path('password/change/', PasswordChangeView.as_view(), name='auth-password-change'),
+
+    # --- Google OAuth ---
+    path('google/', GoogleOAuthRedirectView.as_view(), name='auth-google'),
+    path('google/callback/', GoogleOAuthCallbackView.as_view(), name='auth-google-callback'),
+]

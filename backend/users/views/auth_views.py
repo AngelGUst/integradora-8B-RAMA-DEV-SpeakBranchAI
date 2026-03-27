@@ -80,6 +80,9 @@ class RegisterView(APIView):
         token = signing.dumps({'user_id': user.pk}, salt=EMAIL_CONFIRM_SALT)
         confirm_url = f"{settings.FRONTEND_URL}/auth/confirm-email/{token}"
 
+        if settings.DEBUG:
+            print(f"\n{'='*60}\n[DEV] Email confirmation URL for {user.email}:\n{confirm_url}\n{'='*60}\n")
+
         send_mail(
             subject='Confirm your SpeakBranch account',
             message=(

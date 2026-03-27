@@ -1,5 +1,5 @@
 # users/urls.py
-from django.urls import path
+from django.urls import path, re_path
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from users.views.auth_views import (
@@ -16,7 +16,7 @@ from users.views.oauth_views import GoogleOAuthCallbackView, GoogleOAuthRedirect
 urlpatterns = [
     # --- Registration & email confirmation ---
     path('register/', RegisterView.as_view(), name='auth-register'),
-    path('confirm-email/<str:token>/', ConfirmEmailView.as_view(), name='auth-confirm-email'),
+    re_path(r'^confirm-email/(?P<token>[^/]+)/$', ConfirmEmailView.as_view(), name='auth-confirm-email'),
 
     # --- Session ---
     path('login/', LoginView.as_view(), name='auth-login'),

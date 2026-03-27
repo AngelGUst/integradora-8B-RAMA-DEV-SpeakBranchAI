@@ -11,7 +11,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-s5heit5jy7)u&s#o!qg(ivm1g8&v2_9--vw9#bamw3q9-h)wkc')
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 DEBUG = True
 
@@ -228,6 +228,8 @@ STATIC_URL = 'static/'
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
 
+ROTATING_HANDLER = 'logging.handlers.RotatingFileHandler'
+
 LOGS_DIR = BASE_DIR.parent / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 
@@ -253,7 +255,7 @@ LOGGING = {
             'level': LOG_LEVEL,
         },
         'file': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': ROTATING_HANDLER,
             'filename': LOGS_DIR / 'debug.log',
             'formatter': 'verbose',
             'level': LOG_LEVEL,
@@ -261,7 +263,7 @@ LOGGING = {
             'backupCount': 3,
         },
         'file_django': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': ROTATING_HANDLER,
             'filename': LOGS_DIR / 'django.log',
             'formatter': 'verbose',
             'level': 'INFO',
@@ -269,7 +271,7 @@ LOGGING = {
             'backupCount': 3,
         },
         'file_db': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': ROTATING_HANDLER,
             'filename': LOGS_DIR / 'database.log',
             'formatter': 'verbose',
             'level': 'DEBUG',
@@ -277,7 +279,7 @@ LOGGING = {
             'backupCount': 3,
         },
         'file_errors': {
-            'class': 'logging.handlers.RotatingFileHandler',
+            'class': ROTATING_HANDLER,
             'filename': LOGS_DIR / 'errors.log',
             'formatter': 'verbose',
             'level': 'ERROR',

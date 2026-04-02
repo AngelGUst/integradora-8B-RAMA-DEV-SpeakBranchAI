@@ -5,6 +5,8 @@ from .models import (
     ListeningAttempt, WritingAttempt
 )
 
+FIELDSET_USER_QUESTION = 'Usuario y Pregunta'
+
 class BaseAttemptAdmin(admin.ModelAdmin):
     """Clase base con configuración común"""
     list_filter = ('difficulty', 'created_at')
@@ -23,7 +25,7 @@ class SpeakingAttemptAdmin(BaseAttemptAdmin):
                    'attempts_count', 'xp_earned', 'created_at')
     list_display_links = ('user_email',)
     fieldsets = (
-        ('Usuario y Pregunta', {
+        (FIELDSET_USER_QUESTION, {
             'fields': ('user', 'question')
         }),
         ('Textos', {
@@ -46,7 +48,7 @@ class ReadingAttemptAdmin(BaseAttemptAdmin):
     list_display_links = ('user_email',)
     list_filter = BaseAttemptAdmin.list_filter + ('correct',)
     fieldsets = (
-        ('Usuario y Pregunta', {
+        (FIELDSET_USER_QUESTION, {
             'fields': ('user', 'question')
         }),
         ('Respuesta', {
@@ -70,7 +72,7 @@ class ListeningAttemptAdmin(BaseAttemptAdmin):
     list_display_links = ('user_email',)
     list_filter = BaseAttemptAdmin.list_filter + ('listening_type',)
     fieldsets = (
-        ('Usuario y Pregunta', {
+        (FIELDSET_USER_QUESTION, {
             'fields': ('user', 'question', 'listening_type')
         }),
         ('Shadowing', {
@@ -97,7 +99,7 @@ class WritingAttemptAdmin(BaseAttemptAdmin):
     list_display = ('user_email', 'question_id', 'score', 'xp_earned', 'created_at')
     list_display_links = ('user_email',)
     fieldsets = (
-        ('Usuario y Pregunta', {
+        (FIELDSET_USER_QUESTION, {
             'fields': ('user', 'question')
         }),
         ('Textos', {

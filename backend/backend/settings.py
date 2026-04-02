@@ -11,8 +11,6 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
-# settings.py
-from pathlib import Path
 import os
 from dotenv import load_dotenv
 
@@ -27,6 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-s5heit5jy7)u&s#o!qg(ivm1g8&v2_9--vw9#bamw3q9-h)wkc'
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -49,9 +49,13 @@ INSTALLED_APPS = [
     'attempts.apps.AttemptsConfig',
     'exams.apps.ExamsConfig',
     'vocabulary.apps.VocabularyConfig',    
+    'rest_framework',
+    'corsheaders',
+    'django_extensions'
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -134,3 +138,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]

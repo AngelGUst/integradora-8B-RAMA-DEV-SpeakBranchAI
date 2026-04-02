@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find C:UserstheisDownloadsclase_logger_dclase_logger_d -maxdepth 3 -type f ! -path */venv/* ! -path */__pycache__/* ! -path *.pyc)"
+    ]
+  }
+}

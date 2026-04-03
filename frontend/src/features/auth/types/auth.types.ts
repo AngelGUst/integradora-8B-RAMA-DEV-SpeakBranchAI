@@ -42,8 +42,8 @@ export interface LoginResponse extends AuthTokens {
   user: User;
 }
 
-export interface RegisterResponse extends AuthTokens {
-  user: User;
+export interface RegisterResponse {
+  message: string;
 }
 
 export interface LoginCredentials {
@@ -54,7 +54,6 @@ export interface LoginCredentials {
 export interface RegisterCredentials {
   email: string;
   password: string;
+  confirm_password: string;
   first_name: string;
-  age?: number;
-  gender?: Gender;
 }

@@ -51,9 +51,8 @@ function BrandPanel() {
               initial={{ opacity: 0, x: -32 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.1 + i * 0.1 }}
-              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${
-                i === 2 ? 'gradient-text' : 'text-white'
-              }`}
+              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${i === 2 ? 'gradient-text' : 'text-white'
+                }`}
             >
               {word}
             </motion.p>
@@ -104,9 +103,12 @@ export default function LoginPage() {
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        const body = err.response?.data as ApiError | undefined;
+        const body = err.response?.data as ApiError | Record<string, string> | undefined;
         setServerError(
-          body?.detail ?? body?.non_field_errors?.[0] ?? 'Invalid email or password.',
+          (body as ApiError | undefined)?.detail
+          ?? (body as ApiError | undefined)?.non_field_errors?.[0]
+          ?? (body as Record<string, string> | undefined)?.error
+          ?? 'Invalid email or password.',
         );
       } else {
         setServerError('An unexpected error occurred. Please try again.');

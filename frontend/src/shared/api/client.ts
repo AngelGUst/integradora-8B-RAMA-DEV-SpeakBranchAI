@@ -34,6 +34,10 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
+      // Don't redirect if using the dev mock token
+      if (localStorage.getItem(TOKEN_KEY) === 'mock-dev-token') {
+        return Promise.reject(error);
+      }
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_KEY);
       // Avoid hard redirect if already on auth pages

@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 
@@ -19,6 +20,7 @@ from users.serializers import (
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
     RegisterSerializer,
+    UserSerializer,
 )
 
 # Distinct salts prevent a token issued for one purpose being reused for another
@@ -158,6 +160,20 @@ class ConfirmEmailView(APIView):
 # ---------------------------------------------------------------------------
 # Login / logout
 # ---------------------------------------------------------------------------
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @extend_schema(
+        summary='Get current user profile',
+        responses={200: UserSerializer},
+        tags=['Auth'],
+    )
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class LoginView(APIView):
     permission_classes = [AllowAny]

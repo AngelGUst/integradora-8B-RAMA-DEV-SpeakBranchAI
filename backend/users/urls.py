@@ -6,6 +6,7 @@ from users.views.auth_views import (
     ConfirmEmailView,
     LoginView,
     LogoutView,
+    MeView,
     PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -19,6 +20,7 @@ urlpatterns = [
     re_path(r'^confirm-email/(?P<token>[^/]+)/$', ConfirmEmailView.as_view(), name='auth-confirm-email'),
 
     # --- Session ---
+    path('me/', MeView.as_view(), name='auth-me'),
     path('login/', LoginView.as_view(), name='auth-login'),
     path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),

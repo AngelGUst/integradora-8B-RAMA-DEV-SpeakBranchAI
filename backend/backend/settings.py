@@ -44,8 +44,6 @@ INSTALLED_APPS = [
     'attempts.apps.AttemptsConfig',
     'exams.apps.ExamsConfig',
     'vocabulary.apps.VocabularyConfig',
-    'rest_framework',
-    'corsheaders',
     'django_extensions'
 ]
 
@@ -160,6 +158,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',    # React / Next.js dev server
     'http://localhost:5173',    # Vite dev server
+    'http://192.168.0.179:5173',
 ]
 
 # Allow credentials (cookies / Authorization header) on cross-origin requests
@@ -227,20 +226,6 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 
 STATIC_URL = 'static/'
-
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',
-    ],
-    'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-}
-
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:5173',
-]
-
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
 

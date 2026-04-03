@@ -3,21 +3,63 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import RegisterPage from '@/features/auth/pages/RegisterPage';
+import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
+import DashboardPage from '@/features/dashboard/pages/DashboardPage';
+import LearnPathPage from '@/features/learn/pages/LearnPathPage';
+import ExercisePage from '@/features/exercises/pages/ExercisePage';
 import Logo from '@/shared/components/ui/Logo';
+
+// ── Placement helper ──────────────────────────────────────────
+
+const PLACEMENT_KEY = 'sb_placement_done';
+
+function isPlacementDone(): boolean {
+  return localStorage.getItem(PLACEMENT_KEY) === 'true';
+}
 
 // ── Route guards ──────────────────────────────────────────────
 
+/**
+ * Public-only route: redirects authenticated users.
+ * After auth, sends to /onboarding if placement not done, else /dashboard.
+ */
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing } = useAuth();
   if (isInitializing) return <AppLoader />;
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
+  if (isAuthenticated) {
+    return <Navigate to={isPlacementDone() ? '/learn' : '/onboarding'} replace />;
+  }
   return <>{children}</>;
 }
 
-function PrivateRoute({ children }: { children: React.ReactNode }) {
+/**
+ * Private route: requires authentication.
+ * Optionally requires placement test to be completed first.
+ */
+function PrivateRoute({
+  children,
+  requiresPlacement = false,
+}: {
+  children: React.ReactNode;
+  requiresPlacement?: boolean;
+}) {
   const { isAuthenticated, isInitializing } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (requiresPlacement && !isPlacementDone()) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  return <>{children}</>;
+}
+
+/**
+ * Onboarding route: requires auth, but redirects if placement already done.
+ */
+function OnboardingRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isInitializing } = useAuth();
+  if (isInitializing) return <AppLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (isPlacementDone()) return <Navigate to="/learn" replace />;
   return <>{children}</>;
 }
 
@@ -27,9 +69,7 @@ function AppLoader() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#07090F]">
       <div className="relative">
-        {/* Outer rotating ring */}
         <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
-        {/* Center logo mark */}
         <div className="absolute inset-0 flex items-center justify-center">
           <Logo size="xs" showText={false} />
         </div>
@@ -37,44 +77,6 @@ function AppLoader() {
       <p className="animate-pulse text-xs text-slate-600 tracking-wider">
         Loading SpeakBranch…
       </p>
-    </div>
-  );
-}
-
-// ── Placeholder pages ─────────────────────────────────────────
-
-function DashboardPlaceholder() {
-  const { user, logout } = useAuth();
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#07090F]">
-      <Logo size="lg" />
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-white">
-          Welcome back,{' '}
-          <span className="text-emerald-400">{user?.first_name}</span> 👋
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Dashboard under construction · Level:{' '}
-          <strong className="text-emerald-400">{user?.level}</strong>
-        </p>
-      </div>
-      <button
-        onClick={() => void logout()}
-        className="rounded-xl border border-white/10 px-5 py-2 text-sm font-medium text-slate-400 transition-all hover:border-white/20 hover:text-white"
-      >
-        Sign out
-      </button>
-    </div>
-  );
-}
-
-function OnboardingPlaceholder() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-[#07090F]">
-      <div className="text-center space-y-3">
-        <Logo size="lg" />
-        <p className="text-slate-500">Placement test — coming soon.</p>
-      </div>
     </div>
   );
 }
@@ -97,14 +99,28 @@ export default function AppRouter() {
         element={<PublicRoute><RegisterPage /></PublicRoute>}
       />
 
-      {/* Private */}
-      <Route
-        path="/dashboard"
-        element={<PrivateRoute><DashboardPlaceholder /></PrivateRoute>}
-      />
+      {/* Onboarding — placement test (auth required, placement not done) */}
       <Route
         path="/onboarding"
-        element={<PrivateRoute><OnboardingPlaceholder /></PrivateRoute>}
+        element={<OnboardingRoute><PlacementTestPage /></OnboardingRoute>}
+      />
+
+      {/* Dashboard (auth + placement required) */}
+      <Route
+        path="/dashboard"
+        element={<PrivateRoute requiresPlacement><DashboardPage /></PrivateRoute>}
+      />
+
+      {/* Learn path — curriculum node map */}
+      <Route
+        path="/learn"
+        element={<PrivateRoute requiresPlacement><LearnPathPage /></PrivateRoute>}
+      />
+
+      {/* Exercise player */}
+      <Route
+        path="/exercise/:id"
+        element={<PrivateRoute requiresPlacement><ExercisePage /></PrivateRoute>}
       />
 
       {/* Fallback */}

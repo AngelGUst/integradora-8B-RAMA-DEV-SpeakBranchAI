@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/authApi';
 import RegisterForm from '../components/RegisterForm';
 import Logo from '@/shared/components/ui/Logo';
@@ -52,9 +51,8 @@ function BrandPanel() {
               initial={{ opacity: 0, x: -32 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.1 + i * 0.1 }}
-              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${
-                i === 2 ? 'gradient-text' : 'text-white'
-              }`}
+              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${i === 2 ? 'gradient-text' : 'text-white'
+                }`}
             >
               {word}
             </motion.p>
@@ -75,11 +73,10 @@ function BrandPanel() {
             {CEFR_STEPS.map(({ label }, i) => (
               <div
                 key={label}
-                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all ${
-                  i === 0
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all ${i === 0
                     ? 'border border-violet-500/40 bg-violet-500/15 text-violet-400'
                     : 'border border-white/[0.06] bg-white/[0.03] text-slate-600'
-                }`}
+                  }`}
               >
                 {label}
               </div>
@@ -99,10 +96,10 @@ function BrandPanel() {
         >
           {(
             [
-              { n: '4',    desc: 'Core skills' },
-              { n: '∞',    desc: 'AI exercises' },
-              { n: '6',    desc: 'CEFR levels'  },
-              { n: '100%', desc: 'Adaptive'     },
+              { n: '4', desc: 'Core skills' },
+              { n: '∞', desc: 'AI exercises' },
+              { n: '6', desc: 'CEFR levels' },
+              { n: '100%', desc: 'Adaptive' },
             ] as const
           ).map(({ n, desc }) => (
             <div
@@ -131,30 +128,36 @@ function BrandPanel() {
 // ── Page ─────────────────────────────────────────────────────
 
 export default function RegisterPage() {
-  const { login } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [serverSuccess, setServerSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (data: RegisterFormData) => {
     setServerError(null);
+    setServerSuccess(null);
     try {
       const res = await authApi.register({
         email: data.email,
         password: data.password,
+        confirm_password: data.confirmPassword,
         first_name: data.first_name,
-        age: data.age,
-        gender: data.gender,
       });
-      login(res.access, res.refresh, res.user);
-      navigate('/onboarding', { replace: true });
+      setServerSuccess(res.message);
+      setTimeout(() => navigate('/login', { replace: true }), 1200);
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        const body = err.response?.data as ApiError | undefined;
-        const firstField = body?.errors
-          ? Object.values(body.errors).flat()[0]
+        const body = err.response?.data as ApiError | Record<string, string[] | string> | undefined;
+        const fieldErrors = body && typeof body === 'object' && 'errors' in body
+          ? (body as ApiError).errors
           : undefined;
+        const directField = body && typeof body === 'object'
+          ? Object.values(body).flat?.()?.[0]
+          : undefined;
+        const firstField = fieldErrors
+          ? Object.values(fieldErrors).flat()[0]
+          : (typeof directField === 'string' ? directField : undefined);
         setServerError(
-          firstField ?? body?.detail ?? body?.non_field_errors?.[0] ?? 'Registration failed.',
+          firstField ?? (body as ApiError | undefined)?.detail ?? (body as ApiError | undefined)?.non_field_errors?.[0] ?? (body as ApiError | undefined)?.message ?? 'Registration failed.',
         );
       } else {
         setServerError('An unexpected error occurred. Please try again.');
@@ -205,7 +208,7 @@ export default function RegisterPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
-            <RegisterForm onSubmit={handleSubmit} serverError={serverError} />
+            <RegisterForm onSubmit={handleSubmit} serverError={serverError} serverSuccess={serverSuccess} />
           </motion.div>
 
           {/* Divider */}

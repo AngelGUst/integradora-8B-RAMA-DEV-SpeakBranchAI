@@ -1,0 +1,380 @@
+/**
+ * DashboardPage — SpeakBranch AI
+ *
+ * Stats & overview hub. XP and completion state come from localStorage via
+ * useLearnProgress so they always reflect the user's actual progress.
+ *
+ * Key features:
+ *  - Live "next exercise" CTA → navigates directly to /exercise/:id
+ *  - "Practicar" per skill → finds the next unlocked exercise for that skill
+ *  - Adaptive engine window (last 3 XP scores → derived difficulty)
+ *  - Certification path timeline
+ *  - Performance trajectory chart (VicissitudesEngine)
+ */
+
+import { useNavigate } from 'react-router-dom';
+import {
+  Mic, Headphones, BookOpen, Repeat,
+  Trophy, Flame, Zap, ArrowRight, CheckCircle2, Lock,
+} from 'lucide-react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
+import AppSidebar from '@/shared/components/layout/AppSidebar';
+import VicissitudesEngine from '../components/VicissitudesEngine';
+import { LEARN_PATH } from '@/features/learn/data/pathData';
+import type { LessonNode } from '@/features/learn/data/pathData';
+
+// ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
+
+const WINDOW_SIZE    = 3;
+const THRESHOLD_UP   = 16.0;
+const THRESHOLD_DOWN = 10.0;
+const RECENT_XP      = [18, 15, 21]; // TODO: read from last N attempts in localStorage/backend
+const AVG            = RECENT_XP.reduce((a, b) => a + b, 0) / RECENT_XP.length;
+const NEXT_DIFF      = AVG >= THRESHOLD_UP ? 'HARD' : AVG < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+
+// ─── CEFR path data ───────────────────────────────────────────────────────────
+
+const CEFR_STEPS = [
+  { level: 'A1', label: 'Beginner'        },
+  { level: 'A2', label: 'Elementary'      },
+  { level: 'B1', label: 'Intermediate'    },
+  { level: 'B2', label: 'Upper-Int.'      },
+  { level: 'C1', label: 'Advanced'        },
+  { level: 'C2', label: 'Mastery'         },
+] as const;
+
+// ─── Skill definitions ────────────────────────────────────────────────────────
+
+const SKILLS = [
+  { key: 'reading',       label: 'Reading',            Icon: BookOpen,   desc: 'Comprensión lectora con textos CEFR.',             score: 82 },
+  { key: 'speaking',      label: 'Speaking',           Icon: Mic,        desc: 'Pronunciación evaluada por IA (Whisper).',         score: 68 },
+  { key: 'shadowing',     label: 'Listening · Shadow', Icon: Repeat,     desc: 'Escucha y replica: entrena oído y pronunciación.', score: 45 },
+  { key: 'comprehension', label: 'Listening · Comp.',  Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.',      score: 59 },
+] as const;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns the first unlocked, uncompleted node across all sections. */
+function findCurrentNode(completedIds: string[], totalXP: number): LessonNode | null {
+  for (const section of LEARN_PATH) {
+    if (totalXP < section.xpRange[0]) continue;
+    for (let i = 0; i < section.nodes.length; i++) {
+      const node = section.nodes[i];
+      if (completedIds.includes(node.id)) continue;
+      const prevDone = section.nodes.slice(0, i).every(n => completedIds.includes(n.id));
+      if (prevDone) return node;
+    }
+  }
+  return null;
+}
+
+/** Returns the next unlocked, uncompleted node for a specific skill type. */
+function findNextBySkill(skill: string, completedIds: string[], totalXP: number): string | null {
+  for (const section of LEARN_PATH) {
+    if (totalXP < section.xpRange[0]) continue;
+    for (let i = 0; i < section.nodes.length; i++) {
+      const node = section.nodes[i];
+      if (node.skill !== skill) continue;
+      if (completedIds.includes(node.id)) continue;
+      const prevDone = section.nodes.slice(0, i).every(n => completedIds.includes(n.id));
+      if (prevDone) return node.id;
+    }
+  }
+  return null;
+}
+
+// ─── Badge ────────────────────────────────────────────────────────────────────
+
+type BadgeVariant = 'default' | 'success' | 'warning' | 'hard' | 'medium' | 'easy';
+const BADGE_STYLES: Record<BadgeVariant, string> = {
+  default: 'bg-zinc-800 text-zinc-300',
+  success: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+  warning: 'bg-amber-500/15  text-amber-400  border border-amber-500/20',
+  hard:    'bg-purple-500/15 text-purple-400 border border-purple-500/20',
+  medium:  'bg-sky-500/15    text-sky-400    border border-sky-500/20',
+  easy:    'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+};
+
+function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: BadgeVariant }) {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${BADGE_STYLES[variant]}`}>
+      {children}
+    </span>
+  );
+}
+
+const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
+  reading:       { text: 'text-sky-400',     Icon: BookOpen   },
+  speaking:      { text: 'text-emerald-400', Icon: Mic        },
+  shadowing:     { text: 'text-violet-400',  Icon: Repeat     },
+  comprehension: { text: 'text-amber-400',   Icon: Headphones },
+  checkpoint:    { text: 'text-yellow-400',  Icon: Trophy     },
+  exam:          { text: 'text-rose-400',    Icon: Trophy     },
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const { user }                  = useAuth();
+  const { totalXP, completedIds } = useLearnProgress();
+  const navigate                  = useNavigate();
+
+  const currentNode  = findCurrentNode(completedIds, totalXP);
+  const currentMeta  = currentNode ? SKILL_META[currentNode.skill] : null;
+  const CurrentIcon  = currentMeta?.Icon;
+
+  const activeLvl = (user?.level && ['A1','A2','B1','B2','C1','C2'].includes(user.level))
+    ? user.level : 'A1';
+  const activeLvlIdx = CEFR_STEPS.findIndex(s => s.level === activeLvl);
+
+  return (
+    <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
+      <AppSidebar />
+
+      <main className="flex-1 h-screen overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-8 py-8 space-y-8">
+
+          {/* ── Header ── */}
+          <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight leading-none mb-1">
+                Hola, {user?.first_name || 'Piloto'}
+              </h1>
+              <p className="text-zinc-400 text-sm">
+                Nivel <span className="text-zinc-200 font-medium">{activeLvl}</span> · Sigue practicando para avanzar.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800 p-3 rounded-xl">
+              <div className="flex items-center gap-3 px-3">
+                <div className="p-2 bg-amber-500/10 rounded-lg"><Flame size={18} className="text-amber-500" /></div>
+                <div>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Racha</p>
+                  <p className="text-lg font-semibold leading-none">3 <span className="text-sm font-normal text-zinc-500">días</span></p>
+                </div>
+              </div>
+              <div className="w-px h-9 bg-zinc-800" />
+              <div className="flex items-center gap-3 px-3">
+                <div className="p-2 bg-emerald-500/10 rounded-lg"><Zap size={18} className="text-emerald-400" /></div>
+                <div>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Total XP</p>
+                  <p className="text-lg font-semibold leading-none text-emerald-400">{totalXP} <span className="text-sm font-normal text-zinc-500">XP</span></p>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* ── Next exercise CTA ── */}
+          {currentNode ? (
+            <button
+              onClick={() => navigate(`/exercise/${currentNode.id}`)}
+              className="w-full flex items-center justify-between gap-4 p-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] hover:bg-emerald-500/[0.10] hover:border-emerald-500/40 transition-all group text-left"
+            >
+              <div className="flex items-center gap-4">
+                {CurrentIcon && (
+                  <div className={`p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/25`}>
+                    <CurrentIcon size={22} className={currentMeta?.text ?? 'text-emerald-400'} />
+                  </div>
+                )}
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-emerald-500/80 font-semibold mb-0.5">Continuar donde lo dejaste</p>
+                  <p className="font-semibold text-zinc-100 text-base leading-tight">{currentNode.title}</p>
+                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{currentNode.skill.replace('_', ' ')} · {currentNode.xpMax} XP máx</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 bg-emerald-500 group-hover:bg-emerald-400 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0">
+                Comenzar <ArrowRight size={15} />
+              </div>
+            </button>
+          ) : (
+            <div className="w-full flex items-center gap-4 p-5 rounded-2xl border border-zinc-800 bg-zinc-900/40">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Trophy size={22} className="text-emerald-400" />
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-100">¡Nivel A1 completado!</p>
+                <p className="text-sm text-zinc-500">Espera el desbloqueo de A2 o practica ejercicios anteriores.</p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Performance chart ── */}
+          <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="font-semibold text-zinc-100">Trayectoria de Rendimiento</h2>
+                <Badge variant="success">Motor Activo</Badge>
+              </div>
+              <button
+                onClick={() => navigate('/learn')}
+                className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors"
+              >
+                Ver ruta completa <ArrowRight size={12} />
+              </button>
+            </div>
+            <div className="h-64 w-full bg-[#06080F] relative">
+              <div className="absolute top-3 left-5 z-10">
+                <p className="text-xs text-zinc-600 font-mono">Últimas {WINDOW_SIZE} interacciones</p>
+              </div>
+              <VicissitudesEngine />
+            </div>
+          </section>
+
+          {/* ── Bottom grid ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {/* Left col: engine window + cert path */}
+            <div className="space-y-6">
+
+              {/* Sliding window */}
+              <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-5">
+                  <h3 className="font-medium text-zinc-100 text-sm">Ventana Adaptativa</h3>
+                  <span className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold">n={WINDOW_SIZE}</span>
+                </div>
+
+                <div className="flex items-end gap-2 h-20 mb-5">
+                  {RECENT_XP.map((xp, i) => {
+                    const pct = (xp / 30) * 100;
+                    const color = xp >= THRESHOLD_UP ? 'bg-purple-500' : xp < THRESHOLD_DOWN ? 'bg-emerald-500' : 'bg-sky-500';
+                    return (
+                      <div key={i} className="flex-1 flex flex-col justify-end gap-1">
+                        <div className="relative bg-zinc-950 border border-zinc-800 rounded-t-sm overflow-hidden" style={{ height: `${Math.max(10, pct)}%` }}>
+                          <div className={`absolute bottom-0 w-full h-1 ${color}`} />
+                        </div>
+                        <p className="text-center text-[10px] text-zinc-600 font-mono tabular-nums">{xp}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-zinc-800">
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Promedio</p>
+                    <p className="text-sm font-semibold text-zinc-200">{AVG.toFixed(1)} / 30.0</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Dificultad</p>
+                    <Badge variant={NEXT_DIFF.toLowerCase() as BadgeVariant}>{NEXT_DIFF}</Badge>
+                  </div>
+                </div>
+              </section>
+
+              {/* Certification path */}
+              <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
+                <h3 className="font-medium text-zinc-100 text-sm mb-5">Ruta de Certificación</h3>
+                <div className="relative">
+                  <div className="absolute left-3 top-2 bottom-4 w-px bg-zinc-800" />
+                  <div className="space-y-5">
+                    {CEFR_STEPS.map((step, idx) => {
+                      const isCurrent = step.level === activeLvl;
+                      const isPast    = idx < activeLvlIdx;
+                      return (
+                        <div key={step.level} className="flex gap-4 relative z-10">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors
+                            ${isCurrent ? 'bg-emerald-500 border-emerald-500' : isPast ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-800'}`}>
+                            {isPast    && <CheckCircle2 size={11} className="text-zinc-400" />}
+                            {isCurrent && <div className="w-2 h-2 bg-white rounded-full" />}
+                          </div>
+                          <div>
+                            <p className={`text-sm font-medium ${isCurrent ? 'text-emerald-400' : isPast ? 'text-zinc-400' : 'text-zinc-700'}`}>
+                              {step.level}
+                            </p>
+                            <p className="text-xs text-zinc-600">{step.label}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="flex gap-4 relative z-10">
+                      <div className="w-6 h-6 rounded-full bg-zinc-950 border-2 border-zinc-800 flex items-center justify-center shrink-0">
+                        <Trophy size={11} className="text-zinc-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-zinc-600">TOEFL</p>
+                        <p className="text-xs text-zinc-700">Examen final</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {/* Right col: skill modules */}
+            <div className="lg:col-span-2 space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Módulos de Práctica</h2>
+                <p className="text-sm text-zinc-500 mt-0.5">
+                  El motor sugiere la habilidad con menor rendimiento. Puedes practicar cualquiera.
+                </p>
+              </div>
+
+              {SKILLS.map(skill => {
+                const nextId      = findNextBySkill(skill.key, completedIds, totalXP);
+                const recommended = skill.key === 'shadowing'; // lowest score → recommended
+
+                return (
+                  <div
+                    key={skill.key}
+                    className={`flex items-center justify-between p-5 rounded-xl border transition-all ${
+                      recommended
+                        ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
+                        : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-lg ${recommended ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
+                        <skill.Icon size={20} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h4 className="text-zinc-100 font-medium text-sm">{skill.label}</h4>
+                          {recommended && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                              Sugerido
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500">{skill.desc}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-6">
+                      <div className="hidden sm:block text-right">
+                        <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Score</p>
+                        <div className="flex items-end gap-0.5">
+                          <span className="text-lg font-semibold text-zinc-200 leading-none">{skill.score}</span>
+                          <span className="text-xs text-zinc-600 mb-0.5">/100</span>
+                        </div>
+                      </div>
+
+                      {nextId ? (
+                        <button
+                          onClick={() => navigate(`/exercise/${nextId}`)}
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all shrink-0 ${
+                            recommended
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+                          }`}
+                        >
+                          Practicar
+                          {recommended && <ArrowRight size={14} />}
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
+                          <Lock size={13} />
+                          Bloqueado
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

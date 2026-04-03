@@ -72,7 +72,6 @@ class Question(models.Model):
     )
     phonetic_text = models.CharField(
         max_length=300,
-        null=True,
         blank=True,
         verbose_name='transcripción fonética',
         help_text='Transcripción IPA ej: /dɒɡ/'

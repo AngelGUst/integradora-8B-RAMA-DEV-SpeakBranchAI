@@ -37,7 +37,6 @@ class Exam(models.Model):
     )
     description = models.TextField(
         blank=True,
-        null=True,
         verbose_name='descripción'
     )
     xp_required = models.IntegerField(

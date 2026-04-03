@@ -26,13 +26,11 @@ class Vocabulary(models.Model):
     pronunciation = models.CharField(
         max_length=200,
         blank=True,
-        null=True,
         verbose_name='pronunciación',
         help_text='Ej: /dɒɡ/'
     )
     example_sentence = models.TextField(
         blank=True,
-        null=True,
         verbose_name='oración de ejemplo'
     )
     level = models.CharField(
@@ -43,7 +41,6 @@ class Vocabulary(models.Model):
     category = models.CharField(
         max_length=50,
         blank=True,
-        null=True,
         verbose_name='categoría',
         help_text='Ej: Animals, Food, Business, etc.'
     )

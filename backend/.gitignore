@@ -16,3 +16,4 @@ logs/
 # Ignorar archivos de logs
 logs/
 *.log
+

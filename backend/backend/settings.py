@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'attempts.apps.AttemptsConfig',
     'exams.apps.ExamsConfig',
     'vocabulary.apps.VocabularyConfig',
+    'rest_framework',
+    'corsheaders',
+    'django_extensions'
 ]
 
 # ---------------------------------------------------------------------------
@@ -224,6 +227,19 @@ USE_TZ = True
 # ---------------------------------------------------------------------------
 
 STATIC_URL = 'static/'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
 
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')

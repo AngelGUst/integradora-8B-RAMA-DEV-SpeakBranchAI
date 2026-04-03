@@ -1,0 +1,6 @@
+INFO 2026-03-26 02:08:33 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-03-30 21:44:10 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-03-30 22:46:06 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\backend\urls.py changed, reloading.
+INFO 2026-03-30 22:46:07 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+WARNING 2026-03-30 22:48:50 django.server log_message:249 - "GET / HTTP/1.1" 404 2316
+WARNING 2026-03-30 22:48:50 django.server log_message:249 - "GET /favicon.ico HTTP/1.1" 404 2367

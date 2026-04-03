@@ -28,7 +28,6 @@ class Course(models.Model):
     )
     description = models.TextField(
         blank=True,
-        null=True,
         verbose_name='descripción'
     )
     created_at = models.DateTimeField(

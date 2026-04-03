@@ -51,9 +51,8 @@ function BrandPanel() {
               initial={{ opacity: 0, x: -32 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1], delay: 0.1 + i * 0.1 }}
-              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${
-                i === 2 ? 'gradient-text' : 'text-white'
-              }`}
+              className={`block text-[clamp(2.5rem,4vw,4rem)] font-black tracking-tighter leading-[0.9] ${i === 2 ? 'gradient-text' : 'text-white'
+                }`}
             >
               {word}
             </motion.p>
@@ -74,11 +73,10 @@ function BrandPanel() {
             {CEFR_STEPS.map(({ label }, i) => (
               <div
                 key={label}
-                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all ${
-                  i === 0
+                className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-xs font-bold transition-all ${i === 0
                     ? 'border border-violet-500/40 bg-violet-500/15 text-violet-400'
                     : 'border border-white/[0.06] bg-white/[0.03] text-slate-600'
-                }`}
+                  }`}
               >
                 {label}
               </div>
@@ -98,10 +96,10 @@ function BrandPanel() {
         >
           {(
             [
-              { n: '4',    desc: 'Core skills' },
-              { n: '∞',    desc: 'AI exercises' },
-              { n: '6',    desc: 'CEFR levels'  },
-              { n: '100%', desc: 'Adaptive'     },
+              { n: '4', desc: 'Core skills' },
+              { n: '∞', desc: 'AI exercises' },
+              { n: '6', desc: 'CEFR levels' },
+              { n: '100%', desc: 'Adaptive' },
             ] as const
           ).map(({ n, desc }) => (
             <div

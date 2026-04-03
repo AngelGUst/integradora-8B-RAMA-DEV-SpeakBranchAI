@@ -1,17 +1,21 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import LandingPage from './LandingPage';
-import SpeakingExercise from './components/speaking/SpeakingExercise';
-import QuestionsPage from './pages/admin/QuestionsPage';
+import { BrowserRouter } from 'react-router-dom';
+import { AuthProvider } from '@/features/auth/context/AuthContext';
+import AppRouter from '@/router';
 
-function App() {
+/**
+ * Application root.
+ *
+ * Provider order (outer → inner):
+ *  1. BrowserRouter — makes React Router hooks available everywhere
+ *  2. AuthProvider  — exposes authentication state via context
+ *  3. AppRouter     — declares the route tree
+ */
+export default function App() {
   return (
-    <Routes>
-      <Route path="/"                  element={<LandingPage />} />
-      <Route path="/speaking"          element={<SpeakingExercise />} />
-      <Route path="/admin/questions"   element={<QuestionsPage />} />
-      <Route path="*"                  element={<Navigate to="/" replace />} />
-    </Routes>
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </BrowserRouter>
   );
 }
-
-export default App;

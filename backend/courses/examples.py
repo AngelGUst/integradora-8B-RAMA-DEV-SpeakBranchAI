@@ -149,15 +149,15 @@ result2 = LessonCompletionService.complete_lesson(
     score=95.5  # Mejor que 92.5
 )
 
-print(f"✓ Reintento completado:")
-print(f"  - Score anterior: 92.5")
-print(f"  - Score nuevo: 95.5")
+print("✓ Reintento completado:")
+print("  - Score anterior: 92.5")
+print("  - Score nuevo: 95.5")
 print(f"  - Score guardado: {result2['score']} (el mejor ✓)")
-print(f"  - Intentos: 2")
+print("  - Intentos: 2")
 
 # Verificar que el score es el mejor
 progress = LessonProgressService.get_lesson_progress(user, lesson1)
-print(f"\nProgreso en bd:")
+print("\nProgreso en bd:")
 print(f"  - Score: {progress.score}")
 print(f"  - XP ganado: {progress.xp_earned}")
 print(f"  - Intentos: {progress.attempts}")

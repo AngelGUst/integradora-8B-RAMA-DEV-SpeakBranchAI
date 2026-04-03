@@ -1,2 +1,19 @@
 # Environment variables
+# Python
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+
+# Env
 .env
+
+# VS Code
+.vscode/
+
+# Ignorar archivos de logs
+logs/
+*.log
+

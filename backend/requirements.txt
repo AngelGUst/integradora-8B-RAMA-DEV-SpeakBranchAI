@@ -48,4 +48,19 @@ tqdm==4.67.3
 typer==0.24.1
 typing_extensions==4.15.0
 tzdata==2025.3
+
+# REST Framework
+djangorestframework==3.16.0
+
+# JWT Authentication
+djangorestframework-simplejwt==5.5.0
+
+# CORS headers
+django-cors-headers==4.7.0
+
+# Google OAuth HTTP calls
+requests==2.32.3
+
+# API documentation (Swagger UI + ReDoc)
+drf-spectacular==0.28.0
 win32_setctime==1.2.0

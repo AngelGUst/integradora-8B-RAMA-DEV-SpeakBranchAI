@@ -67,8 +67,8 @@ class WritingAttempt(models.Model):
     
     # Feedback de IA
     ai_feedback = models.TextField(
-        null=True,
         blank=True,
+        default='',
         verbose_name='feedback de IA',
         help_text='Feedback generado por OpenAI GPT'
     )

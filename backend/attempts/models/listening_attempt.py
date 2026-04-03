@@ -40,8 +40,8 @@ class ListeningAttempt(models.Model):
     
     # Campos para LISTENING_SHADOWING
     transcribed_text = models.TextField(
-        null=True,
         blank=True,
+        default='',
         verbose_name='texto transcrito',
         help_text='Texto devuelto por Whisper'
     )
@@ -53,13 +53,13 @@ class ListeningAttempt(models.Model):
     
     # Campos para LISTENING_COMPREHENSION
     selected_answer = models.TextField(
-        null=True,
         blank=True,
+        default='',
         verbose_name='respuesta seleccionada'
     )
     correct = models.BooleanField(
-        null=True,
         blank=True,
+        default=False,
         verbose_name='es correcta'
     )
     

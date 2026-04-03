@@ -31,8 +31,8 @@ class SpeakingAttempt(models.Model):
         verbose_name='texto esperado'
     )
     transcribed_text = models.TextField(
-        null=True,
         blank=True,
+        default='',
         verbose_name='texto transcrito',
         help_text='Texto devuelto por Whisper'
     )

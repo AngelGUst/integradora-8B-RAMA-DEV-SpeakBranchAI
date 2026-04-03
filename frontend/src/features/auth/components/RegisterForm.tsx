@@ -32,11 +32,12 @@ function getPasswordStrength(password: string): {
 interface RegisterFormProps {
   onSubmit: (data: RegisterFormData) => Promise<void>;
   serverError?: string | null;
+  serverSuccess?: string | null;
 }
 
 // ── Component ────────────────────────────────────────────────
 
-export default function RegisterForm({ onSubmit, serverError }: RegisterFormProps) {
+export default function RegisterForm({ onSubmit, serverError, serverSuccess }: RegisterFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -54,6 +55,16 @@ export default function RegisterForm({ onSubmit, serverError }: RegisterFormProp
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      {/* Server success banner */}
+      {serverSuccess && (
+        <div
+          role="status"
+          className="flex items-start gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3"
+        >
+          <p className="text-sm text-emerald-200">{serverSuccess}</p>
+        </div>
+      )}
+
       {/* Server error banner */}
       {serverError && (
         <div

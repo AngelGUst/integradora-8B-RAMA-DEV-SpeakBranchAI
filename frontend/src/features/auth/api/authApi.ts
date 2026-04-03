@@ -47,11 +47,18 @@ export const authApi = {
    */
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
     try {
-      const { data } = await apiClient.post<LoginResponse>(
+      const { data } = await apiClient.post<{ access_token: string; refresh_token: string }>(
         '/auth/login/',
         credentials,
       );
-      return data;
+      const { data: user } = await apiClient.get<User>('/auth/me/', {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      return {
+        access: data.access_token,
+        refresh: data.refresh_token,
+        user,
+      };
     } catch (err: unknown) {
       // Fall back to mock when backend is not running
       if (axios.isAxiosError(err) && !err.response) {
@@ -71,16 +78,20 @@ export const authApi = {
     credentials: RegisterCredentials,
   ): Promise<RegisterResponse> => {
     try {
+      const payload = {
+        email: credentials.email,
+        password: credentials.password,
+        confirm_password: credentials.confirm_password,
+        first_name: credentials.first_name,
+      };
       const { data } = await apiClient.post<RegisterResponse>(
         '/auth/register/',
-        credentials,
+        payload,
       );
       return data;
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && !err.response) {
-        const user = buildMockUser(credentials.email, credentials.first_name);
-        localStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
-        return { access: MOCK_TOKEN, refresh: MOCK_TOKEN, user };
+        return { message: 'Check your email to confirm your account' };
       }
       throw err;
     }
@@ -110,7 +121,7 @@ export const authApi = {
     }
     const refresh = localStorage.getItem('sb_refresh_token');
     if (refresh) {
-      await apiClient.post('/auth/logout/', { refresh });
+      await apiClient.post('/auth/logout/', { refresh_token: refresh });
     }
   },
 

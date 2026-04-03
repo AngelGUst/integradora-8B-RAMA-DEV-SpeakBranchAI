@@ -104,9 +104,12 @@ export default function LoginPage() {
       navigate('/dashboard', { replace: true });
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        const body = err.response?.data as ApiError | undefined;
+        const body = err.response?.data as ApiError | Record<string, string> | undefined;
         setServerError(
-          body?.detail ?? body?.non_field_errors?.[0] ?? 'Invalid email or password.',
+          (body as ApiError | undefined)?.detail
+            ?? (body as ApiError | undefined)?.non_field_errors?.[0]
+            ?? (body as Record<string, string> | undefined)?.error
+            ?? 'Invalid email or password.',
         );
       } else {
         setServerError('An unexpected error occurred. Please try again.');

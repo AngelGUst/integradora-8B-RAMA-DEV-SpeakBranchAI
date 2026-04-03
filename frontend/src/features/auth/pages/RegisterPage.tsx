@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { isAxiosError } from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/authApi';
 import RegisterForm from '../components/RegisterForm';
 import Logo from '@/shared/components/ui/Logo';
@@ -131,30 +130,36 @@ function BrandPanel() {
 // ── Page ─────────────────────────────────────────────────────
 
 export default function RegisterPage() {
-  const { login } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [serverSuccess, setServerSuccess] = useState<string | null>(null);
 
   const handleSubmit = async (data: RegisterFormData) => {
     setServerError(null);
+    setServerSuccess(null);
     try {
       const res = await authApi.register({
         email: data.email,
         password: data.password,
+        confirm_password: data.confirmPassword,
         first_name: data.first_name,
-        age: data.age,
-        gender: data.gender,
       });
-      login(res.access, res.refresh, res.user);
-      navigate('/onboarding', { replace: true });
+      setServerSuccess(res.message);
+      setTimeout(() => navigate('/login', { replace: true }), 1200);
     } catch (err: unknown) {
       if (isAxiosError(err)) {
-        const body = err.response?.data as ApiError | undefined;
-        const firstField = body?.errors
-          ? Object.values(body.errors).flat()[0]
+        const body = err.response?.data as ApiError | Record<string, string[] | string> | undefined;
+        const fieldErrors = body && typeof body === 'object' && 'errors' in body
+          ? (body as ApiError).errors
           : undefined;
+        const directField = body && typeof body === 'object'
+          ? Object.values(body).flat?.()?.[0]
+          : undefined;
+        const firstField = fieldErrors
+          ? Object.values(fieldErrors).flat()[0]
+          : (typeof directField === 'string' ? directField : undefined);
         setServerError(
-          firstField ?? body?.detail ?? body?.non_field_errors?.[0] ?? 'Registration failed.',
+          firstField ?? (body as ApiError | undefined)?.detail ?? (body as ApiError | undefined)?.non_field_errors?.[0] ?? (body as ApiError | undefined)?.message ?? 'Registration failed.',
         );
       } else {
         setServerError('An unexpected error occurred. Please try again.');
@@ -205,7 +210,7 @@ export default function RegisterPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
-            <RegisterForm onSubmit={handleSubmit} serverError={serverError} />
+            <RegisterForm onSubmit={handleSubmit} serverError={serverError} serverSuccess={serverSuccess} />
           </motion.div>
 
           {/* Divider */}

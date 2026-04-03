@@ -1,3 +1,4 @@
+import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type {
   LoginCredentials,
@@ -7,10 +8,37 @@ import type {
   User,
 } from '../types/auth.types';
 
+// ── Dev mock (used when backend is unreachable) ───────────────
+
+const MOCK_TOKEN = 'mock-dev-token';
+const MOCK_USER_KEY = 'sb_mock_user';
+
+function buildMockUser(email: string, firstName?: string): User {
+  return {
+    id: 1,
+    email,
+    first_name: firstName ?? email.split('@')[0] ?? 'Learner',
+    age: null,
+    gender: null,
+    level: 'A1',
+    role: 'STUDENT',
+    avatar_url: null,
+    average_precision: 0,
+    is_active: true,
+  };
+}
+
+function isMockToken(): boolean {
+  return localStorage.getItem('sb_access_token') === MOCK_TOKEN;
+}
+
 /**
  * Authentication API methods.
  * All functions throw an `AxiosError` on failure so callers can inspect
  * `error.response.data` for backend-provided error messages.
+ *
+ * Dev note: when the backend is unreachable (network error), login/getMe
+ * fall back to a local mock so the frontend can be tested without a server.
  */
 export const authApi = {
   /**
@@ -18,11 +46,21 @@ export const authApi = {
    * Returns JWT pair and the authenticated user profile.
    */
   login: async (credentials: LoginCredentials): Promise<LoginResponse> => {
-    const { data } = await apiClient.post<LoginResponse>(
-      '/auth/login/',
-      credentials,
-    );
-    return data;
+    try {
+      const { data } = await apiClient.post<LoginResponse>(
+        '/auth/login/',
+        credentials,
+      );
+      return data;
+    } catch (err: unknown) {
+      // Fall back to mock when backend is not running
+      if (axios.isAxiosError(err) && !err.response) {
+        const user = buildMockUser(credentials.email);
+        localStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
+        return { access: MOCK_TOKEN, refresh: MOCK_TOKEN, user };
+      }
+      throw err;
+    }
   },
 
   /**
@@ -32,17 +70,31 @@ export const authApi = {
   register: async (
     credentials: RegisterCredentials,
   ): Promise<RegisterResponse> => {
-    const { data } = await apiClient.post<RegisterResponse>(
-      '/auth/register/',
-      credentials,
-    );
-    return data;
+    try {
+      const { data } = await apiClient.post<RegisterResponse>(
+        '/auth/register/',
+        credentials,
+      );
+      return data;
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && !err.response) {
+        const user = buildMockUser(credentials.email, credentials.first_name);
+        localStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
+        return { access: MOCK_TOKEN, refresh: MOCK_TOKEN, user };
+      }
+      throw err;
+    }
   },
 
   /**
    * Fetch the authenticated user's profile using the stored Bearer token.
    */
   getMe: async (): Promise<User> => {
+    if (isMockToken()) {
+      const stored = localStorage.getItem(MOCK_USER_KEY);
+      if (stored) return JSON.parse(stored) as User;
+      return buildMockUser('demo@speakbranch.com');
+    }
     const { data } = await apiClient.get<User>('/auth/me/');
     return data;
   },
@@ -52,6 +104,10 @@ export const authApi = {
    * Called during explicit logout flows.
    */
   logout: async (): Promise<void> => {
+    if (isMockToken()) {
+      localStorage.removeItem(MOCK_USER_KEY);
+      return;
+    }
     const refresh = localStorage.getItem('sb_refresh_token');
     if (refresh) {
       await apiClient.post('/auth/logout/', { refresh });

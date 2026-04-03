@@ -14,6 +14,13 @@ import type {
  */
 export const authApi = {
   /**
+   * Returns the backend URL that starts the Google OAuth flow.
+   */
+  getGoogleLoginUrl: (): string => {
+    const baseUrl = apiClient.defaults.baseURL ?? '';
+    return `${baseUrl.replace(/\/$/, '')}/auth/google/`;
+  },
+  /**
    * Authenticate with email + password.
    * Returns JWT pair and the authenticated user profile.
    */

@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/authApi';
 import LoginForm from '../components/LoginForm';
 import Logo from '@/shared/components/ui/Logo';
+import Button from '@/shared/components/ui/Button';
 import type { LoginFormData } from '../schemas/authSchemas';
 import type { ApiError } from '@/shared/types/api.types';
 
@@ -114,6 +115,10 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleLogin = () => {
+    window.location.href = authApi.getGoogleLoginUrl();
+  };
+
   return (
     <div className="grid min-h-screen grid-cols-1 bg-[#06060A] lg:grid-cols-[55%_45%]">
       {/* Brand panel */}
@@ -158,6 +163,24 @@ export default function LoginPage() {
             transition={{ duration: 0.55, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
           >
             <LoginForm onSubmit={handleSubmit} serverError={serverError} />
+          </motion.div>
+
+          {/* Google OAuth */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-6"
+          >
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              className="bg-white/5 text-white hover:bg-white/10"
+              onClick={handleGoogleLogin}
+            >
+              Continue with Google
+            </Button>
           </motion.div>
 
           {/* Divider */}

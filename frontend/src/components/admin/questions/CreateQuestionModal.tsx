@@ -78,7 +78,13 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 <QuestionTypePicker selected={selectedType} onSelect={setSelectedType} />
               </>
             ) : (
-              <QuestionFormBody type={selectedType!} form={form} set={set} setOption={setOption} />
+              <QuestionFormBody
+                type={selectedType!}
+                form={form}
+                set={set}
+                setOption={setOption}
+                onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
+              />
             )}
           </div>
 

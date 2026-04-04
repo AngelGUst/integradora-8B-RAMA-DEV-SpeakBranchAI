@@ -1,12 +1,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, useInView, type Variants } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { questionsService, type QuestionFilters } from '../../services/questionsService';
 import type { Question, QuestionType, Level, Difficulty, Category } from '../../types/question';
 import QuestionRow from '../../components/admin/questions/QuestionRow';
 import QuestionFilter, { type FilterState } from '../../components/admin/questions/QuestionFilters';
 import CreateQuestionModal from '../../components/admin/questions/CreateQuestionModal';
 import EditQuestionModal from '../../components/admin/questions/EditQuestionModal';
+import AppSidebar from '@/shared/components/layout/AppSidebar';
 
 // ── Animation (matches LandingPage) ───────────────────────────
 
@@ -52,8 +54,11 @@ const INITIAL_FILTERS: FilterState = {
   type: '', level: '', difficulty: '', category: '', search: '',
 };
 
+const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
 export default function QuestionsPage() {
   const { ref, inView } = useReveal();
+  const navigate = useNavigate();
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +67,8 @@ export default function QuestionsPage() {
   const [editQuestion, setEditQuestion] = useState<Question | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<typeof PAGE_SIZE_OPTIONS[number]>(10);
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -82,12 +89,22 @@ export default function QuestionsPage() {
 
   useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
 
+  // Reset to page 1 when filters or pageSize change
+  useEffect(() => { setPage(1); }, [filters, pageSize]);
+
   // Client-side text search
   const visible = filters.search
     ? questions.filter((q) =>
         q.text.toLowerCase().includes(filters.search.toLowerCase())
       )
     : questions;
+
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const paginated = visible.slice((page - 1) * pageSize, page * pageSize);
+
+  const handleTry = (q: Question) => {
+    window.open(`/exercise/${q.id}?from=admin`, '_blank');
+  };
 
   const handleDelete = async () => {
     if (confirmDeleteId === null) return;
@@ -104,7 +121,9 @@ export default function QuestionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#06060A] text-[#f5f3ff]">
+    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
+      <AppSidebar />
+      <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-5xl px-6 py-20">
 
         {/* ── Section header ── */}
@@ -132,13 +151,29 @@ export default function QuestionsPage() {
             <div className="flex-1 w-full">
               <QuestionFilter filters={filters} onChange={setFilters} />
             </div>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors shrink-0 whitespace-nowrap"
-            >
-              <Plus className="h-4 w-4" />
-              New question
-            </button>
+            <div className="flex items-center gap-3 shrink-0">
+              {/* Page size selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-white/30 whitespace-nowrap">Show</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value) as typeof PAGE_SIZE_OPTIONS[number])}
+                  className="bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 focus:outline-none focus:border-violet-500/50 transition-colors appearance-none cursor-pointer"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  {PAGE_SIZE_OPTIONS.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                New question
+              </button>
+            </div>
           </div>
         </motion.div>
 
@@ -151,7 +186,7 @@ export default function QuestionsPage() {
           className="border border-white/[0.05] rounded-2xl overflow-hidden bg-white/[0.01]"
         >
           {loading ? (
-            Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
+            Array.from({ length: pageSize }).map((_, i) => <SkeletonRow key={i} />)
           ) : visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24">
               <p className="text-[14px] text-white/25 leading-relaxed">
@@ -159,29 +194,75 @@ export default function QuestionsPage() {
               </p>
             </div>
           ) : (
-            visible.map((q, i) => (
+            paginated.map((q, i) => (
               <QuestionRow
                 key={q.id}
                 question={q}
-                index={i + 1}
+                index={(page - 1) * pageSize + i + 1}
                 onEdit={setEditQuestion}
                 onDelete={setConfirmDeleteId}
+                onTry={handleTry}
               />
             ))
           )}
         </motion.div>
 
-        {/* Count */}
+        {/* Pagination */}
         {!loading && visible.length > 0 && (
-          <motion.p
+          <motion.div
             variants={reveal}
             initial="hidden"
             animate={inView ? 'visible' : 'hidden'}
             custom={2}
-            className="mt-3 text-[12px] text-white/20 text-right"
+            className="mt-4 flex items-center justify-between"
           >
-            {visible.length} question{visible.length !== 1 ? 's' : ''}
-          </motion.p>
+            <p className="text-[12px] text-white/20">
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, visible.length)} de {visible.length} pregunta{visible.length !== 1 ? 's' : ''}
+            </p>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, i) =>
+                  p === '…' ? (
+                    <span key={`ellipsis-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p as number)}
+                      className={`min-w-[28px] h-7 rounded-lg text-[12px] font-medium transition-colors ${
+                        page === p
+                          ? 'bg-violet-600 text-white'
+                          : 'text-white/30 hover:text-white/70 hover:bg-white/[0.05]'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
         )}
       </div>
 
@@ -233,6 +314,7 @@ export default function QuestionsPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

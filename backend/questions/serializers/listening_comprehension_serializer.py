@@ -6,24 +6,46 @@ from .base_serializer import BaseQuestionSerializer
 class ListeningComprehensionSerializer(BaseQuestionSerializer):
     class Meta(BaseQuestionSerializer.Meta):
         fields = BaseQuestionSerializer.Meta.fields + [
-            'audio_url',
+            'phonetic_text',
             'correct_answer',
             'max_replays',
         ]
         read_only_fields = BaseQuestionSerializer.Meta.read_only_fields + ['max_replays']
 
-    def validate_audio_url(self, value):
-        if not value:
-            raise serializers.ValidationError('audio_url es requerido para Listening Comprehension.')
+    def validate_phonetic_text(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('El texto del pasaje (TTS) es requerido para Listening Comprehension.')
         return value
 
     def validate_correct_answer(self, value):
         try:
             data = json.loads(value)
         except (json.JSONDecodeError, TypeError):
-            raise serializers.ValidationError(
-                'Debe ser un JSON válido. Ejemplo: {"options": ["A","B","C","D"], "correct": "B"}'
-            )
+            raise serializers.ValidationError('Debe ser un JSON válido.')
+
+        # New format: { "questions": [{ "text": "...", "options": [...], "correct": "..." }] }
+        if 'questions' in data:
+            questions = data['questions']
+            if not isinstance(questions, list) or len(questions) < 1:
+                raise serializers.ValidationError(
+                    '"questions" debe ser una lista con al menos 1 pregunta.'
+                )
+            for i, q in enumerate(questions):
+                if not isinstance(q.get('options'), list) or len(q['options']) < 2:
+                    raise serializers.ValidationError(
+                        f'Pregunta {i + 1}: "options" debe ser una lista con al menos 2 elementos.'
+                    )
+                if not isinstance(q.get('correct'), str):
+                    raise serializers.ValidationError(
+                        f'Pregunta {i + 1}: "correct" debe ser un string.'
+                    )
+                if q['correct'] not in q['options']:
+                    raise serializers.ValidationError(
+                        f'Pregunta {i + 1}: "correct" debe ser uno de los valores en "options".'
+                    )
+            return value
+
+        # Legacy format: { "options": [...], "correct": "..." }
         if not isinstance(data.get('options'), list) or len(data['options']) < 2:
             raise serializers.ValidationError(
                 'El JSON debe tener "options" como lista con al menos 2 elementos.'

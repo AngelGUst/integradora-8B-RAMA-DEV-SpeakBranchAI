@@ -192,6 +192,8 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 
 GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 # Must match the redirect URI registered in Google Cloud Console
 GOOGLE_REDIRECT_URI = os.getenv(
     'GOOGLE_REDIRECT_URI',

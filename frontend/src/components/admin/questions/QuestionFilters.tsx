@@ -63,10 +63,9 @@ export default function QuestionFilters({ filters, onChange }: Props) {
 
       <select value={filters.category} onChange={set('category')} className={SELECT} style={{ colorScheme: 'dark' }}>
         <option value="">All categories</option>
-        <option value="BASIC">Basic</option>
-        <option value="INTERMEDIATE">Intermediate</option>
-        <option value="ADVANCED">Advanced</option>
-        <option value="TOEFL">TOEFL</option>
+        <option value="DIAGNOSTIC">Examen diagnóstico</option>
+        <option value="PRACTICE">Solo ejercicio</option>
+        <option value="LEVEL_UP">Examen subir nivel</option>
       </select>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Mic, BookOpen, Headphones, PenLine, Pencil, Trash2, type LucideIcon } from 'lucide-react';
+import { Mic, BookOpen, Headphones, PenLine, Pencil, Trash2, Play, type LucideIcon } from 'lucide-react';
 import type { Question, QuestionType } from '../../../types/question';
 import DifficultyBadge from './DifficultyBadge';
 import LevelBadge from './LevelBadge';
@@ -12,10 +12,9 @@ const TYPE_ICONS: Record<QuestionType, LucideIcon> = {
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
-  BASIC:        'Basic',
-  INTERMEDIATE: 'Intermediate',
-  ADVANCED:     'Advanced',
-  TOEFL:        'TOEFL',
+  DIAGNOSTIC: 'Diagnóstico',
+  PRACTICE:   'Ejercicio',
+  LEVEL_UP:   'Subir nivel',
 };
 
 interface Props {
@@ -23,9 +22,10 @@ interface Props {
   index: number;
   onEdit: (q: Question) => void;
   onDelete: (id: number) => void;
+  onTry: (q: Question) => void;
 }
 
-export default function QuestionRow({ question, index, onEdit, onDelete }: Props) {
+export default function QuestionRow({ question, index, onEdit, onDelete, onTry }: Props) {
   const Icon = TYPE_ICONS[question.type];
   const truncated = question.text.length > 80
     ? question.text.slice(0, 80) + '…'
@@ -62,6 +62,13 @@ export default function QuestionRow({ question, index, onEdit, onDelete }: Props
 
       {/* Actions */}
       <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+        <button
+          onClick={() => onTry(question)}
+          title="Try exercise"
+          className="p-1.5 rounded-lg text-white/30 hover:text-emerald-400/80 hover:bg-emerald-500/[0.07] transition-colors"
+        >
+          <Play className="h-4 w-4" />
+        </button>
         <button
           onClick={() => onEdit(question)}
           title="Edit"

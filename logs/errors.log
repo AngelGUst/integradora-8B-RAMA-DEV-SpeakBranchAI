@@ -1,64 +1,3 @@
-WARNING 2026-03-30 22:48:50 django.request log_message:249 - Not Found: /
-WARNING 2026-03-30 22:48:50 django.request log_message:249 - Not Found: /favicon.ico
-WARNING 2026-04-03 14:18:21 django.request log_message:249 - Bad Request: /api/auth/register/
-WARNING 2026-04-03 14:19:16 django.request log_message:249 - Bad Request: /api/auth/register/
-WARNING 2026-04-03 14:20:20 django.request log_message:249 - Bad Request: /api/auth/register/
-WARNING 2026-04-03 14:22:05 django.request log_message:249 - Bad Request: /api/auth/register/
-WARNING 2026-04-03 14:34:48 django.request log_message:249 - Method Not Allowed: /api/auth/register/
-WARNING 2026-04-03 14:34:49 django.request log_message:249 - Not Found: /favicon.ico
-WARNING 2026-04-03 14:35:14 django.request log_message:249 - Method Not Allowed: /api/auth/register/
-WARNING 2026-04-03 14:35:57 django.request log_message:249 - Bad Request: /api/auth/register/
-WARNING 2026-04-03 14:50:39 django.request log_message:249 - Forbidden: /api/auth/logout/
-WARNING 2026-04-03 14:50:48 django.request log_message:249 - Forbidden: /api/auth/login/
-WARNING 2026-04-03 14:51:12 django.request log_message:249 - Forbidden: /api/auth/login/
-WARNING 2026-04-03 14:51:20 django.request log_message:249 - Method Not Allowed: /api/auth/login/
-WARNING 2026-04-03 14:51:52 django.request log_message:249 - Forbidden: /api/auth/logout/
-WARNING 2026-04-03 15:50:32 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 15:50:32 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 15:53:27 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 15:57:27 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 15:57:27 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 15:59:49 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:00:16 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:11:08 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:11:08 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:17:10 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:17:10 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:19:30 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:19:52 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 16:21:33 django.request log_message:249 - Bad Request: /api/questions/
-WARNING 2026-04-03 17:29:16 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 17:36:00 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 17:36:00 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 17:57:55 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 17:58:58 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 19:15:14 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 20:43:40 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 20:44:15 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 20:44:15 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 20:44:30 django.request log_message:249 - Unauthorized: /api/auth/logout/
-WARNING 2026-04-03 21:21:05 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 21:21:34 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 21:21:40 django.request log_message:249 - Unauthorized: /api/auth/logout/
-WARNING 2026-04-03 21:24:37 django.request log_message:249 - Bad Request: /api/questions/
-WARNING 2026-04-03 21:24:50 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 21:24:56 django.request log_message:249 - Bad Request: /api/questions/
-WARNING 2026-04-03 21:37:24 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 21:37:24 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 21:41:56 django.request log_message:249 - Unauthorized: /api/auth/logout/
-WARNING 2026-04-03 22:02:16 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 22:02:34 django.request log_message:249 - Unauthorized: /api/auth/logout/
 ERROR 2026-04-03 22:08:40 django.request log_message:249 - Internal Server Error: /api/questions/
 Traceback (most recent call last):
   File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
@@ -295,10 +234,4 @@ Traceback (most recent call last):
 django.db.utils.IntegrityError: null value in column "phonetic_text" of relation "questions" violates not-null constraint
 DETAIL:  Failing row contains (22, Write a short paragraph (4–6 sentences) describing your daily ..., WRITING, A1, PRACTICE, Evaluate the student's response based on the following criteria:..., null, null, EASY, 10, null, 2026-04-04 04:09:24.297879+00, 2026-04-04 04:09:24.297901+00, t, 12).
 
-WARNING 2026-04-03 22:28:18 django.request log_message:249 - Unauthorized: /api/auth/me/
-WARNING 2026-04-03 22:28:18 django.request log_message:249 - Unauthorized: /api/auth/me/
 ERROR 2026-04-03 22:34:09 django.request log_message:249 - Service Unavailable: /api/writing/evaluate/
-WARNING 2026-04-03 22:52:35 django.request log_message:249 - Unauthorized: /api/writing/evaluate/
-WARNING 2026-04-03 22:52:41 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 22:52:41 django.request log_message:249 - Unauthorized: /api/questions/
-WARNING 2026-04-03 22:52:43 django.request log_message:249 - Unauthorized: /api/auth/logout/

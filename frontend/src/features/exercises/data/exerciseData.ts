@@ -44,7 +44,17 @@ export interface ComprehensionExercise {
   maxXP: number;
 }
 
-export type AnyExercise = ReadingExercise | SpeakingExercise | ComprehensionExercise;
+export interface WritingExercise {
+  id: string;
+  type: 'writing';
+  skill: 'writing';
+  level: string;
+  title: string;
+  prompt: string;
+  maxXP: number;
+}
+
+export type AnyExercise = ReadingExercise | SpeakingExercise | ComprehensionExercise | WritingExercise;
 
 // ─── A1 Exercises ─────────────────────────────────────────────────────────────
 

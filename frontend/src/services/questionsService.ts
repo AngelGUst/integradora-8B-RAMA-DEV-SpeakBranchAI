@@ -3,7 +3,7 @@ import type { Question, CreateQuestionPayload, QuestionType, Level, Difficulty, 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('sb_access_token');
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
@@ -53,4 +53,25 @@ export const questionsService = {
   deleteQuestion(id: number): Promise<void> {
     return apiFetch<void>(`/api/questions/${id}/`, { method: 'DELETE' });
   },
+
+  getQuestion(id: number): Promise<Question> {
+    return apiFetch<Question>(`/api/questions/${id}/`);
+  },
+
+  evaluateWriting(questionId: number, studentText: string): Promise<WritingEvaluationResult> {
+    return apiFetch<WritingEvaluationResult>('/api/writing/evaluate/', {
+      method: 'POST',
+      body: JSON.stringify({ question_id: questionId, student_text: studentText }),
+    });
+  },
 };
+
+export interface WritingEvaluationResult {
+  score: number;
+  score_grammar: number;
+  score_vocabulary: number;
+  score_coherence: number;
+  score_spelling: number;
+  feedback: string;
+  xp_earned: number;
+}

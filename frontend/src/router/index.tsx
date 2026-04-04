@@ -7,6 +7,7 @@ import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
+import QuestionsPage from '@/pages/admin/QuestionsPage';
 import Logo from '@/shared/components/ui/Logo';
 
 // ── Placement helper ──────────────────────────────────────────
@@ -49,6 +50,17 @@ function PrivateRoute({
   if (requiresPlacement && !isPlacementDone()) {
     return <Navigate to="/onboarding" replace />;
   }
+  return <>{children}</>;
+}
+
+/**
+ * Admin-only route: requires auth and ADMIN role.
+ */
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isInitializing, user } = useAuth();
+  if (isInitializing) return <AppLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -121,6 +133,12 @@ export default function AppRouter() {
       <Route
         path="/exercise/:id"
         element={<PrivateRoute requiresPlacement><ExercisePage /></PrivateRoute>}
+      />
+
+      {/* Admin */}
+      <Route
+        path="/admin/questions"
+        element={<AdminRoute><QuestionsPage /></AdminRoute>}
       />
 
       {/* Fallback */}

@@ -7,7 +7,7 @@ export type QuestionType =
 
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
-export type Category = 'BASIC' | 'INTERMEDIATE' | 'ADVANCED' | 'TOEFL';
+export type Category = 'DIAGNOSTIC' | 'PRACTICE' | 'LEVEL_UP';
 
 export interface Question {
   id: number;

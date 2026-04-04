@@ -86,7 +86,13 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
 
           {/* Body */}
           <div className="px-6 py-5">
-            <QuestionFormBody type={question.type} form={form} set={set} setOption={setOption} />
+            <QuestionFormBody
+              type={question.type}
+              form={form}
+              set={set}
+              setOption={setOption}
+              onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
+            />
           </div>
 
           {/* Footer */}

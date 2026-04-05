@@ -13,6 +13,7 @@ from users.views.auth_views import (
     RegisterView,
 )
 from users.views.oauth_views import GoogleOAuthCallbackView, GoogleOAuthRedirectView
+from users.views.progress_views import ProgressView
 
 urlpatterns = [
     # --- Registration & email confirmation ---
@@ -35,4 +36,8 @@ urlpatterns = [
     # --- Google OAuth ---
     path('google/', GoogleOAuthRedirectView.as_view(), name='auth-google'),
     path('google/callback/', GoogleOAuthCallbackView.as_view(), name='auth-google-callback'),
+
+    # --- Progress ---
+    path('progress/', ProgressView.as_view(), name='user-progress'),
+    path('progress/complete/', ProgressView.as_view(), name='user-progress-complete'),
 ]

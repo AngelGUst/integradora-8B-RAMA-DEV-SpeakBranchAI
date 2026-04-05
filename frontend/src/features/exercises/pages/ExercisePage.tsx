@@ -965,8 +965,24 @@ export default function ExercisePage() {
   const meta = SKILL_META[currentExercise.skill as keyof typeof SKILL_META];
   const { Icon } = meta;
 
-  const handleComplete = (_score: number, xp: number) => {
-    if (!isAdminPreview) completeExercise(currentExercise.id, xp);
+  // Map exercise skill → backend question type
+  const exerciseTypeMap: Record<string, string> = {
+    reading:       'READING',
+    speaking:      'SPEAKING',
+    shadowing:     'LISTENING_SHADOWING',
+    comprehension: 'LISTENING_COMPREHENSION',
+    writing:       'WRITING',
+  };
+
+  const handleComplete = (score: number, xp: number) => {
+    if (!isAdminPreview) {
+      completeExercise(
+        currentExercise.id,
+        xp,
+        exerciseTypeMap[currentExercise.skill] ?? '',
+        score,
+      );
+    }
   };
 
   const goLearn = () => navigate(isAdminPreview ? '/admin/questions' : '/learn');

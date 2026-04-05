@@ -700,3 +700,22 @@ WARNING 2026-04-04 16:26:06 django.request log_message:249 - Unauthorized: /api/
 WARNING 2026-04-04 16:26:14 django.request log_message:249 - Unauthorized: /api/vocabulary/
 WARNING 2026-04-04 16:26:43 django.request log_message:249 - Unauthorized: /api/vocabulary/
 WARNING 2026-04-04 16:27:48 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:45:06 django.request log_message:249 - Unauthorized: /api/questions/
+WARNING 2026-04-04 16:45:06 django.request log_message:249 - Unauthorized: /api/questions/
+WARNING 2026-04-04 16:45:10 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 16:45:10 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 16:57:36 django.request log_message:249 - Bad Request: /api/vocabulary/exercise-words/
+WARNING 2026-04-04 16:58:26 django.request log_message:249 - Bad Request: /api/vocabulary/exercise-words/
+WARNING 2026-04-04 16:58:52 django.request log_message:249 - Bad Request: /api/vocabulary/exercise-words/
+WARNING 2026-04-04 17:15:25 django.request log_message:249 - Unauthorized: /api/questions/
+WARNING 2026-04-04 17:19:23 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 17:19:25 django.request log_message:249 - Unauthorized: /api/questions/
+WARNING 2026-04-04 17:19:25 django.request log_message:249 - Unauthorized: /api/questions/
+WARNING 2026-04-04 17:19:29 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 17:19:29 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 18:16:00 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 20:13:08 django.request log_message:249 - Unauthorized: /api/auth/me/
+WARNING 2026-04-04 20:13:08 django.request log_message:249 - Unauthorized: /api/auth/me/

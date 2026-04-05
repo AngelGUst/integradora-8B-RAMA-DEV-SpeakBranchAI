@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, CheckCheck, BookOpen, Mic, Headphones, PenLine, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '@/shared/components/ui/Logo';
 import type { CefrLevel } from '@/features/auth/types/auth.types';
+import apiClient from '@/shared/api/client';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ interface Question {
   correct: number;
 }
 
-const QUESTIONS: Question[] = [
+const FALLBACK_QUESTIONS: Question[] = [
   {
     id: 1,
     level: 'A1',
@@ -176,10 +177,10 @@ const QUESTIONS: Question[] = [
 ];
 
 const SKILL_ICONS = {
-  Grammar:    <PenLine   size={12} />,
-  Vocabulary: <BookOpen  size={12} />,
-  Reading:    <BookOpen  size={12} />,
-  Idioms:     <Mic       size={12} />,
+  Grammar: <PenLine size={12} />,
+  Vocabulary: <BookOpen size={12} />,
+  Reading: <BookOpen size={12} />,
+  Idioms: <Mic size={12} />,
 };
 
 // ── CEFR from score ───────────────────────────────────────────
@@ -200,7 +201,7 @@ type Screen = 'welcome' | 'quiz' | 'result';
 const FEATURES = [
   { icon: <CheckCheck size={14} />, label: '10 questions' },
   { icon: <Headphones size={14} />, label: '~5 minutes' },
-  { icon: <Trophy     size={14} />, label: 'CEFR result' },
+  { icon: <Trophy size={14} />, label: 'CEFR result' },
 ];
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
@@ -451,6 +452,20 @@ function QuizScreen({ question, current, total, selected, onSelect, onNext, isLa
   );
 }
 
+function QuizLoading() {
+  return (
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
+      <p className="text-xs text-slate-500">Cargando evaluación…</p>
+    </motion.div>
+  );
+}
+
 // ── Result Screen ─────────────────────────────────────────────
 
 interface ResultScreenProps {
@@ -614,16 +629,40 @@ export default function PlacementTestPage() {
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('welcome');
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<(number | null)[]>(
-    Array(QUESTIONS.length).fill(null)
-  );
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
+  const [questions, setQuestions] = useState<Question[]>(FALLBACK_QUESTIONS);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const question = QUESTIONS[current];
-  const isLast = current === QUESTIONS.length - 1;
+  useEffect(() => {
+    let isMounted = true;
+    const loadQuestions = async () => {
+      try {
+        const { data } = await apiClient.get<{ questions: Question[] }>('/questions/diagnostic/');
+        if (!isMounted) return;
+        const incoming = data?.questions?.length ? data.questions : FALLBACK_QUESTIONS;
+        setQuestions(incoming);
+        setAnswers(Array(incoming.length).fill(null));
+      } catch {
+        if (!isMounted) return;
+        setQuestions(FALLBACK_QUESTIONS);
+        setAnswers(Array(FALLBACK_QUESTIONS.length).fill(null));
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+
+    void loadQuestions();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const question = questions[current];
+  const isLast = current === questions.length - 1;
 
   const correctCount = answers.filter(
-    (a, i) => a !== null && a === QUESTIONS[i].correct
+    (a, i) => a !== null && a === questions[i]?.correct
   ).length;
   const determinedLevel = scoreToCefr(correctCount);
 
@@ -647,7 +686,9 @@ export default function PlacementTestPage() {
 
   function handleFinish() {
     localStorage.setItem(PLACEMENT_KEY, 'true');
-    navigate('/learn', { replace: true });
+    void apiClient.post('/auth/diagnostic/complete/', { level: determinedLevel }).finally(() => {
+      navigate('/learn', { replace: true });
+    });
   }
 
   return (
@@ -666,12 +707,15 @@ export default function PlacementTestPage() {
             onStart={() => setScreen('quiz')}
           />
         )}
-        {screen === 'quiz' && (
+        {screen === 'quiz' && isLoading && (
+          <QuizLoading />
+        )}
+        {screen === 'quiz' && !isLoading && (
           <QuizScreen
             key="quiz"
             question={question}
             current={current}
-            total={QUESTIONS.length}
+            total={questions.length}
             selected={selected}
             onSelect={handleSelect}
             onNext={handleNext}
@@ -683,7 +727,7 @@ export default function PlacementTestPage() {
             key="result"
             level={determinedLevel}
             correct={correctCount}
-            total={QUESTIONS.length}
+            total={questions.length}
             onFinish={handleFinish}
           />
         )}

@@ -26,31 +26,33 @@ import type { LessonNode } from '@/features/learn/data/pathData';
 
 // ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
 
-const WINDOW_SIZE    = 3;
-const THRESHOLD_UP   = 16.0;
+const WINDOW_SIZE = 3;
+const THRESHOLD_UP = 16.0;
 const THRESHOLD_DOWN = 10.0;
-const RECENT_XP      = [18, 15, 21]; // TODO: read from last N attempts in localStorage/backend
-const AVG            = RECENT_XP.reduce((a, b) => a + b, 0) / RECENT_XP.length;
-const NEXT_DIFF      = AVG >= THRESHOLD_UP ? 'HARD' : AVG < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+const RECENT_XP = [18, 15, 21]; // TODO: read from last N attempts in localStorage/backend
+const AVG = RECENT_XP.reduce((a, b) => a + b, 0) / RECENT_XP.length;
+const NEXT_DIFF = AVG >= THRESHOLD_UP ? 'HARD' : AVG < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
 
 // ─── CEFR path data ───────────────────────────────────────────────────────────
 
 const CEFR_STEPS = [
-  { level: 'A1', label: 'Beginner'        },
-  { level: 'A2', label: 'Elementary'      },
-  { level: 'B1', label: 'Intermediate'    },
-  { level: 'B2', label: 'Upper-Int.'      },
-  { level: 'C1', label: 'Advanced'        },
-  { level: 'C2', label: 'Mastery'         },
+  { level: 'A1', label: 'Beginner' },
+  { level: 'A2', label: 'Elementary' },
+  { level: 'B1', label: 'Intermediate' },
+  { level: 'B2', label: 'Upper-Int.' },
+  { level: 'C1', label: 'Advanced' },
+  { level: 'C2', label: 'Mastery' },
 ] as const;
+
+const CEFR_ORDER = CEFR_STEPS.map(step => step.level);
 
 // ─── Skill definitions ────────────────────────────────────────────────────────
 
 const SKILLS = [
-  { key: 'reading',       label: 'Reading',            Icon: BookOpen,   desc: 'Comprensión lectora con textos CEFR.',             score: 82 },
-  { key: 'speaking',      label: 'Speaking',           Icon: Mic,        desc: 'Pronunciación evaluada por IA (Whisper).',         score: 68 },
-  { key: 'shadowing',     label: 'Listening · Shadow', Icon: Repeat,     desc: 'Escucha y replica: entrena oído y pronunciación.', score: 45 },
-  { key: 'comprehension', label: 'Listening · Comp.',  Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.',      score: 59 },
+  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Comprensión lectora con textos CEFR.', score: 82 },
+  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciación evaluada por IA (Whisper).', score: 68 },
+  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Escucha y replica: entrena oído y pronunciación.', score: 45 },
+  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.', score: 59 },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,9 +93,9 @@ const BADGE_STYLES: Record<BadgeVariant, string> = {
   default: 'bg-zinc-800 text-zinc-300',
   success: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
   warning: 'bg-amber-500/15  text-amber-400  border border-amber-500/20',
-  hard:    'bg-purple-500/15 text-purple-400 border border-purple-500/20',
-  medium:  'bg-sky-500/15    text-sky-400    border border-sky-500/20',
-  easy:    'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
+  hard: 'bg-purple-500/15 text-purple-400 border border-purple-500/20',
+  medium: 'bg-sky-500/15    text-sky-400    border border-sky-500/20',
+  easy: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
 };
 
 function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: BadgeVariant }) {
@@ -105,28 +107,31 @@ function Badge({ children, variant = 'default' }: { children: React.ReactNode; v
 }
 
 const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
-  reading:       { text: 'text-sky-400',     Icon: BookOpen   },
-  speaking:      { text: 'text-emerald-400', Icon: Mic        },
-  shadowing:     { text: 'text-violet-400',  Icon: Repeat     },
-  comprehension: { text: 'text-amber-400',   Icon: Headphones },
-  checkpoint:    { text: 'text-yellow-400',  Icon: Trophy     },
-  exam:          { text: 'text-rose-400',    Icon: Trophy     },
+  reading: { text: 'text-sky-400', Icon: BookOpen },
+  speaking: { text: 'text-emerald-400', Icon: Mic },
+  shadowing: { text: 'text-violet-400', Icon: Repeat },
+  comprehension: { text: 'text-amber-400', Icon: Headphones },
+  checkpoint: { text: 'text-yellow-400', Icon: Trophy },
+  exam: { text: 'text-rose-400', Icon: Trophy },
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
-  const { user }                  = useAuth();
+  const { user } = useAuth();
   const { totalXP, completedIds } = useLearnProgress();
-  const navigate                  = useNavigate();
+  const navigate = useNavigate();
 
-  const currentNode  = findCurrentNode(completedIds, totalXP);
-  const currentMeta  = currentNode ? SKILL_META[currentNode.skill] : null;
-  const CurrentIcon  = currentMeta?.Icon;
+  const currentNode = findCurrentNode(completedIds, totalXP);
+  const currentMeta = currentNode ? SKILL_META[currentNode.skill] : null;
+  const CurrentIcon = currentMeta?.Icon;
 
-  const activeLvl = (user?.level && ['A1','A2','B1','B2','C1','C2'].includes(user.level))
+  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(user.level))
     ? user.level : 'A1';
   const activeLvlIdx = CEFR_STEPS.findIndex(s => s.level === activeLvl);
+  const nextLvl = activeLvlIdx >= 0 && activeLvlIdx < CEFR_ORDER.length - 1
+    ? CEFR_ORDER[activeLvlIdx + 1]
+    : null;
 
   return (
     <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
@@ -193,8 +198,12 @@ export default function DashboardPage() {
                 <Trophy size={22} className="text-emerald-400" />
               </div>
               <div>
-                <p className="font-semibold text-zinc-100">¡Nivel A1 completado!</p>
-                <p className="text-sm text-zinc-500">Espera el desbloqueo de A2 o practica ejercicios anteriores.</p>
+                <p className="font-semibold text-zinc-100">¡Nivel {activeLvl} completado!</p>
+                <p className="text-sm text-zinc-500">
+                  {nextLvl
+                    ? `Espera el desbloqueo de ${nextLvl} o practica ejercicios anteriores.`
+                    : 'Has completado el nivel más alto. Practica ejercicios anteriores.'}
+                </p>
               </div>
             </div>
           )}
@@ -269,12 +278,12 @@ export default function DashboardPage() {
                   <div className="space-y-5">
                     {CEFR_STEPS.map((step, idx) => {
                       const isCurrent = step.level === activeLvl;
-                      const isPast    = idx < activeLvlIdx;
+                      const isPast = idx < activeLvlIdx;
                       return (
                         <div key={step.level} className="flex gap-4 relative z-10">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors
                             ${isCurrent ? 'bg-emerald-500 border-emerald-500' : isPast ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-800'}`}>
-                            {isPast    && <CheckCircle2 size={11} className="text-zinc-400" />}
+                            {isPast && <CheckCircle2 size={11} className="text-zinc-400" />}
                             {isCurrent && <div className="w-2 h-2 bg-white rounded-full" />}
                           </div>
                           <div>
@@ -310,17 +319,16 @@ export default function DashboardPage() {
               </div>
 
               {SKILLS.map(skill => {
-                const nextId      = findNextBySkill(skill.key, completedIds, totalXP);
+                const nextId = findNextBySkill(skill.key, completedIds, totalXP);
                 const recommended = skill.key === 'shadowing'; // lowest score → recommended
 
                 return (
                   <div
                     key={skill.key}
-                    className={`flex items-center justify-between p-5 rounded-xl border transition-all ${
-                      recommended
+                    className={`flex items-center justify-between p-5 rounded-xl border transition-all ${recommended
                         ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
                         : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-4">
                       <div className={`p-3 rounded-lg ${recommended ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-400'}`}>
@@ -351,11 +359,10 @@ export default function DashboardPage() {
                       {nextId ? (
                         <button
                           onClick={() => navigate(`/exercise/${nextId}`)}
-                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all shrink-0 ${
-                            recommended
+                          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all shrink-0 ${recommended
                               ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
                               : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
-                          }`}
+                            }`}
                         >
                           Practicar
                           {recommended && <ArrowRight size={14} />}

@@ -19,4 +19,5 @@ class UserSerializer(serializers.ModelSerializer):
             'avatar_url',
             'average_precision',
             'is_active',
+            'diagnostic_completed',
         )

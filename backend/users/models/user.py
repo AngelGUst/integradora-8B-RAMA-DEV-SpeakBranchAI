@@ -90,6 +90,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Avatar y estado
     avatar_url = models.URLField(max_length=500, null=True, blank=True)
     is_active = models.BooleanField(default=True)
+
+    # Diagnóstico
+    diagnostic_completed = models.BooleanField(default=False)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

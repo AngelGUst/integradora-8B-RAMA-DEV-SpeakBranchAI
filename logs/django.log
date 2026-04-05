@@ -424,3 +424,106 @@ INFO 2026-04-03 22:54:44 django.server log_message:249 - "GET /api/auth/me/ HTTP
 INFO 2026-04-03 22:54:44 django.server log_message:249 - "GET /api/questions/24/ HTTP/1.1" 200 1012
 INFO 2026-04-03 22:54:45 django.server log_message:249 - "GET /api/questions/24/ HTTP/1.1" 200 1012
 INFO 2026-04-03 22:54:54 django.server log_message:249 - "POST /api/writing/evaluate/ HTTP/1.1" 200 409
+INFO 2026-04-04 15:16:43 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 15:17:20 django.server log_message:249 - "OPTIONS /api/auth/login/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:17:25 django.server log_message:249 - "POST /api/auth/login/ HTTP/1.1" 200 503
+INFO 2026-04-04 15:17:25 django.server log_message:249 - "OPTIONS /api/auth/me/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:17:25 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:17:30 django.server log_message:249 - "OPTIONS /api/questions/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:17:30 django.server log_message:249 - "OPTIONS /api/questions/ HTTP/1.1" 200 0
+ERROR 2026-04-04 15:17:33 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 500 238331
+ERROR 2026-04-04 15:17:35 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 500 238331
+INFO 2026-04-04 15:18:04 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:18:05 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+ERROR 2026-04-04 15:18:06 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 500 238331
+ERROR 2026-04-04 15:18:08 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 500 238331
+INFO 2026-04-04 15:19:52 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:19:52 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:19:54 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5683
+INFO 2026-04-04 15:19:57 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5683
+INFO 2026-04-04 15:22:04 django.server log_message:249 - "POST /api/questions/ HTTP/1.1" 201 503
+INFO 2026-04-04 15:22:14 django.server log_message:249 - "OPTIONS /api/questions/25/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:22:14 django.server log_message:249 - "OPTIONS /api/questions/25/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:22:15 django.server log_message:249 - "GET /api/questions/25/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 15:22:16 django.server log_message:249 - "GET /api/questions/25/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 15:33:05 django.server log_message:249 - "OPTIONS /api/auth/logout/ HTTP/1.1" 200 0
+WARNING 2026-04-04 15:33:05 django.server log_message:249 - "POST /api/auth/logout/ HTTP/1.1" 401 172
+INFO 2026-04-04 15:33:29 django.server log_message:249 - "POST /api/auth/login/ HTTP/1.1" 200 503
+INFO 2026-04-04 15:33:30 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:34:27 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 15:34:29 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 15:40:42 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 15:40:44 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 15:40:54 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\urls.py changed, reloading.
+INFO 2026-04-04 15:40:55 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 15:41:08 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:41:09 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 15:41:10 django.server log_message:249 - "OPTIONS /api/vocabulary/ HTTP/1.1" 200 0
+WARNING 2026-04-04 15:41:10 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 401 37
+INFO 2026-04-04 15:41:47 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 15:41:50 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 15:41:50 django.server log_message:249 - "OPTIONS /api/questions/20/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:41:50 django.server log_message:249 - "OPTIONS /api/questions/20/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 15:41:51 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 15:41:52 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+WARNING 2026-04-04 15:41:55 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 401 37
+WARNING 2026-04-04 16:19:21 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 401 37
+WARNING 2026-04-04 16:20:55 django.security.csrf log_message:249 - Forbidden (Origin checking failed - http://localhost:5173 does not match any trusted origins.): /api/vocabulary/
+WARNING 2026-04-04 16:20:55 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 403 2554
+WARNING 2026-04-04 16:20:56 django.security.csrf log_message:249 - Forbidden (Origin checking failed - http://localhost:5173 does not match any trusted origins.): /api/vocabulary/
+WARNING 2026-04-04 16:20:56 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 403 2554
+WARNING 2026-04-04 16:21:14 django.server log_message:249 - "POST /api/auth/logout/ HTTP/1.1" 401 172
+INFO 2026-04-04 16:21:33 django.server log_message:249 - "POST /api/auth/login/ HTTP/1.1" 200 503
+INFO 2026-04-04 16:21:34 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+WARNING 2026-04-04 16:21:35 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 401 37
+WARNING 2026-04-04 16:23:11 django.security.csrf log_message:249 - Forbidden (Origin checking failed - http://localhost:5173 does not match any trusted origins.): /api/vocabulary/
+WARNING 2026-04-04 16:23:11 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 403 2554
+INFO 2026-04-04 16:24:19 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:24:20 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:24:37 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:24:39 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:24:49 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:24:51 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:25:04 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:25:06 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:25:12 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:25:14 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+WARNING 2026-04-04 16:26:06 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 401 37
+WARNING 2026-04-04 16:26:14 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 401 37
+INFO 2026-04-04 16:26:29 django.server log_message:249 - "POST /api/auth/logout/ HTTP/1.1" 200 38
+INFO 2026-04-04 16:26:40 django.server log_message:249 - "POST /api/auth/login/ HTTP/1.1" 200 503
+INFO 2026-04-04 16:26:41 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+WARNING 2026-04-04 16:26:43 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 401 37
+WARNING 2026-04-04 16:27:48 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 401 37
+INFO 2026-04-04 16:30:35 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\vocabulary\views.py changed, reloading.
+INFO 2026-04-04 16:30:36 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:30:56 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader
+INFO 2026-04-04 16:31:05 django.server log_message:249 - "POST /api/vocabulary/ HTTP/1.1" 201 798
+INFO 2026-04-04 16:31:10 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 16:31:11 django.server log_message:249 - "GET /api/auth/me/ HTTP/1.1" 200 197
+INFO 2026-04-04 16:31:11 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 200 6488
+INFO 2026-04-04 16:31:38 django.server log_message:249 - "OPTIONS /api/vocabulary/?search=to HTTP/1.1" 200 0
+INFO 2026-04-04 16:31:38 django.server log_message:249 - "GET /api/vocabulary/?search=to HTTP/1.1" 200 12
+INFO 2026-04-04 16:31:40 django.server log_message:249 - "GET /api/vocabulary/?search=to HTTP/1.1" 200 12
+INFO 2026-04-04 16:31:41 django.server log_message:249 - "OPTIONS /api/vocabulary/?search=t HTTP/1.1" 200 0
+INFO 2026-04-04 16:31:42 django.server log_message:249 - "GET /api/vocabulary/?search=t HTTP/1.1" 200 3264
+INFO 2026-04-04 16:31:45 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 200 6488
+INFO 2026-04-04 16:31:46 django.server log_message:249 - "OPTIONS /api/vocabulary/?search=To HTTP/1.1" 200 0
+INFO 2026-04-04 16:31:46 django.server log_message:249 - "GET /api/vocabulary/?search=To HTTP/1.1" 200 12
+INFO 2026-04-04 16:31:48 django.server log_message:249 - "GET /api/vocabulary/?search=To HTTP/1.1" 200 12
+INFO 2026-04-04 16:31:49 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 200 6488
+INFO 2026-04-04 16:31:54 django.server log_message:249 - "OPTIONS /api/vocabulary/?search=To+change+i HTTP/1.1" 200 0
+INFO 2026-04-04 16:31:54 django.server log_message:249 - "GET /api/vocabulary/?search=To+change+i HTTP/1.1" 200 12
+INFO 2026-04-04 16:31:57 django.server log_message:249 - "GET /api/vocabulary/ HTTP/1.1" 200 6488
+INFO 2026-04-04 16:33:42 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 16:33:45 django.server log_message:249 - "GET /api/questions/ HTTP/1.1" 200 5984
+INFO 2026-04-04 16:33:46 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:33:47 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:34:13 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:34:14 django.server log_message:249 - "GET /api/questions/20/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:34:53 django.server log_message:249 - "OPTIONS /api/questions/19/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 16:34:53 django.server log_message:249 - "OPTIONS /api/questions/19/vocabulary/ HTTP/1.1" 200 0
+INFO 2026-04-04 16:34:54 django.server log_message:249 - "GET /api/questions/19/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:34:54 django.server log_message:249 - "GET /api/questions/19/vocabulary/ HTTP/1.1" 200 2
+INFO 2026-04-04 16:37:30 django.utils.autoreload trigger_reload:265 - C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\questions\serializers\base_serializer.py changed, reloading.
+INFO 2026-04-04 16:37:31 django.utils.autoreload run_with_reloader:681 - Watching for file changes with StatReloader

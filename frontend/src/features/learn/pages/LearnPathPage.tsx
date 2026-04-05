@@ -8,19 +8,21 @@
  * Layout: [Shared Sidebar] | [Scrollable path] | [Right stats panel]
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  BookOpen, Mic, Repeat, Headphones,
+  BookOpen, Mic, Repeat, Headphones, PenLine,
   Star, Trophy, Lock, CheckCircle2,
   Flame, Zap, Target,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
+import { questionsService } from '@/services/questionsService';
+import type { Question } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
-import type { LessonNode, CEFRSection, SkillType, NodeState } from '../data/pathData';
+import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
 
 // ─── Skill / Accent config ────────────────────────────────────────────────────
 
@@ -32,9 +34,25 @@ const SKILL_CFG: Record<SkillType, {
   speaking:      { Icon: Mic,        bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-400', glowRgb: '16,185,129'  },
   shadowing:     { Icon: Repeat,     bg: 'bg-violet-500/15',  border: 'border-violet-500/50',  text: 'text-violet-400',  glowRgb: '139,92,246'  },
   comprehension: { Icon: Headphones, bg: 'bg-amber-500/15',   border: 'border-amber-500/50',   text: 'text-amber-400',   glowRgb: '245,158,11'  },
+  writing:       { Icon: PenLine,    bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
   checkpoint:    { Icon: Star,       bg: 'bg-yellow-500/15',  border: 'border-yellow-500/50',  text: 'text-yellow-400',  glowRgb: '234,179,8'   },
   exam:          { Icon: Trophy,     bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
 };
+
+const POS_X_CYCLE: PosX[] = ['center', 'right', 'center', 'left'];
+
+function questionToSkill(q: Question): SkillType {
+  if (q.category === 'DIAGNOSTIC') return 'checkpoint';
+  if (q.category === 'LEVEL_UP')   return 'exam';
+  const map: Record<string, SkillType> = {
+    SPEAKING:                'speaking',
+    READING:                 'reading',
+    LISTENING_SHADOWING:     'shadowing',
+    LISTENING_COMPREHENSION: 'comprehension',
+    WRITING:                 'writing',
+  };
+  return map[q.type] ?? 'reading';
+}
 
 const ACCENT_CFG = {
   emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', progress: 'bg-emerald-500', hex: '#10b981' },
@@ -442,6 +460,32 @@ export default function LearnPathPage() {
   const { totalXP, completedIds }  = useLearnProgress();
   const navigate                   = useNavigate();
 
+  const [questions, setQuestions]   = useState<Question[]>([]);
+  const [loadingQ, setLoadingQ]     = useState(true);
+
+  useEffect(() => {
+    questionsService.getQuestions()
+      .then(setQuestions)
+      .catch(() => {})
+      .finally(() => setLoadingQ(false));
+  }, []);
+
+  // Build sections from backend questions, keeping CEFR metadata from pathData
+  const dynamicPath = useMemo((): CEFRSection[] => {
+    return LEARN_PATH.map(section => {
+      const sectionQs = questions.filter(q => q.level === section.level);
+      const nodes: LessonNode[] = sectionQs.map((q, i) => ({
+        id: String(q.id),
+        title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
+        skill: questionToSkill(q),
+        state: 'locked' as const,
+        xpMax: q.xp_max,
+        posX: POS_X_CYCLE[i % 4],
+      }));
+      return { ...section, nodes };
+    }).filter(s => s.nodes.length > 0);
+  }, [questions]);
+
   const handleNodeClick = (nodeId: string) => {
     navigate(`/exercise/${nodeId}`);
   };
@@ -478,15 +522,26 @@ export default function LearnPathPage() {
         </header>
 
         <div className="pb-28">
-          {LEARN_PATH.map(section => (
-            <PathSection
-              key={section.level}
-              section={section}
-              completedIds={completedIds}
-              totalXP={totalXP}
-              onNodeClick={handleNodeClick}
-            />
-          ))}
+          {loadingQ ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
+            </div>
+          ) : dynamicPath.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Trophy size={32} className="text-zinc-700" />
+              <p className="text-sm text-zinc-500">No hay ejercicios disponibles todavía.</p>
+            </div>
+          ) : (
+            dynamicPath.map(section => (
+              <PathSection
+                key={section.level}
+                section={section}
+                completedIds={completedIds}
+                totalXP={totalXP}
+                onNodeClick={handleNodeClick}
+              />
+            ))
+          )}
 
           {/* End marker */}
           <div className="flex flex-col items-center gap-2 mt-8 mb-4 opacity-25">

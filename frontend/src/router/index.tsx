@@ -8,6 +8,7 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
+import VocabularyPage from '@/pages/admin/VocabularyPage';
 import Logo from '@/shared/components/ui/Logo';
 
 // ── Placement helper ──────────────────────────────────────────
@@ -139,6 +140,10 @@ export default function AppRouter() {
       <Route
         path="/admin/questions"
         element={<AdminRoute><QuestionsPage /></AdminRoute>}
+      />
+      <Route
+        path="/admin/vocabulary"
+        element={<AdminRoute><VocabularyPage /></AdminRoute>}
       />
 
       {/* Fallback */}

@@ -302,3 +302,401 @@ WARNING 2026-04-03 22:52:35 django.request log_message:249 - Unauthorized: /api/
 WARNING 2026-04-03 22:52:41 django.request log_message:249 - Unauthorized: /api/questions/
 WARNING 2026-04-03 22:52:41 django.request log_message:249 - Unauthorized: /api/questions/
 WARNING 2026-04-03 22:52:43 django.request log_message:249 - Unauthorized: /api/auth/logout/
+ERROR 2026-04-04 15:17:33 django.request log_message:249 - Internal Server Error: /api/questions/
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 538, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\fields.py", line 1870, in to_representation
+    return method(value)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\questions\serializers\base_serializer.py", line 44, in get_vocabulary_items
+    return QuestionVocabularyDetailSerializer(vocab_items, many=True).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+                                                   ^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 390, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+ERROR 2026-04-04 15:17:35 django.request log_message:249 - Internal Server Error: /api/questions/
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 538, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\fields.py", line 1870, in to_representation
+    return method(value)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\questions\serializers\base_serializer.py", line 44, in get_vocabulary_items
+    return QuestionVocabularyDetailSerializer(vocab_items, many=True).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+                                                   ^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 390, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+ERROR 2026-04-04 15:18:06 django.request log_message:249 - Internal Server Error: /api/questions/
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 538, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\fields.py", line 1870, in to_representation
+    return method(value)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\questions\serializers\base_serializer.py", line 44, in get_vocabulary_items
+    return QuestionVocabularyDetailSerializer(vocab_items, many=True).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+                                                   ^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 390, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+ERROR 2026-04-04 15:18:08 django.request log_message:249 - Internal Server Error: /api/questions/
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\core\handlers\base.py", line 198, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\views\decorators\csrf.py", line 65, in _view_wrapper
+    return view_func(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\viewsets.py", line 124, in view
+    return self.dispatch(request, *args, **kwargs)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 509, in dispatch
+    response = self.handle_exception(exc)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 469, in handle_exception
+    self.raise_uncaught_exception(exc)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 480, in raise_uncaught_exception
+    raise exc
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\views.py", line 506, in dispatch
+    response = handler(request, *args, **kwargs)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\mixins.py", line 46, in list
+    return Response(serializer.data)
+                    ^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 538, in to_representation
+    ret[field.field_name] = field.to_representation(attribute)
+                            ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\fields.py", line 1870, in to_representation
+    return method(value)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\backend\questions\serializers\base_serializer.py", line 44, in get_vocabulary_items
+    return QuestionVocabularyDetailSerializer(vocab_items, many=True).data
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 795, in data
+    ret = super().data
+          ^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 249, in data
+    self._data = self.to_representation(self.instance)
+                 ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\rest_framework\serializers.py", line 714, in to_representation
+    self.child.to_representation(item) for item in iterable
+                                                   ^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 390, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 2000, in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\query.py", line 95, in __iter__
+    results = compiler.execute_sql(
+        chunked_fetch=self.chunked_fetch, chunk_size=self.chunk_size
+    )
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\models\sql\compiler.py", line 1624, in execute_sql
+    cursor.execute(sql, params)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 122, in execute
+    return super().execute(sql, params)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 79, in execute
+    return self._execute_with_wrappers(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        sql, params, many=False, executor=self._execute
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 92, in _execute_with_wrappers
+    return executor(sql, params, many, context)
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 100, in _execute
+    with self.db.wrap_database_errors:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\utils.py", line 94, in __exit__
+    raise dj_exc_value.with_traceback(traceback) from exc_value
+  File "C:\Users\gusta\Desktop\djangoProjects\integradora-8B-RAMA-DEV-SpeakBranchAI\.venv\Lib\site-packages\django\db\backends\utils.py", line 105, in _execute
+    return self.cursor.execute(sql, params)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+django.db.utils.ProgrammingError: column question_vocabulary.is_key does not exist
+LINE 1: ...stion_id", "question_vocabulary"."vocabulary_id", "question_...
+                                                             ^
+
+WARNING 2026-04-04 15:33:05 django.request log_message:249 - Unauthorized: /api/auth/logout/
+WARNING 2026-04-04 15:41:10 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 15:41:55 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:19:21 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:21:14 django.request log_message:249 - Unauthorized: /api/auth/logout/
+WARNING 2026-04-04 16:21:35 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:26:06 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:26:14 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:26:43 django.request log_message:249 - Unauthorized: /api/vocabulary/
+WARNING 2026-04-04 16:27:48 django.request log_message:249 - Unauthorized: /api/vocabulary/

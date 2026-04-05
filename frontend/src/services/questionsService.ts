@@ -58,13 +58,60 @@ export const questionsService = {
     return apiFetch<Question>(`/api/questions/${id}/`);
   },
 
+  getQuestionVocabulary(questionId: number): Promise<QuestionVocabularyItem[]> {
+    return apiFetch<QuestionVocabularyItem[]>(`/api/questions/${questionId}/vocabulary/`);
+  },
+
+  addVocabularyToQuestion(
+    questionId: number,
+    payload: { vocabulary_id: number; is_key?: boolean; order?: number },
+  ): Promise<QuestionVocabularyItem> {
+    return apiFetch<QuestionVocabularyItem>(`/api/questions/${questionId}/vocabulary/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  removeVocabularyFromQuestion(questionId: number, vocabId: number): Promise<void> {
+    return apiFetch<void>(`/api/questions/${questionId}/vocabulary/${vocabId}/`, {
+      method: 'DELETE',
+    });
+  },
+
   evaluateWriting(questionId: number, studentText: string): Promise<WritingEvaluationResult> {
     return apiFetch<WritingEvaluationResult>('/api/writing/evaluate/', {
       method: 'POST',
       body: JSON.stringify({ question_id: questionId, student_text: studentText }),
     });
   },
+
+  getExerciseVocabulary(questionId: number): Promise<VocabularyWord[]> {
+    return apiFetch<{ data: VocabularyWord[] }>('/api/vocabulary/exercise-words/', {
+      method: 'POST',
+      body: JSON.stringify({ question_id: questionId }),
+    }).then((res) => res.data);
+  },
 };
+
+export interface VocabularyWord {
+  id: number;
+  word: string;
+  meaning: string;
+  pronunciation: string;
+  example_sentence: string;
+  level: string;
+  category: string;
+  image_url?: string;
+  audio_url?: string;
+}
+
+export interface QuestionVocabularyItem {
+  id: number;
+  vocabulary: VocabularyWord;
+  is_key: boolean;
+  order: number;
+  created_at: string;
+}
 
 export interface WritingEvaluationResult {
   score: number;

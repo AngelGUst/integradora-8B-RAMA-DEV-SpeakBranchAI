@@ -1,4 +1,4 @@
-import { BarChart2, Route, LogOut, BookOpen } from 'lucide-react';
+import { BarChart2, Route, LogOut, BookOpen, BookMarked } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import Logo from '@/shared/components/ui/Logo';
@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { label: 'Panel de Control',    icon: BarChart2, path: '/dashboard',        adminOnly: false },
   { label: 'Ruta de Aprendizaje', icon: Route,     path: '/learn',            adminOnly: false },
   { label: 'Preguntas',           icon: BookOpen,  path: '/admin/questions',  adminOnly: true  },
+  { label: 'Vocabulario',         icon: BookMarked, path: '/admin/vocabulary', adminOnly: true  },
 ];
 
 export default function AppSidebar() {

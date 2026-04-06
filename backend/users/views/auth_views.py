@@ -175,6 +175,37 @@ class MeView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class DiagnosticCompleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        summary='Mark diagnostic as completed',
+        description='Marks the diagnostic test as completed and optionally updates the user level.',
+        request=inline_serializer(
+            name='DiagnosticCompleteRequest',
+            fields={'level': serializers.CharField(required=False)},
+        ),
+        responses={
+            200: UserSerializer,
+            400: OpenApiResponse(description='Invalid level'),
+            401: OpenApiResponse(description='Unauthorized'),
+        },
+        tags=['Auth'],
+    )
+    def post(self, request):
+        level = request.data.get('level')
+        if level:
+            if level not in dict(User.LEVEL_CHOICES):
+                return Response({'error': 'Invalid level.'}, status=status.HTTP_400_BAD_REQUEST)
+            request.user.level = level
+
+        request.user.diagnostic_completed = True
+        request.user.save(update_fields=['diagnostic_completed', 'level'] if level else ['diagnostic_completed'])
+
+        serializer = UserSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
 

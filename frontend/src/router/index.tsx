@@ -3,6 +3,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import RegisterPage from '@/features/auth/pages/RegisterPage';
+import GoogleCallbackPage from '@/features/auth/pages/GoogleCallbackPage';
 import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
@@ -12,13 +13,20 @@ import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import Logo from '@/shared/components/ui/Logo';
+import type { UserRole } from '@/features/auth/types/auth.types';
 
 // ── Placement helper ──────────────────────────────────────────
 
 const PLACEMENT_KEY = 'sb_placement_done';
 
-function isPlacementDone(): boolean {
+function isPlacementDone(value?: boolean): boolean {
+  if (typeof value === 'boolean') return value;
   return localStorage.getItem(PLACEMENT_KEY) === 'true';
+}
+
+function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string {
+  if (role === 'ADMIN') return '/admin/questions';
+  return isPlacementDone(diagnosticCompleted) ? '/dashboard' : '/onboarding';
 }
 
 // ── Route guards ──────────────────────────────────────────────
@@ -28,10 +36,10 @@ function isPlacementDone(): boolean {
  * After auth, sends to /onboarding if placement not done, else /dashboard.
  */
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isInitializing } = useAuth();
+  const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (isAuthenticated) {
-    return <Navigate to={isPlacementDone() ? '/learn' : '/onboarding'} replace />;
+    return <Navigate to={getDefaultRoute(user?.role, user?.diagnostic_completed)} replace />;
   }
   return <>{children}</>;
 }
@@ -43,14 +51,19 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function PrivateRoute({
   children,
   requiresPlacement = false,
+  allowedRoles,
 }: {
   children: React.ReactNode;
   requiresPlacement?: boolean;
+  allowedRoles?: UserRole[];
 }) {
-  const { isAuthenticated, isInitializing } = useAuth();
+  const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (requiresPlacement && !isPlacementDone()) {
+  if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
+    return <Navigate to={getDefaultRoute(user.role, user.diagnostic_completed)} replace />;
+  }
+  if (requiresPlacement && !isPlacementDone(user?.diagnostic_completed)) {
     return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;
@@ -71,10 +84,10 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
  * Onboarding route: requires auth, but redirects if placement already done.
  */
 function OnboardingRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isInitializing } = useAuth();
+  const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (isPlacementDone()) return <Navigate to="/learn" replace />;
+  if (isPlacementDone(user?.diagnostic_completed)) return <Navigate to="/learn" replace />;
   return <>{children}</>;
 }
 
@@ -113,6 +126,10 @@ export default function AppRouter() {
         path="/register"
         element={<PublicRoute><RegisterPage /></PublicRoute>}
       />
+      <Route
+        path="/auth/google/callback"
+        element={<PublicRoute><GoogleCallbackPage /></PublicRoute>}
+      />
 
       {/* Onboarding — placement test (auth required, placement not done) */}
       <Route
@@ -123,19 +140,31 @@ export default function AppRouter() {
       {/* Dashboard (auth + placement required) */}
       <Route
         path="/dashboard"
-        element={<PrivateRoute requiresPlacement><DashboardPage /></PrivateRoute>}
+        element={(
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+            <DashboardPage />
+          </PrivateRoute>
+        )}
       />
 
       {/* Learn path — curriculum node map */}
       <Route
         path="/learn"
-        element={<PrivateRoute requiresPlacement><LearnPathPage /></PrivateRoute>}
+        element={(
+          <PrivateRoute>
+            <LearnPathPage />
+          </PrivateRoute>
+        )}
       />
 
       {/* Exercise player */}
       <Route
         path="/exercise/:id"
-        element={<PrivateRoute requiresPlacement><ExercisePage /></PrivateRoute>}
+        element={(
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+            <ExercisePage />
+          </PrivateRoute>
+        )}
       />
 
       {/* Vocabulary collection */}

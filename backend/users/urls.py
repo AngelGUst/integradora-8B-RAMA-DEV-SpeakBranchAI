@@ -6,6 +6,7 @@ from users.views.auth_views import (
     ConfirmEmailView,
     LoginView,
     LogoutView,
+    DiagnosticCompleteView,
     MeView,
     PasswordChangeView,
     PasswordResetConfirmView,
@@ -28,6 +29,7 @@ urlpatterns = [
 
     # --- Session ---
     path('me/', MeView.as_view(), name='auth-me'),
+    path('diagnostic/complete/', DiagnosticCompleteView.as_view(), name='auth-diagnostic-complete'),
     path('login/', LoginView.as_view(), name='auth-login'),
     path('logout/', LogoutView.as_view(), name='auth-logout'),
     path('token/refresh/', TokenRefreshView.as_view(), name='auth-token-refresh'),

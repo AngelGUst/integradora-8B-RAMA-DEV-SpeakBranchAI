@@ -23,6 +23,7 @@ import { questionsService } from '@/services/questionsService';
 import type { Question } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
 import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
+import VocabularyGameDrawer from '../components/VocabularyGameDrawer';
 
 // ─── Skill / Accent config ────────────────────────────────────────────────────
 
@@ -56,11 +57,11 @@ function questionToSkill(q: Question): SkillType {
 
 const ACCENT_CFG = {
   emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', progress: 'bg-emerald-500', hex: '#10b981' },
-  cyan:    { text: 'text-cyan-400',    bg: 'bg-cyan-500/10',    border: 'border-cyan-500/20',    progress: 'bg-cyan-500',    hex: '#06b6d4' },
-  sky:     { text: 'text-sky-400',     bg: 'bg-sky-500/10',     border: 'border-sky-500/20',     progress: 'bg-sky-500',     hex: '#0ea5e9' },
-  indigo:  { text: 'text-indigo-400',  bg: 'bg-indigo-500/10',  border: 'border-indigo-500/20',  progress: 'bg-indigo-500',  hex: '#6366f1' },
-  violet:  { text: 'text-violet-400',  bg: 'bg-violet-500/10',  border: 'border-violet-500/20',  progress: 'bg-violet-500',  hex: '#8b5cf6' },
-  pink:    { text: 'text-pink-400',    bg: 'bg-pink-500/10',    border: 'border-pink-500/20',    progress: 'bg-pink-500',    hex: '#ec4899' },
+  cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', progress: 'bg-cyan-500', hex: '#06b6d4' },
+  sky: { text: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/20', progress: 'bg-sky-500', hex: '#0ea5e9' },
+  indigo: { text: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', progress: 'bg-indigo-500', hex: '#6366f1' },
+  violet: { text: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/20', progress: 'bg-violet-500', hex: '#8b5cf6' },
+  pink: { text: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20', progress: 'bg-pink-500', hex: '#ec4899' },
 } as const;
 
 // ─── Dynamic node state computation ──────────────────────────────────────────
@@ -109,9 +110,9 @@ function computeNodes(
 
 // ─── Path geometry ────────────────────────────────────────────────────────────
 
-const NODE_SIZE   = 72;
-const SPACING_Y   = 116;
-const START_Y     = 48;
+const NODE_SIZE = 72;
+const SPACING_Y = 116;
+const START_Y = 48;
 const CONTAINER_W = 412;
 const POS_X = { left: 44, center: 170, right: 296 } as const;
 
@@ -121,8 +122,8 @@ function buildPath(nodes: (LessonNode & { state: NodeState })[]): string {
     const cy = START_Y + i * SPACING_Y + NODE_SIZE / 2;
     if (i === 0) return `M ${cx} ${cy}`;
     const prev = nodes[i - 1];
-    const pcx  = POS_X[prev.posX] + NODE_SIZE / 2;
-    const pcy  = START_Y + (i - 1) * SPACING_Y + NODE_SIZE / 2;
+    const pcx = POS_X[prev.posX] + NODE_SIZE / 2;
+    const pcy = START_Y + (i - 1) * SPACING_Y + NODE_SIZE / 2;
     const midY = (pcy + cy) / 2;
     return `C ${pcx} ${midY}, ${cx} ${midY}, ${cx} ${cy}`;
   }).join(' ');
@@ -190,8 +191,8 @@ function NodeCircle({
       </motion.div>
     );
   }
+ 
 
-  // current
   return (
     <motion.div
       className={`${base} ${cfg.border} ${cfg.bg} hover:opacity-90`}
@@ -228,18 +229,18 @@ function PathSection({
 }) {
   const accent = ACCENT_CFG[section.accent];
   const [xpMin, xpMax] = section.xpRange;
-  const sectionLocked  = totalXP < xpMin;
+  const sectionLocked = totalXP < xpMin;
 
   const nodes = useMemo(
     () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
     [section.nodes, completedIds, questionScores, sectionLocked],
   );
 
-  const totalH   = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
+  const totalH = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
   const fullPath = buildPath(nodes);
-  const litIdx   = nodes.findIndex(n => n.state === 'current');
-  const litPath  = litIdx > 0 ? buildPath(nodes.slice(0, litIdx + 1)) : null;
-  const xpPct    = sectionLocked ? 0 : Math.min(1, (totalXP - xpMin) / (xpMax - xpMin));
+  const litIdx = nodes.findIndex(n => n.state === 'current');
+  const litPath = litIdx > 0 ? buildPath(nodes.slice(0, litIdx + 1)) : null;
+  const xpPct = sectionLocked ? 0 : Math.min(1, (totalXP - xpMin) / (xpMax - xpMin));
 
   return (
     <div className={sectionLocked ? 'opacity-50 pointer-events-none' : ''}>
@@ -279,7 +280,7 @@ function PathSection({
         <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
           <defs>
             <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor={accent.hex} stopOpacity="0.7" />
+              <stop offset="0%" stopColor={accent.hex} stopOpacity="0.7" />
               <stop offset="100%" stopColor={accent.hex} stopOpacity="0.1" />
             </linearGradient>
           </defs>
@@ -290,8 +291,8 @@ function PathSection({
         </svg>
 
         {nodes.map((node, i) => {
-          const x    = POS_X[node.posX];
-          const y    = START_Y + i * SPACING_Y;
+          const x = POS_X[node.posX];
+          const y = START_Y + i * SPACING_Y;
           const sCfg = SKILL_CFG[node.skill];
           const canClick = node.state === 'current' || node.state === 'completed';
 
@@ -377,12 +378,20 @@ function PathSection({
 
 // ─── Right Panel ──────────────────────────────────────────────────────────────
 
-function RightPanel({ totalXP }: { totalXP: number }) {
+function RightPanel({
+  totalXP,
+  currentSection,
+  nextSection,
+}: {
+  totalXP: number;
+  currentSection: CEFRSection;
+  nextSection: CEFRSection | null;
+}) {
   const dailyGoal = 100;
   const dailyDone = Math.min(totalXP, dailyGoal);
-  const pct       = dailyDone / dailyGoal;
-  const R         = 38;
-  const circ      = 2 * Math.PI * R;
+  const pct = dailyDone / dailyGoal;
+  const R = 38;
+  const circ = 2 * Math.PI * R;
 
   const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   const doneD = [true, true, true, false, false, false, false];
@@ -421,9 +430,8 @@ function RightPanel({ totalXP }: { totalXP: number }) {
                 <div className="flex gap-1">
                   {days.map((d, i) => (
                     <div key={d} className="flex flex-col items-center gap-0.5">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${
-                        doneD[i] ? 'bg-amber-500/15 border-amber-500/40' : 'bg-zinc-800/60 border-zinc-800'
-                      }`}>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center border ${doneD[i] ? 'bg-amber-500/15 border-amber-500/40' : 'bg-zinc-800/60 border-zinc-800'
+                        }`}>
                         {doneD[i] && <Flame size={10} className="text-amber-500" />}
                       </div>
                       <span className="text-[8px] text-zinc-700">{d}</span>
@@ -435,24 +443,28 @@ function RightPanel({ totalXP }: { totalXP: number }) {
           </div>
         </div>
 
-        {/* A1 progress */}
+        {/* Level progress */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Progreso A1</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">
+            Progreso {currentSection.level}
+          </p>
           <div className="bg-zinc-900/60 rounded-xl p-4 border border-zinc-800 space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-zinc-400">XP acumulado</span>
-              <span className="font-semibold text-emerald-400">{totalXP} / 200</span>
+              <span className="font-semibold text-emerald-400">
+                {Math.min(totalXP, currentSection.xpRange[1])} / {currentSection.xpRange[1]}
+              </span>
             </div>
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-emerald-500 rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, (totalXP / 200) * 100)}%` }}
+                animate={{ width: `${Math.min(100, (totalXP / currentSection.xpRange[1]) * 100)}%` }}
                 transition={{ duration: 0.9, ease: 'easeOut', delay: 0.4 }}
               />
             </div>
             <p className="text-xs text-zinc-600">
-              {Math.max(0, 200 - totalXP)} XP para completar A1
+              {Math.max(0, currentSection.xpRange[1] - totalXP)} XP para completar {currentSection.level}
             </p>
           </div>
         </div>
@@ -462,10 +474,10 @@ function RightPanel({ totalXP }: { totalXP: number }) {
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Habilidades</p>
           <div className="space-y-2">
             {[
-              { label: 'Reading',   score: 82, bar: 'bg-sky-500',     text: 'text-sky-400'     },
-              { label: 'Speaking',  score: 68, bar: 'bg-emerald-500', text: 'text-emerald-400' },
-              { label: 'Shadowing', score: 45, bar: 'bg-violet-500',  text: 'text-violet-400'  },
-              { label: 'Listening', score: 59, bar: 'bg-amber-500',   text: 'text-amber-400'   },
+              { label: 'Reading', score: 82, bar: 'bg-sky-500', text: 'text-sky-400' },
+              { label: 'Speaking', score: 68, bar: 'bg-emerald-500', text: 'text-emerald-400' },
+              { label: 'Shadowing', score: 45, bar: 'bg-violet-500', text: 'text-violet-400' },
+              { label: 'Listening', score: 59, bar: 'bg-amber-500', text: 'text-amber-400' },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-3 bg-zinc-900/40 rounded-lg px-3 py-2.5">
                 <span className="text-xs text-zinc-500 w-16 shrink-0">{s.label}</span>
@@ -487,12 +499,18 @@ function RightPanel({ totalXP }: { totalXP: number }) {
                 <Target size={15} className="text-cyan-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-zinc-200">Nivel A2</p>
-                <p className="text-xs text-zinc-500">Elementary</p>
+                <p className="text-sm font-medium text-zinc-200">
+                  {nextSection ? `Nivel ${nextSection.level}` : 'Nivel máximo'}
+                </p>
+                <p className="text-xs text-zinc-500">{nextSection?.label ?? 'Completado'}</p>
               </div>
             </div>
             <p className="text-xs text-zinc-500 leading-relaxed">
-              Necesitas <span className="text-cyan-400 font-semibold">{Math.max(0, 200 - totalXP)} XP más</span> para desbloquear A2.
+              {nextSection
+                ? (
+                  <>Necesitas <span className="text-cyan-400 font-semibold">{Math.max(0, nextSection.xpRange[0] - totalXP)} XP más</span> para desbloquear {nextSection.level}.</>
+                )
+                : 'Has completado el nivel más alto.'}
             </p>
           </div>
         </div>
@@ -525,6 +543,7 @@ export default function LearnPathPage() {
 
   const [questions, setQuestions]   = useState<Question[]>([]);
   const [loadingQ, setLoadingQ]     = useState(true);
+  const [vocabDrawer, setVocabDrawer] = useState(false);
 
   useEffect(() => {
     questionsService.getQuestions()
@@ -549,6 +568,17 @@ export default function LearnPathPage() {
     }).filter(s => s.nodes.length > 0);
   }, [questions]);
 
+  const currentSection = useMemo(() => {
+    return dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
+      ?? dynamicPath[0]
+      ?? LEARN_PATH[0];
+  }, [dynamicPath, totalXP]);
+
+  const nextSection = useMemo(() => {
+    const idx = dynamicPath.indexOf(currentSection);
+    return idx >= 0 && idx < dynamicPath.length - 1 ? dynamicPath[idx + 1] : null;
+  }, [dynamicPath, currentSection]);
+
   const handleNodeClick = (nodeId: string) => {
     navigate(`/exercise/${nodeId}`);
   };
@@ -565,11 +595,18 @@ export default function LearnPathPage() {
             <div>
               <h1 className="font-semibold text-zinc-100 leading-none">Ruta de Aprendizaje</h1>
               <p className="text-xs text-zinc-500 mt-0.5">
-                {user?.first_name ?? 'Piloto'} · A1 Beginner ·{' '}
+                {user?.first_name ?? 'Piloto'} · {currentSection.level} {currentSection.label} ·{' '}
                 <span className="text-emerald-400 font-medium">{totalXP} XP</span>
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setVocabDrawer(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/30 text-violet-300 text-[12px] font-semibold transition-colors"
+              >
+                <BookOpen size={13} />
+                Study Vocabulary
+              </button>
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <Flame size={13} className="text-amber-500" />
                 <span className="text-sm font-semibold">3</span>
@@ -618,7 +655,9 @@ export default function LearnPathPage() {
         </div>
       </main>
 
-      <RightPanel totalXP={totalXP} />
+      <RightPanel totalXP={totalXP} currentSection={currentSection} nextSection={nextSection} />
+
+      <VocabularyGameDrawer open={vocabDrawer} onClose={() => setVocabDrawer(false)} />
     </div>
   );
 }

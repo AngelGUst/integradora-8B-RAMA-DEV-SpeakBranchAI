@@ -5,7 +5,7 @@ from vocabulary.models import Vocabulary  # Aún no creamos esta app, lo importa
 
 class QuestionVocabulary(models.Model):
     """Relación entre preguntas y vocabulario contextual"""
-    
+
     question = models.ForeignKey(
         Question,
         on_delete=models.CASCADE,
@@ -18,11 +18,21 @@ class QuestionVocabulary(models.Model):
         related_name='questions',
         verbose_name='vocabulario'
     )
+    is_key = models.BooleanField(
+        default=False,
+        verbose_name='palabra clave',
+        help_text='Si es True, aparece primero en el vocabulario diario'
+    )
+    order = models.IntegerField(
+        default=0,
+        verbose_name='orden de importancia',
+        help_text='Mayor número = mayor importancia (para decidir qué palabras asignar diariamente)'
+    )
     created_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='fecha de creación'
     )
-    
+
     class Meta:
         db_table = 'question_vocabulary'
         verbose_name = 'Vocabulario de Pregunta'
@@ -31,7 +41,9 @@ class QuestionVocabulary(models.Model):
         indexes = [
             models.Index(fields=['question']),
             models.Index(fields=['vocabulary']),
+            models.Index(fields=['is_key', 'order']),
         ]
+        ordering = ['-is_key', '-order']
     
     def __str__(self):
         return f"{self.question.id} - {self.vocabulary.word}"

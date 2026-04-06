@@ -1,8 +1,9 @@
 import { useState, type ChangeEvent } from 'react';
-import { X, Check, Mic, BookOpen, Headphones, PenLine, type LucideIcon } from 'lucide-react';
+import { X, Check, Mic, BookOpen, Headphones, PenLine, BookMarked, type LucideIcon } from 'lucide-react';
 import type { Question, QuestionType } from '../../../types/question';
 import { questionsService } from '../../../services/questionsService';
 import QuestionFormBody from './QuestionFormBody';
+import VocabularyPanel from './VocabularyPanel';
 import { buildPayload, initFormFromQuestion, type FormState } from './questionFormUtils';
 
 const TYPE_META: Record<QuestionType, { label: string; Icon: LucideIcon }> = {
@@ -13,6 +14,8 @@ const TYPE_META: Record<QuestionType, { label: string; Icon: LucideIcon }> = {
   WRITING:                 { label: 'Writing',       Icon: PenLine },
 };
 
+type Tab = 'question' | 'vocabulary';
+
 interface Props {
   question: Question;
   onClose: () => void;
@@ -20,11 +23,12 @@ interface Props {
 }
 
 export default function EditQuestionModal({ question, onClose, onUpdate }: Props) {
+  const [tab, setTab]   = useState<Tab>('question');
   const [form, setForm] = useState<FormState>(() =>
     initFormFromQuestion(question.type, question)
   );
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]           = useState<string | null>(null);
 
   const set =
     (key: keyof FormState) =>
@@ -68,7 +72,6 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
               <h2 className="text-[16px] font-black tracking-[-0.02em] text-white/90">
                 Edit question
               </h2>
-              {/* Read-only type badge */}
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.04] border border-white/[0.06]">
                 <Icon className="h-3.5 w-3.5 text-violet-400/60" />
                 <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/35">
@@ -84,9 +87,42 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
             </button>
           </div>
 
+          {/* Tabs */}
+          <div className="flex border-b border-white/[0.05]">
+            {([
+              { key: 'question',   label: 'Pregunta',    Icon: BookOpen   },
+              { key: 'vocabulary', label: 'Vocabulario', Icon: BookMarked },
+            ] as { key: Tab; label: string; Icon: LucideIcon }[]).map(({ key, label: tabLabel, Icon: TabIcon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`flex items-center gap-2 px-5 py-3 text-[12px] font-semibold transition-colors border-b-2 -mb-px ${
+                  tab === key
+                    ? 'text-violet-400 border-violet-500'
+                    : 'text-white/30 border-transparent hover:text-white/50'
+                }`}
+              >
+                <TabIcon className="h-3.5 w-3.5" />
+                {tabLabel}
+              </button>
+            ))}
+          </div>
+
           {/* Body */}
           <div className="px-6 py-5">
-            <QuestionFormBody type={question.type} form={form} set={set} setOption={setOption} />
+            {tab === 'question' ? (
+              <QuestionFormBody
+                type={question.type}
+                form={form}
+                set={set}
+                setOption={setOption}
+                onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
+              />
+            ) : (
+              <VocabularyPanel
+                questionId={question.id}
+              />
+            )}
           </div>
 
           {/* Footer */}
@@ -98,25 +134,33 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
               Cancel
             </button>
 
-            <div className="flex flex-col items-end gap-1.5">
-              {error && (
-                <p className="text-[11px] text-red-400/70 max-w-[240px] text-right">{error}</p>
-              )}
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-[13px] font-semibold text-white transition-colors"
-              >
-                {submitting ? (
-                  'Saving…'
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Save changes
-                  </>
+            {tab === 'question' && (
+              <div className="flex flex-col items-end gap-1.5">
+                {error && (
+                  <p className="text-[11px] text-red-400/70 max-w-[240px] text-right">{error}</p>
                 )}
-              </button>
-            </div>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-[13px] font-semibold text-white transition-colors"
+                >
+                  {submitting ? (
+                    'Saving…'
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Save changes
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {tab === 'vocabulary' && (
+              <p className="text-[11px] text-white/20">
+                Los cambios de vocabulario se guardan automáticamente.
+              </p>
+            )}
           </div>
 
         </div>

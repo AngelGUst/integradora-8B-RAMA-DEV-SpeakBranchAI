@@ -8,19 +8,22 @@
  * Layout: [Shared Sidebar] | [Scrollable path] | [Right stats panel]
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  BookOpen, Mic, Repeat, Headphones,
-  Star, Trophy, Lock, CheckCircle2,
+  BookOpen, Mic, Repeat, Headphones, PenLine,
+  Star, Trophy, Lock, CheckCircle2, RefreshCw,
   Flame, Zap, Target,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
+import { questionsService } from '@/services/questionsService';
+import type { Question } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
-import type { LessonNode, CEFRSection, SkillType, NodeState } from '../data/pathData';
+import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
+import VocabularyGameDrawer from '../components/VocabularyGameDrawer';
 
 // ─── Skill / Accent config ────────────────────────────────────────────────────
 
@@ -28,13 +31,29 @@ const SKILL_CFG: Record<SkillType, {
   Icon: React.ElementType;
   bg: string; border: string; text: string; glowRgb: string;
 }> = {
-  reading: { Icon: BookOpen, bg: 'bg-sky-500/15', border: 'border-sky-500/50', text: 'text-sky-400', glowRgb: '14,165,233' },
-  speaking: { Icon: Mic, bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-400', glowRgb: '16,185,129' },
-  shadowing: { Icon: Repeat, bg: 'bg-violet-500/15', border: 'border-violet-500/50', text: 'text-violet-400', glowRgb: '139,92,246' },
-  comprehension: { Icon: Headphones, bg: 'bg-amber-500/15', border: 'border-amber-500/50', text: 'text-amber-400', glowRgb: '245,158,11' },
-  checkpoint: { Icon: Star, bg: 'bg-yellow-500/15', border: 'border-yellow-500/50', text: 'text-yellow-400', glowRgb: '234,179,8' },
-  exam: { Icon: Trophy, bg: 'bg-rose-500/15', border: 'border-rose-500/50', text: 'text-rose-400', glowRgb: '244,63,94' },
+  reading:       { Icon: BookOpen,   bg: 'bg-sky-500/15',     border: 'border-sky-500/50',     text: 'text-sky-400',     glowRgb: '14,165,233'  },
+  speaking:      { Icon: Mic,        bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-400', glowRgb: '16,185,129'  },
+  shadowing:     { Icon: Repeat,     bg: 'bg-violet-500/15',  border: 'border-violet-500/50',  text: 'text-violet-400',  glowRgb: '139,92,246'  },
+  comprehension: { Icon: Headphones, bg: 'bg-amber-500/15',   border: 'border-amber-500/50',   text: 'text-amber-400',   glowRgb: '245,158,11'  },
+  writing:       { Icon: PenLine,    bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
+  checkpoint:    { Icon: Star,       bg: 'bg-yellow-500/15',  border: 'border-yellow-500/50',  text: 'text-yellow-400',  glowRgb: '234,179,8'   },
+  exam:          { Icon: Trophy,     bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
 };
+
+const POS_X_CYCLE: PosX[] = ['center', 'right', 'center', 'left'];
+
+function questionToSkill(q: Question): SkillType {
+  if (q.category === 'DIAGNOSTIC') return 'checkpoint';
+  if (q.category === 'LEVEL_UP')   return 'exam';
+  const map: Record<string, SkillType> = {
+    SPEAKING:                'speaking',
+    READING:                 'reading',
+    LISTENING_SHADOWING:     'shadowing',
+    LISTENING_COMPREHENSION: 'comprehension',
+    WRITING:                 'writing',
+  };
+  return map[q.type] ?? 'reading';
+}
 
 const ACCENT_CFG = {
   emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', progress: 'bg-emerald-500', hex: '#10b981' },
@@ -56,6 +75,7 @@ const ACCENT_CFG = {
 function computeNodes(
   nodes: LessonNode[],
   completedIds: string[],
+  questionScores: Record<string, number>,
   sectionLocked: boolean,
 ): (LessonNode & { state: NodeState })[] {
   if (sectionLocked) {
@@ -63,16 +83,29 @@ function computeNodes(
   }
 
   let foundCurrent = false;
-  return nodes.map((node, i) => {
-    if (completedIds.includes(node.id)) return { ...node, state: 'completed' };
+  const result = nodes.map((node, i) => {
+    if (completedIds.includes(node.id)) return { ...node, state: 'completed' as NodeState };
 
     const prevAllDone = nodes.slice(0, i).every(n => completedIds.includes(n.id));
     if (prevAllDone && !foundCurrent) {
       foundCurrent = true;
-      return { ...node, state: 'current' };
+      return { ...node, state: 'current' as NodeState };
     }
-    return { ...node, state: 'locked' };
+    return { ...node, state: 'locked' as NodeState };
   });
+
+  // All exercises completed → mark the one with the worst score as 'replay'
+  if (!foundCurrent) {
+    let worstIdx = 0;
+    let worstScore = Infinity;
+    result.forEach((node, i) => {
+      const s = questionScores[node.id] ?? 0;
+      if (s < worstScore) { worstScore = s; worstIdx = i; }
+    });
+    result[worstIdx] = { ...result[worstIdx], state: 'replay' };
+  }
+
+  return result;
 }
 
 // ─── Path geometry ────────────────────────────────────────────────────────────
@@ -107,7 +140,7 @@ function NodeCircle({
 }) {
   const cfg = SKILL_CFG[node.skill];
   const { Icon } = cfg;
-  const clickable = node.state === 'current' || node.state === 'completed';
+  const clickable = node.state === 'current' || node.state === 'completed' || node.state === 'replay';
 
   const base = `rounded-full border-2 flex items-center justify-center transition-all
     ${clickable ? 'cursor-pointer' : 'cursor-default'}`;
@@ -136,10 +169,29 @@ function NodeCircle({
     );
   }
 
-  // current
-  const visibleSections = currentSectionIndex >= 0
-    ? LEARN_PATH.slice(currentSectionIndex)
-    : LEARN_PATH;
+  if (node.state === 'replay') {
+    return (
+      <motion.div
+        className={`${base} border-amber-500/50 bg-amber-500/10 hover:opacity-90 relative`}
+        style={{ width: NODE_SIZE, height: NODE_SIZE }}
+        animate={{
+          boxShadow: [
+            '0 0 0 0px rgba(245,158,11,0)',
+            '0 0 0 10px rgba(245,158,11,0.12)',
+            '0 0 0 0px rgba(245,158,11,0)',
+          ],
+        }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        onClick={onClick}
+      >
+        <RefreshCw size={NODE_SIZE * 0.38} className="text-amber-400" />
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#07090F] border border-zinc-800 flex items-center justify-center">
+          <Icon size={9} className="text-amber-400" />
+        </div>
+      </motion.div>
+    );
+  }
+ 
 
   return (
     <motion.div
@@ -165,11 +217,13 @@ function NodeCircle({
 function PathSection({
   section,
   completedIds,
+  questionScores,
   totalXP,
   onNodeClick,
 }: {
   section: CEFRSection;
   completedIds: string[];
+  questionScores: Record<string, number>;
   totalXP: number;
   onNodeClick: (nodeId: string) => void;
 }) {
@@ -178,8 +232,8 @@ function PathSection({
   const sectionLocked = totalXP < xpMin;
 
   const nodes = useMemo(
-    () => computeNodes(section.nodes, completedIds, sectionLocked),
-    [section.nodes, completedIds, sectionLocked],
+    () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
+    [section.nodes, completedIds, questionScores, sectionLocked],
   );
 
   const totalH = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
@@ -263,20 +317,44 @@ function PathSection({
                 </motion.div>
               )}
 
+              {/* CTA above replay node */}
+              {node.state === 'replay' && (
+                <motion.div
+                  className="absolute flex flex-col items-center"
+                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={() => onNodeClick(node.id)}
+                      className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={11} /> REPASAR
+                    </button>
+                    <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
+                      score bajo · gana más XP
+                    </span>
+                  </div>
+                  <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
+                </motion.div>
+              )}
+
               <NodeCircle
                 node={node}
                 onClick={canClick ? () => onNodeClick(node.id) : undefined}
               />
 
-              {/* Label below current/available */}
-              {(node.state === 'current') && (
+              {/* Label below current/replay */}
+              {(node.state === 'current' || node.state === 'replay') && (
                 <div
                   className="absolute whitespace-nowrap text-center"
                   style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
                 >
                   <p className="text-[10px] text-zinc-500">{node.title}</p>
-                  <span className={`text-[9px] ${sCfg.text} uppercase tracking-wider font-semibold`}>
-                    {node.skill}
+                  <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
+                    {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
                   </span>
                 </div>
               )}
@@ -459,22 +537,47 @@ function RightPanel({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LearnPathPage() {
-  const { user } = useAuth();
-  const { totalXP, completedIds } = useLearnProgress();
-  const navigate = useNavigate();
+  const { user }                              = useAuth();
+  const { totalXP, completedIds, questionScores } = useLearnProgress();
+  const navigate                   = useNavigate();
 
-  const activeLevel = user?.level && LEARN_PATH.some(section => section.level === user.level)
-    ? user.level
-    : LEARN_PATH[0]?.level;
+  const [questions, setQuestions]   = useState<Question[]>([]);
+  const [loadingQ, setLoadingQ]     = useState(true);
+  const [vocabDrawer, setVocabDrawer] = useState(false);
 
-  const currentSectionIndex = LEARN_PATH.findIndex(section => section.level === activeLevel);
-  const currentSection = currentSectionIndex >= 0 ? LEARN_PATH[currentSectionIndex] : LEARN_PATH[0];
-  const nextSection = currentSectionIndex >= 0 && currentSectionIndex < LEARN_PATH.length - 1
-    ? LEARN_PATH[currentSectionIndex + 1]
-    : null;
-  const visibleSections = currentSectionIndex >= 0
-    ? LEARN_PATH.slice(currentSectionIndex)
-    : LEARN_PATH;
+  useEffect(() => {
+    questionsService.getQuestions()
+      .then(setQuestions)
+      .catch(() => {})
+      .finally(() => setLoadingQ(false));
+  }, []);
+
+  // Build sections from backend questions, keeping CEFR metadata from pathData
+  const dynamicPath = useMemo((): CEFRSection[] => {
+    return LEARN_PATH.map(section => {
+      const sectionQs = questions.filter(q => q.level === section.level);
+      const nodes: LessonNode[] = sectionQs.map((q, i) => ({
+        id: String(q.id),
+        title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
+        skill: questionToSkill(q),
+        state: 'locked' as const,
+        xpMax: q.xp_max,
+        posX: POS_X_CYCLE[i % 4],
+      }));
+      return { ...section, nodes };
+    }).filter(s => s.nodes.length > 0);
+  }, [questions]);
+
+  const currentSection = useMemo(() => {
+    return dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
+      ?? dynamicPath[0]
+      ?? LEARN_PATH[0];
+  }, [dynamicPath, totalXP]);
+
+  const nextSection = useMemo(() => {
+    const idx = dynamicPath.indexOf(currentSection);
+    return idx >= 0 && idx < dynamicPath.length - 1 ? dynamicPath[idx + 1] : null;
+  }, [dynamicPath, currentSection]);
 
   const handleNodeClick = (nodeId: string) => {
     navigate(`/exercise/${nodeId}`);
@@ -497,6 +600,13 @@ export default function LearnPathPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setVocabDrawer(true)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/30 text-violet-300 text-[12px] font-semibold transition-colors"
+              >
+                <BookOpen size={13} />
+                Study Vocabulary
+              </button>
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <Flame size={13} className="text-amber-500" />
                 <span className="text-sm font-semibold">3</span>
@@ -512,15 +622,27 @@ export default function LearnPathPage() {
         </header>
 
         <div className="pb-28">
-          {visibleSections.map(section => (
-            <PathSection
-              key={section.level}
-              section={section}
-              completedIds={completedIds}
-              totalXP={totalXP}
-              onNodeClick={handleNodeClick}
-            />
-          ))}
+          {loadingQ ? (
+            <div className="flex items-center justify-center py-24">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
+            </div>
+          ) : dynamicPath.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <Trophy size={32} className="text-zinc-700" />
+              <p className="text-sm text-zinc-500">No hay ejercicios disponibles todavía.</p>
+            </div>
+          ) : (
+            dynamicPath.map(section => (
+              <PathSection
+                key={section.level}
+                section={section}
+                completedIds={completedIds}
+                questionScores={questionScores}
+                totalXP={totalXP}
+                onNodeClick={handleNodeClick}
+              />
+            ))
+          )}
 
           {/* End marker */}
           <div className="flex flex-col items-center gap-2 mt-8 mb-4 opacity-25">
@@ -534,6 +656,8 @@ export default function LearnPathPage() {
       </main>
 
       <RightPanel totalXP={totalXP} currentSection={currentSection} nextSection={nextSection} />
+
+      <VocabularyGameDrawer open={vocabDrawer} onClose={() => setVocabDrawer(false)} />
     </div>
   );
 }

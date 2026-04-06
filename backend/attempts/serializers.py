@@ -1,10 +1,10 @@
 """
-Serializers para el módulo Speaking.
+Serializers para los módulos Speaking y Writing.
 """
 
 from rest_framework import serializers
 from questions.models import Question
-from .models import SpeakingAttempt
+from .models import SpeakingAttempt, WritingAttempt
 
 
 class SpeakingQuestionSerializer(serializers.ModelSerializer):
@@ -52,3 +52,22 @@ class SpeakingHistorySerializer(serializers.ModelSerializer):
             'attempts_count', 'created_at'
         ]
         read_only_fields = fields
+
+
+class WritingEvaluateRequestSerializer(serializers.Serializer):
+    """Valida el body del POST /writing/evaluate/."""
+
+    question_id = serializers.IntegerField()
+    student_text = serializers.CharField(min_length=10, max_length=3000)
+
+
+class WritingEvaluateResponseSerializer(serializers.Serializer):
+    """Respuesta devuelta al alumno tras evaluar su writing."""
+
+    score = serializers.IntegerField()
+    score_grammar = serializers.FloatField()
+    score_vocabulary = serializers.FloatField()
+    score_coherence = serializers.FloatField()
+    score_spelling = serializers.FloatField()
+    feedback = serializers.CharField()
+    xp_earned = serializers.IntegerField()

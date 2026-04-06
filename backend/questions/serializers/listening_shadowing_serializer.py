@@ -18,11 +18,6 @@ class ListeningShadowingSerializer(BaseQuestionSerializer):
         ]
         read_only_fields = BaseQuestionSerializer.Meta.read_only_fields + ['max_replays']
 
-    def validate_audio_url(self, value):
-        if not value:
-            raise serializers.ValidationError('audio_url es requerido para Listening Shadowing.')
-        return value
-
     def validate_correct_answer(self, value):
         if not value or not value.strip():
             raise serializers.ValidationError('Este campo es requerido para Listening Shadowing.')

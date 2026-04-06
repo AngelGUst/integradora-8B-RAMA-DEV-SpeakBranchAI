@@ -31,6 +31,11 @@ class Question(models.Model):
         INTERMEDIATE = 'INTERMEDIATE', 'Intermedio'
         ADVANCED = 'ADVANCED', 'Avanzado'
         DIAGNOSTIC = 'DIAGNOSTIC', 'Diagnóstico'
+    CATEGORY_CHOICES = [
+        ('DIAGNOSTIC', 'Examen diagnóstico'),
+        ('PRACTICE', 'Solo ejercicio'),
+        ('LEVEL_UP', 'Examen subir nivel'),
+    ]
     
     # Dificultad
     DIFFICULTY_CHOICES = [
@@ -193,8 +198,7 @@ class Question(models.Model):
         )
         
         if exam_type == 'DIAGNOSTIC':
-            # Mezcla de dificultades para diagnóstico
-            return base_query.order_by('?')[:count]
+            return base_query.filter(category='DIAGNOSTIC').order_by('?')[:count]
         elif exam_type == 'LEVEL_UP':
             # Preguntas más difíciles para subir de nivel
             return base_query.filter(
@@ -205,5 +209,6 @@ class Question(models.Model):
             return base_query.filter(
                 category=cls.Category.TOEFL
             ).order_by('?')[:count]
+            return base_query.filter(category='LEVEL_UP').order_by('?')[:count]
         
         return base_query.order_by('?')[:count]

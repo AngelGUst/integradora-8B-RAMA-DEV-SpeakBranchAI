@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/authApi';
 import LoginForm from '../components/LoginForm';
 import Logo from '@/shared/components/ui/Logo';
+import Button from '@/shared/components/ui/Button';
 import type { LoginFormData } from '../schemas/authSchemas';
 import type { ApiError } from '@/shared/types/api.types';
 
@@ -100,7 +101,8 @@ export default function LoginPage() {
     try {
       const res = await authApi.login({ email: data.email, password: data.password });
       login(res.access, res.refresh, res.user);
-      navigate('/dashboard', { replace: true });
+      const nextRoute = res.user.role === 'ADMIN' ? '/admin/questions' : '/dashboard';
+      navigate(nextRoute, { replace: true });
     } catch (err: unknown) {
       if (isAxiosError(err)) {
         const body = err.response?.data as ApiError | Record<string, string> | undefined;
@@ -114,6 +116,10 @@ export default function LoginPage() {
         setServerError('An unexpected error occurred. Please try again.');
       }
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = authApi.getGoogleLoginUrl();
   };
 
   return (
@@ -172,6 +178,24 @@ export default function LoginPage() {
             <div className="h-px flex-1 bg-white/[0.05]" />
             <span className="text-xs text-slate-700">or</span>
             <div className="h-px flex-1 bg-white/[0.05]" />
+          </motion.div>
+
+          {/* Google OAuth */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-2"
+          >
+            <Button
+              type="button"
+              fullWidth
+              size="lg"
+              className="bg-white/5 text-white hover:bg-white/10"
+              onClick={handleGoogleLogin}
+            >
+              Continue with Google
+            </Button>
           </motion.div>
 
           {/* Register link */}

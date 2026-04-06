@@ -14,6 +14,13 @@ from users.views.auth_views import (
     RegisterView,
 )
 from users.views.oauth_views import GoogleOAuthCallbackView, GoogleOAuthRedirectView
+from users.views.progress_views import ProgressView
+from users.views.admin_views import (
+    AdminUserListView,
+    AdminUserDetailView,
+    AdminPasswordResetView,
+    AdminUserAttemptsView,
+)
 
 urlpatterns = [
     # --- Registration & email confirmation ---
@@ -37,4 +44,14 @@ urlpatterns = [
     # --- Google OAuth ---
     path('google/', GoogleOAuthRedirectView.as_view(), name='auth-google'),
     path('google/callback/', GoogleOAuthCallbackView.as_view(), name='auth-google-callback'),
+
+    # --- Progress ---
+    path('progress/', ProgressView.as_view(), name='user-progress'),
+    path('progress/complete/', ProgressView.as_view(), name='user-progress-complete'),
+
+    # --- Admin: User Management ---
+    path('users/', AdminUserListView.as_view(), name='admin-user-list'),
+    path('users/<int:user_id>/', AdminUserDetailView.as_view(), name='admin-user-detail'),
+    path('users/<int:user_id>/reset-password/', AdminPasswordResetView.as_view(), name='admin-user-reset-password'),
+    path('users/<int:user_id>/attempts/', AdminUserAttemptsView.as_view(), name='admin-user-attempts'),
 ]

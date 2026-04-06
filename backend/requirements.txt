@@ -63,4 +63,7 @@ requests==2.32.3
 
 # API documentation (Swagger UI + ReDoc)
 drf-spectacular==0.28.0
+
+# OpenAI SDK
+openai>=1.0.0
 win32_setctime==1.2.0

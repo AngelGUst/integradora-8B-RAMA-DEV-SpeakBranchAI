@@ -15,7 +15,7 @@ class WritingQuestionSerializer(BaseQuestionSerializer):
 
     def create(self, validated_data):
         validated_data['type'] = 'WRITING'
-        validated_data['phonetic_text'] = None
+        validated_data['phonetic_text'] = ''
         validated_data['audio_url'] = None
         return super().create(validated_data)
 

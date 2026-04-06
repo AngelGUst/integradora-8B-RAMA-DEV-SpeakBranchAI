@@ -11,6 +11,18 @@ export const LABEL =
 
 export const SELECT = INPUT + ' appearance-none cursor-pointer';
 
+export interface ReadingQuestion {
+  text: string;
+  options: [string, string, string, string];
+  correct_option: 'A' | 'B' | 'C' | 'D';
+}
+
+const EMPTY_READING_QUESTION: ReadingQuestion = {
+  text: '',
+  options: ['', '', '', ''],
+  correct_option: 'A',
+};
+
 export interface FormState {
   level: Level;
   difficulty: Difficulty;
@@ -22,12 +34,13 @@ export interface FormState {
   options: [string, string, string, string];
   correct_option: 'A' | 'B' | 'C' | 'D';
   evaluation_instructions: string;
+  reading_questions: ReadingQuestion[];
 }
 
 export const INITIAL_FORM: FormState = {
   level: 'A1',
   difficulty: 'EASY',
-  category: 'BASIC',
+  category: 'PRACTICE',
   text: '',
   correct_answer: '',
   phonetic_text: '',
@@ -35,11 +48,13 @@ export const INITIAL_FORM: FormState = {
   options: ['', '', '', ''],
   correct_option: 'A',
   evaluation_instructions: '',
+  reading_questions: [{ ...EMPTY_READING_QUESTION }],
 };
+
+const LETTERS = ['A', 'B', 'C', 'D'] as const;
 
 export function buildPayload(type: QuestionType, form: FormState): CreateQuestionPayload {
   const base = { type, level: form.level, difficulty: form.difficulty, category: form.category };
-  const optionsJson = JSON.stringify({ options: form.options, correct: form.correct_option });
 
   switch (type) {
     case 'SPEAKING':
@@ -50,19 +65,34 @@ export function buildPayload(type: QuestionType, form: FormState): CreateQuestio
         ...(form.phonetic_text ? { phonetic_text: form.phonetic_text } : {}),
         ...(form.audio_url ? { audio_url: form.audio_url } : {}),
       };
-    case 'READING':
-      return { ...base, text: form.text, correct_answer: optionsJson };
+    case 'READING': {
+      const questions = form.reading_questions.map((rq) => {
+        const idx = LETTERS.indexOf(rq.correct_option);
+        return { text: rq.text, options: rq.options, correct: rq.options[idx] ?? rq.options[0] };
+      });
+      return { ...base, text: form.text, correct_answer: JSON.stringify({ questions }) };
+    }
     case 'LISTENING_SHADOWING':
       return {
         ...base,
         text: form.text,
-        audio_url: form.audio_url,
         correct_answer: form.correct_answer,
         max_replays: null,
         ...(form.phonetic_text ? { phonetic_text: form.phonetic_text } : {}),
       };
-    case 'LISTENING_COMPREHENSION':
-      return { ...base, text: form.text, audio_url: form.audio_url, correct_answer: optionsJson, max_replays: 3 };
+    case 'LISTENING_COMPREHENSION': {
+      const questions = form.reading_questions.map((rq) => {
+        const idx = LETTERS.indexOf(rq.correct_option);
+        return { text: rq.text, options: rq.options, correct: rq.options[idx] ?? rq.options[0] };
+      });
+      return {
+        ...base,
+        text: form.text,
+        phonetic_text: form.phonetic_text,
+        correct_answer: JSON.stringify({ questions }),
+        max_replays: 3,
+      };
+    }
     case 'WRITING':
       return { ...base, text: form.text, correct_answer: form.evaluation_instructions };
   }
@@ -90,14 +120,58 @@ export function initFormFromQuestion(
     phonetic_text: q.phonetic_text ?? '',
   };
 
-  if (type === 'READING' || type === 'LISTENING_COMPREHENSION') {
+  if (type === 'READING') {
     try {
-      const parsed = JSON.parse(q.correct_answer);
-      base.options = parsed.options ?? ['', '', '', ''];
-      base.correct_option = parsed.correct ?? 'A';
-    } catch {
-      /* keep defaults */
-    }
+      const parsed = JSON.parse(q.correct_answer) as {
+        questions?: Array<{ text: string; options: string[]; correct: string }>;
+        options?: string[];
+        correct?: string;
+      };
+      if (Array.isArray(parsed.questions)) {
+        base.reading_questions = parsed.questions.map((rq) => {
+          const idx = rq.options.indexOf(rq.correct);
+          return {
+            text: rq.text,
+            options: rq.options as [string, string, string, string],
+            correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+          };
+        });
+      } else if (Array.isArray(parsed.options)) {
+        // old format — backwards compat
+        const idx = parsed.options.indexOf(parsed.correct ?? '');
+        base.reading_questions = [{
+          text: '',
+          options: parsed.options as [string, string, string, string],
+          correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+        }];
+      }
+    } catch { /* keep defaults */ }
+  } else if (type === 'LISTENING_COMPREHENSION') {
+    try {
+      const parsed = JSON.parse(q.correct_answer) as {
+        questions?: Array<{ text: string; options: string[]; correct: string }>;
+        options?: string[];
+        correct?: string;
+      };
+      if (Array.isArray(parsed.questions)) {
+        base.reading_questions = parsed.questions.map((rq) => {
+          const idx = rq.options.indexOf(rq.correct);
+          return {
+            text: rq.text,
+            options: rq.options as [string, string, string, string],
+            correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+          };
+        });
+      } else if (Array.isArray(parsed.options)) {
+        // old format — backwards compat
+        const idx = parsed.options.indexOf(parsed.correct ?? '');
+        base.reading_questions = [{
+          text: '',
+          options: parsed.options as [string, string, string, string],
+          correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+        }];
+      }
+    } catch { /* keep defaults */ }
   } else if (type === 'WRITING') {
     base.evaluation_instructions = q.correct_answer;
   } else {

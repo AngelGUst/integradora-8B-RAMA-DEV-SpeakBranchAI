@@ -27,6 +27,7 @@ export interface User {
   /** Average of the four skill precision scores (0–100). */
   average_precision: number;
   is_active: boolean;
+  diagnostic_completed: boolean;
 }
 
 // ── API payload types ────────────────────────────────────────
@@ -40,6 +41,11 @@ export interface AuthTokens {
 
 export interface LoginResponse extends AuthTokens {
   user: User;
+}
+
+export interface GoogleOAuthResponse extends AuthTokens {
+  user: User;
+  isNewUser: boolean;
 }
 
 export interface RegisterResponse {

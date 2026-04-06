@@ -1,9 +1,10 @@
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from questions.filters import QuestionFilter
-from questions.models import Question
+from questions.models import Question, QuestionVocabulary
 from questions.permissions import IsAdminRole
 from questions.serializers import (
     BaseQuestionSerializer,
@@ -12,6 +13,7 @@ from questions.serializers import (
     ReadingQuestionSerializer,
     SpeakingQuestionSerializer,
     WritingQuestionSerializer,
+    QuestionVocabularyDetailSerializer,
 )
 
 TYPE_SERIALIZER_MAP = {
@@ -62,6 +64,21 @@ class QuestionViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+
+        # Attach vocabulary items to detail response
+        items = (
+            QuestionVocabulary.objects
+            .select_related('vocabulary')
+            .filter(question=instance)
+        )
+        data['vocabulary_items'] = QuestionVocabularyDetailSerializer(items, many=True).data
+
+        return Response(data)
 
     def destroy(self, request, *args, **kwargs):
         from exams.models import ExamQuestion

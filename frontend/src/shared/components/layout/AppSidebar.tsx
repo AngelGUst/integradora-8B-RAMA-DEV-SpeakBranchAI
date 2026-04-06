@@ -1,17 +1,21 @@
-import { BarChart2, Route, LogOut } from 'lucide-react';
+import { BarChart2, Route, LogOut, BookOpen, BookMarked, Users, Library } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import Logo from '@/shared/components/ui/Logo';
 
 const NAV_ITEMS = [
-  { label: 'Panel de Control',    icon: BarChart2, path: '/dashboard' },
-  { label: 'Ruta de Aprendizaje', icon: Route,     path: '/learn'     },
+  { label: 'Panel de Control', icon: BarChart2, path: '/dashboard', adminOnly: false },
+  { label: 'Ruta de Aprendizaje', icon: Route, path: '/learn', adminOnly: false },
+  { label: 'Preguntas', icon: BookOpen, path: '/admin/questions', adminOnly: true },
+  { label: 'Vocabulario', icon: BookMarked, path: '/admin/vocabulary', adminOnly: true },
+  { label: 'Usuarios', icon: Users, path: '/admin/users', adminOnly: true },
+  { label: 'Mi Vocabulario', icon: Library, path: '/vocabulary', adminOnly: false },
 ];
 
 export default function AppSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   return (
     <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen shrink-0 relative z-20">
@@ -20,7 +24,7 @@ export default function AppSidebar() {
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-1">
-        {NAV_ITEMS.map(item => {
+        {NAV_ITEMS.filter(item => !item.adminOnly || user?.role === 'ADMIN').map(item => {
           const active = pathname === item.path;
           return (
             <button

@@ -9,6 +9,9 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
+import VocabularyPage from '@/pages/admin/VocabularyPage';
+import UsersPage from '@/pages/admin/UsersPage';
+import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import Logo from '@/shared/components/ui/Logo';
 import type { UserRole } from '@/features/auth/types/auth.types';
 
@@ -65,6 +68,17 @@ function PrivateRoute({
   if (requiresPlacement && !isPlacementDone(user?.diagnostic_completed)) {
     return <Navigate to="/onboarding" replace />;
   }
+  return <>{children}</>;
+}
+
+/**
+ * Admin-only route: requires auth and ADMIN role.
+ */
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isInitializing, user } = useAuth();
+  if (isInitializing) return <AppLoader />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (user?.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -139,7 +153,7 @@ export default function AppRouter() {
       <Route
         path="/learn"
         element={(
-          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+          <PrivateRoute>
             <LearnPathPage />
           </PrivateRoute>
         )}
@@ -155,14 +169,24 @@ export default function AppRouter() {
         )}
       />
 
-      {/* Admin questions */}
+      {/* Vocabulary collection */}
+      <Route
+        path="/vocabulary"
+        element={<PrivateRoute requiresPlacement><VocabularyCollectionPage /></PrivateRoute>}
+      />
+
+      {/* Admin */}
       <Route
         path="/admin/questions"
-        element={(
-          <PrivateRoute allowedRoles={['ADMIN']}>
-            <QuestionsPage />
-          </PrivateRoute>
-        )}
+        element={<AdminRoute><QuestionsPage /></AdminRoute>}
+      />
+      <Route
+        path="/admin/vocabulary"
+        element={<AdminRoute><VocabularyPage /></AdminRoute>}
+      />
+      <Route
+        path="/admin/users"
+        element={<AdminRoute><UsersPage /></AdminRoute>}
       />
 
       {/* Fallback */}

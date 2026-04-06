@@ -3,6 +3,7 @@ import apiClient from '@/shared/api/client';
 import type {
   LoginCredentials,
   LoginResponse,
+  GoogleOAuthResponse,
   RegisterCredentials,
   RegisterResponse,
   User,
@@ -26,6 +27,7 @@ function buildMockUser(email: string, firstName?: string): User {
     avatar_url: null,
     average_precision: 0,
     is_active: true,
+    diagnostic_completed: false,
   };
 }
 
@@ -42,6 +44,13 @@ function isMockToken(): boolean {
  * fall back to a local mock so the frontend can be tested without a server.
  */
 export const authApi = {
+  /**
+   * Returns the backend URL that starts the Google OAuth flow.
+   */
+  getGoogleLoginUrl: (): string => {
+    const baseUrl = apiClient.defaults.baseURL ?? '';
+    return `${baseUrl.replace(/\/$/, '')}/auth/google/`;
+  },
   /**
    * Authenticate with email + password.
    * Returns JWT pair and the authenticated user profile.
@@ -141,5 +150,24 @@ export const authApi = {
       { refresh },
     );
     return data;
+  },
+
+  /**
+   * Complete Google OAuth using the authorization code.
+   */
+  googleCallback: async (code: string): Promise<GoogleOAuthResponse> => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token: string; is_new_user: boolean }>(
+      '/auth/google/callback/',
+      { code },
+    );
+    const { data: user } = await apiClient.get<User>('/auth/me/', {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    return {
+      access: data.access_token,
+      refresh: data.refresh_token,
+      user,
+      isNewUser: data.is_new_user,
+    };
   },
 };

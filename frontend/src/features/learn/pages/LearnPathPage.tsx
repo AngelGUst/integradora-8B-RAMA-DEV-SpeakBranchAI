@@ -137,10 +137,6 @@ function NodeCircle({
   }
 
   // current
-  const visibleSections = currentSectionIndex >= 0
-    ? LEARN_PATH.slice(currentSectionIndex)
-    : LEARN_PATH;
-
   return (
     <motion.div
       className={`${base} ${cfg.border} ${cfg.bg} hover:opacity-90`}

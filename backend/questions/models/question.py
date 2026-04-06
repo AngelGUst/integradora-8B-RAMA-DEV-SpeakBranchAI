@@ -25,12 +25,12 @@ class Question(models.Model):
     ]
     
     # Categorías
-    CATEGORY_CHOICES = [
-        ('TOEFL', 'TOEFL'),
-        ('BASIC', 'Básico'),
-        ('INTERMEDIATE', 'Intermedio'),
-        ('ADVANCED', 'Avanzado'),
-    ]
+    class Category(models.TextChoices):
+        TOEFL = 'TOEFL', 'TOEFL'
+        BASIC = 'BASIC', 'Básico'
+        INTERMEDIATE = 'INTERMEDIATE', 'Intermedio'
+        ADVANCED = 'ADVANCED', 'Avanzado'
+        DIAGNOSTIC = 'DIAGNOSTIC', 'Diagnóstico'
     
     # Dificultad
     DIFFICULTY_CHOICES = [
@@ -55,7 +55,7 @@ class Question(models.Model):
     )
     category = models.CharField(
         max_length=20,
-        choices=CATEGORY_CHOICES,
+        choices=Category.choices,
         verbose_name='categoría'
     )
     correct_answer = models.TextField(
@@ -203,7 +203,7 @@ class Question(models.Model):
         elif exam_type == 'TOEFL':
             # Preguntas específicas TOEFL
             return base_query.filter(
-                category='TOEFL'
+                category=cls.Category.TOEFL
             ).order_by('?')[:count]
         
         return base_query.order_by('?')[:count]

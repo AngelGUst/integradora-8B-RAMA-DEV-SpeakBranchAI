@@ -1,4 +1,5 @@
 from .base_serializer import BaseQuestionSerializer
+from .diagnostic_serializer import DiagnosticQuestionSerializer
 from .speaking_serializer import SpeakingQuestionSerializer
 from .reading_serializer import ReadingQuestionSerializer
 from .listening_shadowing_serializer import ListeningShadowingSerializer
@@ -7,6 +8,7 @@ from .writing_serializer import WritingQuestionSerializer
 
 __all__ = [
     'BaseQuestionSerializer',
+    'DiagnosticQuestionSerializer',
     'SpeakingQuestionSerializer',
     'ReadingQuestionSerializer',
     'ListeningShadowingSerializer',

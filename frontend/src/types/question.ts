@@ -7,7 +7,7 @@ export type QuestionType =
 
 export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
-export type Category = 'BASIC' | 'INTERMEDIATE' | 'ADVANCED' | 'TOEFL';
+export type Category = 'BASIC' | 'INTERMEDIATE' | 'ADVANCED' | 'TOEFL' | 'DIAGNOSTIC';
 
 export interface Question {
   id: number;
@@ -21,8 +21,9 @@ export interface Question {
   audio_url?: string;
   phonetic_text?: string;
   max_replays?: number | null;
-  created_by: number;
+  created_by: string;
   created_at: string;
+  vocabulary_items?: string[];
 }
 
 export interface CreateQuestionPayload {

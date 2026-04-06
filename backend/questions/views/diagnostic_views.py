@@ -1,71 +1,44 @@
-import json
-import random
-
+from rest_framework import status
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from questions.models import Question
+from questions.serializers import DiagnosticQuestionSerializer
 
-LEVEL_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
-
-class DiagnosticQuestionsView(APIView):
+class DiagnosticQuestionsView(ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = DiagnosticQuestionSerializer
 
-    def get(self, request):
+    def get_queryset(self):
+        return (
+            Question.objects.filter(
+                is_active=True,
+                category=Question.Category.DIAGNOSTIC,
+            )
+            .select_related('created_by')
+            .prefetch_related('vocabulary_items__vocabulary')
+        )
+
+    def list(self, request, *args, **kwargs):
         try:
-            count = int(request.query_params.get('count', 10))
+            queryset = self.get_queryset()
+            limit = request.query_params.get('limit')
+            if limit is not None:
+                limit_value = int(limit)
+                if limit_value <= 0:
+                    raise ValueError
+                queryset = queryset[:limit_value]
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
         except ValueError:
-            count = 10
-
-        per_level = max(1, count // len(LEVEL_ORDER))
-        selected = []
-        selected_ids = set()
-
-        for level in LEVEL_ORDER:
-            qs = Question.objects.filter(
-                is_active=True,
-                type='READING',
-                level=level,
-            ).order_by('?')[:per_level]
-            for question in qs:
-                if question.id not in selected_ids:
-                    selected.append(question)
-                    selected_ids.add(question.id)
-
-        if len(selected) < count:
-            remaining = count - len(selected)
-            fillers = Question.objects.filter(
-                is_active=True,
-                type='READING',
-            ).exclude(id__in=selected_ids).order_by('?')[:remaining]
-            selected.extend(list(fillers))
-
-        payload = []
-        for question in selected:
-            try:
-                data = json.loads(question.correct_answer)
-                options = data.get('options')
-                correct = data.get('correct')
-                if not isinstance(options, list) or not options:
-                    continue
-                if correct not in options:
-                    continue
-                correct_index = options.index(correct)
-            except (TypeError, ValueError, json.JSONDecodeError):
-                continue
-
-            payload.append({
-                'id': question.id,
-                'level': question.level,
-                'skill': 'Reading',
-                'text': question.text,
-                'options': options,
-                'correct': correct_index,
-            })
-
-        if len(payload) < count and len(payload) < len(selected):
-            random.shuffle(payload)
-
-        return Response({'count': len(payload), 'questions': payload})
+            return Response(
+                {'detail': 'limit must be a positive integer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except Exception:
+            return Response(
+                {'detail': 'Unable to load diagnostic questions.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

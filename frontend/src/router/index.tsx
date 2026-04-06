@@ -9,6 +9,8 @@ import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
+import UsersPage from '@/pages/admin/UsersPage';
+import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import Logo from '@/shared/components/ui/Logo';
 
 // ── Placement helper ──────────────────────────────────────────
@@ -136,6 +138,12 @@ export default function AppRouter() {
         element={<PrivateRoute requiresPlacement><ExercisePage /></PrivateRoute>}
       />
 
+      {/* Vocabulary collection */}
+      <Route
+        path="/vocabulary"
+        element={<PrivateRoute requiresPlacement><VocabularyCollectionPage /></PrivateRoute>}
+      />
+
       {/* Admin */}
       <Route
         path="/admin/questions"
@@ -144,6 +152,10 @@ export default function AppRouter() {
       <Route
         path="/admin/vocabulary"
         element={<AdminRoute><VocabularyPage /></AdminRoute>}
+      />
+      <Route
+        path="/admin/users"
+        element={<AdminRoute><UsersPage /></AdminRoute>}
       />
 
       {/* Fallback */}

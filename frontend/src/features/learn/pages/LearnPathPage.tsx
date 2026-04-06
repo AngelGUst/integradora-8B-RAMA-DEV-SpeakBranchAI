@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Mic, Repeat, Headphones, PenLine,
-  Star, Trophy, Lock, CheckCircle2,
+  Star, Trophy, Lock, CheckCircle2, RefreshCw,
   Flame, Zap, Target,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
@@ -74,6 +74,7 @@ const ACCENT_CFG = {
 function computeNodes(
   nodes: LessonNode[],
   completedIds: string[],
+  questionScores: Record<string, number>,
   sectionLocked: boolean,
 ): (LessonNode & { state: NodeState })[] {
   if (sectionLocked) {
@@ -81,16 +82,29 @@ function computeNodes(
   }
 
   let foundCurrent = false;
-  return nodes.map((node, i) => {
-    if (completedIds.includes(node.id)) return { ...node, state: 'completed' };
+  const result = nodes.map((node, i) => {
+    if (completedIds.includes(node.id)) return { ...node, state: 'completed' as NodeState };
 
     const prevAllDone = nodes.slice(0, i).every(n => completedIds.includes(n.id));
     if (prevAllDone && !foundCurrent) {
       foundCurrent = true;
-      return { ...node, state: 'current' };
+      return { ...node, state: 'current' as NodeState };
     }
-    return { ...node, state: 'locked' };
+    return { ...node, state: 'locked' as NodeState };
   });
+
+  // All exercises completed → mark the one with the worst score as 'replay'
+  if (!foundCurrent) {
+    let worstIdx = 0;
+    let worstScore = Infinity;
+    result.forEach((node, i) => {
+      const s = questionScores[node.id] ?? 0;
+      if (s < worstScore) { worstScore = s; worstIdx = i; }
+    });
+    result[worstIdx] = { ...result[worstIdx], state: 'replay' };
+  }
+
+  return result;
 }
 
 // ─── Path geometry ────────────────────────────────────────────────────────────
@@ -125,7 +139,7 @@ function NodeCircle({
 }) {
   const cfg = SKILL_CFG[node.skill];
   const { Icon } = cfg;
-  const clickable = node.state === 'current' || node.state === 'completed';
+  const clickable = node.state === 'current' || node.state === 'completed' || node.state === 'replay';
 
   const base = `rounded-full border-2 flex items-center justify-center transition-all
     ${clickable ? 'cursor-pointer' : 'cursor-default'}`;
@@ -154,6 +168,29 @@ function NodeCircle({
     );
   }
 
+  if (node.state === 'replay') {
+    return (
+      <motion.div
+        className={`${base} border-amber-500/50 bg-amber-500/10 hover:opacity-90 relative`}
+        style={{ width: NODE_SIZE, height: NODE_SIZE }}
+        animate={{
+          boxShadow: [
+            '0 0 0 0px rgba(245,158,11,0)',
+            '0 0 0 10px rgba(245,158,11,0.12)',
+            '0 0 0 0px rgba(245,158,11,0)',
+          ],
+        }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+        onClick={onClick}
+      >
+        <RefreshCw size={NODE_SIZE * 0.38} className="text-amber-400" />
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#07090F] border border-zinc-800 flex items-center justify-center">
+          <Icon size={9} className="text-amber-400" />
+        </div>
+      </motion.div>
+    );
+  }
+
   // current
   return (
     <motion.div
@@ -179,11 +216,13 @@ function NodeCircle({
 function PathSection({
   section,
   completedIds,
+  questionScores,
   totalXP,
   onNodeClick,
 }: {
   section: CEFRSection;
   completedIds: string[];
+  questionScores: Record<string, number>;
   totalXP: number;
   onNodeClick: (nodeId: string) => void;
 }) {
@@ -192,8 +231,8 @@ function PathSection({
   const sectionLocked  = totalXP < xpMin;
 
   const nodes = useMemo(
-    () => computeNodes(section.nodes, completedIds, sectionLocked),
-    [section.nodes, completedIds, sectionLocked],
+    () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
+    [section.nodes, completedIds, questionScores, sectionLocked],
   );
 
   const totalH   = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
@@ -277,20 +316,44 @@ function PathSection({
                 </motion.div>
               )}
 
+              {/* CTA above replay node */}
+              {node.state === 'replay' && (
+                <motion.div
+                  className="absolute flex flex-col items-center"
+                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <div className="flex flex-col items-center gap-0.5">
+                    <button
+                      onClick={() => onNodeClick(node.id)}
+                      className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                    >
+                      <RefreshCw size={11} /> REPASAR
+                    </button>
+                    <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
+                      score bajo · gana más XP
+                    </span>
+                  </div>
+                  <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
+                </motion.div>
+              )}
+
               <NodeCircle
                 node={node}
                 onClick={canClick ? () => onNodeClick(node.id) : undefined}
               />
 
-              {/* Label below current/available */}
-              {(node.state === 'current') && (
+              {/* Label below current/replay */}
+              {(node.state === 'current' || node.state === 'replay') && (
                 <div
                   className="absolute whitespace-nowrap text-center"
                   style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
                 >
                   <p className="text-[10px] text-zinc-500">{node.title}</p>
-                  <span className={`text-[9px] ${sCfg.text} uppercase tracking-wider font-semibold`}>
-                    {node.skill}
+                  <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
+                    {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
                   </span>
                 </div>
               )}
@@ -456,8 +519,8 @@ function RightPanel({ totalXP }: { totalXP: number }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LearnPathPage() {
-  const { user }                   = useAuth();
-  const { totalXP, completedIds }  = useLearnProgress();
+  const { user }                              = useAuth();
+  const { totalXP, completedIds, questionScores } = useLearnProgress();
   const navigate                   = useNavigate();
 
   const [questions, setQuestions]   = useState<Question[]>([]);
@@ -537,6 +600,7 @@ export default function LearnPathPage() {
                 key={section.level}
                 section={section}
                 completedIds={completedIds}
+                questionScores={questionScores}
                 totalXP={totalXP}
                 onNodeClick={handleNodeClick}
               />

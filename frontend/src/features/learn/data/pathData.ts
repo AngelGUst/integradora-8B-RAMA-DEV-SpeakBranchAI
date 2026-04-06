@@ -7,7 +7,7 @@ export type SkillType =
   | 'checkpoint'
   | 'exam';
 
-export type NodeState = 'completed' | 'current' | 'available' | 'locked';
+export type NodeState = 'completed' | 'current' | 'available' | 'locked' | 'replay';
 export type PosX = 'left' | 'center' | 'right';
 
 export interface LessonNode {

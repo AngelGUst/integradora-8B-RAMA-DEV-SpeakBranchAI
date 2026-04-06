@@ -42,6 +42,25 @@ def _get_completed_ids(user):
     return [str(i) for i in ids]
 
 
+def _get_best_scores(user):
+    """Devuelve el mejor score por question_id para todos los attempts del usuario."""
+    from django.db.models import Max
+    scores = {}
+
+    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+        qs = (
+            Model.objects
+            .filter(user=user, score__isnull=False)
+            .values('question_id')
+            .annotate(best=Max('score'))
+        )
+        for row in qs:
+            qid = str(row['question_id'])
+            scores[qid] = max(scores.get(qid, 0), row['best'])
+
+    return scores
+
+
 # Skill → average field on UserProgress
 _SKILL_FIELD = {
     'SPEAKING':                'average_speaking',
@@ -71,12 +90,13 @@ class ProgressView(View):
             'average_listening':    progress.average_listening,
             'average_writing':      progress.average_writing,
             'completed_question_ids': _get_completed_ids(request.user),
+            'question_scores':        _get_best_scores(request.user),
         })
 
     def post(self, request):
         """
         Body: { "question_id": int, "question_type": str, "score": float, "xp_earned": int }
-        Actualiza UserProgress y UserWeakCategory.
+        Crea el Attempt correspondiente, actualiza UserProgress y UserWeakCategory.
         """
         auth_error = _require_auth(request)
         if auth_error:
@@ -84,21 +104,73 @@ class ProgressView(View):
 
         try:
             body = json.loads(request.body)
-            score     = float(body.get('score', 0))
-            xp_earned = int(body.get('xp_earned', 0))
-            q_type    = body.get('question_type', '')
+            question_id = int(body.get('question_id', 0))
+            score       = float(body.get('score', 0))
+            xp_earned   = int(body.get('xp_earned', 0))
+            q_type      = body.get('question_type', '')
         except (json.JSONDecodeError, ValueError, TypeError):
             return JsonResponse({'error': 'Invalid body.'}, status=400)
 
+        # ── Create Attempt record ──────────────────────────────────────────────
+        if question_id:
+            try:
+                from questions.models import Question
+                question = Question.objects.get(id=question_id)
+                difficulty = question.difficulty or 'EASY'
+
+                if q_type == 'SPEAKING':
+                    SpeakingAttempt.objects.create(
+                        user=request.user,
+                        question=question,
+                        expected_text=question.text,
+                        score=score,
+                        xp_earned=xp_earned,
+                        difficulty=difficulty,
+                    )
+
+                elif q_type == 'LISTENING_SHADOWING':
+                    ListeningAttempt.objects.create(
+                        user=request.user,
+                        question=question,
+                        listening_type='LISTENING_SHADOWING',
+                        score=score,
+                        xp_earned=xp_earned,
+                        difficulty=difficulty,
+                    )
+
+                elif q_type == 'LISTENING_COMPREHENSION':
+                    ListeningAttempt.objects.create(
+                        user=request.user,
+                        question=question,
+                        listening_type='LISTENING_COMPREHENSION',
+                        correct=(score >= 50),
+                        score=score,
+                        xp_earned=xp_earned,
+                        difficulty=difficulty,
+                    )
+
+                elif q_type == 'READING':
+                    ReadingAttempt.objects.create(
+                        user=request.user,
+                        question=question,
+                        selected_answer='',
+                        correct=(score >= 50),
+                        score=score,
+                        xp_earned=xp_earned,
+                        difficulty=difficulty,
+                    )
+
+                # WRITING attempts are already created by the evaluate_writing endpoint.
+
+            except Exception:
+                pass  # Never block XP update if attempt creation fails
+
+        # ── Update UserProgress ───────────────────────────────────────────────
         progress, _ = UserProgress.objects.get_or_create(user=request.user)
 
-        # Add XP
         progress.add_xp(xp_earned)
-
-        # Update streak
         progress.update_streak()
 
-        # Update skill average (rolling average over last 10 attempts for that skill)
         skill_field = _SKILL_FIELD.get(q_type)
         if skill_field:
             current_avg = getattr(progress, skill_field, 0.0)
@@ -106,7 +178,6 @@ class ProgressView(View):
             setattr(progress, skill_field, round(new_avg, 2))
             progress.save(update_fields=[skill_field])
 
-            # Update weak categories
             UserWeakCategory.update_weak_categories(
                 user=request.user,
                 skill=q_type,
@@ -115,6 +186,6 @@ class ProgressView(View):
             )
 
         return JsonResponse({
-            'total_xp':   progress.total_xp,
+            'total_xp':    progress.total_xp,
             'streak_days': progress.streak_days,
         })

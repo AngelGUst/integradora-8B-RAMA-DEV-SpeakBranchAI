@@ -1,5 +1,4 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, useInView, type Variants } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { questionsService, type QuestionFilters } from '../../services/questionsService';
@@ -54,11 +53,8 @@ const INITIAL_FILTERS: FilterState = {
   type: '', level: '', difficulty: '', category: '', search: '',
 };
 
-const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
-
 export default function QuestionsPage() {
   const { ref, inView } = useReveal();
-  const navigate = useNavigate();
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +64,18 @@ export default function QuestionsPage() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<typeof PAGE_SIZE_OPTIONS[number]>(10);
+  const [pageSize, setPageSize] = useState(5);
+  const [pageSizeInput, setPageSizeInput] = useState('10');
+
+  function applyPageSize() {
+    const n = parseInt(pageSizeInput, 10);
+    if (!isNaN(n) && n >= 1) {
+      setPageSize(n);
+      setPage(1);
+    } else {
+      setPageSizeInput(String(pageSize));
+    }
+  }
 
   const fetchQuestions = useCallback(async () => {
     setLoading(true);
@@ -124,7 +131,7 @@ export default function QuestionsPage() {
     <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
       <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-5xl px-6 py-20">
+      <div className="mx-auto px-6 py-5">
 
         {/* ── Section header ── */}
         <motion.div
@@ -152,19 +159,20 @@ export default function QuestionsPage() {
               <QuestionFilter filters={filters} onChange={setFilters} />
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              {/* Page size selector */}
+              {/* Page size input */}
               <div className="flex items-center gap-2">
                 <span className="text-[11px] text-white/30 whitespace-nowrap">Show</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value) as typeof PAGE_SIZE_OPTIONS[number])}
-                  className="bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 focus:outline-none focus:border-violet-500/50 transition-colors appearance-none cursor-pointer"
+                <input
+                  type="number"
+                  min={1}
+                  value={pageSizeInput}
+                  onChange={(e) => setPageSizeInput(e.target.value)}
+                  onBlur={applyPageSize}
+                  onKeyDown={(e) => e.key === 'Enter' && applyPageSize()}
+                  className="w-14 bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 text-center focus:outline-none focus:border-violet-500/50 transition-colors"
                   style={{ colorScheme: 'dark' }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
+                />
+                <span className="text-[11px] text-white/30">rows</span>
               </div>
               <button
                 onClick={() => setShowCreate(true)}

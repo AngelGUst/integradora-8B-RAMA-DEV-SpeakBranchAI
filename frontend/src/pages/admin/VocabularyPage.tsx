@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Loader2, X, Star, BookMarked } from 'lucide-react';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { motion, useInView, type Variants } from 'framer-motion';
+import { Plus, Search, Loader2, X, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import type { VocabularyWord } from '@/services/questionsService';
 
@@ -27,6 +28,41 @@ const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 const INPUT =
   'w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors';
 const LABEL = 'block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/30 mb-1.5';
+
+// ── Animation (matches QuestionsPage) ─────────────────────────
+
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+const reveal: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: (i: number = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.65, ease: EASE, delay: i * 0.07 },
+  }),
+};
+
+function useReveal() {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: true, margin: '-72px' });
+  return { ref, inView };
+}
+
+// ── Skeleton ──────────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <div className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-white/[0.05] animate-pulse last:border-b-0">
+      <div className="h-3 rounded bg-white/[0.03]" />
+      <div className="h-3 rounded bg-white/[0.03]" />
+      <div className="w-8 h-3 rounded bg-white/[0.03]" />
+      <div className="w-12 h-3 rounded bg-white/[0.03]" />
+      <div className="w-14 h-6 rounded-lg bg-white/[0.03]" />
+    </div>
+  );
+}
+
+// ── Types ──────────────────────────────────────────────────────
 
 interface FormState {
   word: string;
@@ -97,16 +133,16 @@ function WordFormModal({
         audio_url: form.audio_url.trim() || null,
         daily_flag: form.daily_flag,
       };
-      const saved = initial
-        ? await apiFetch<VocabularyWord>(`/api/vocabulary/${initial.id}/`, {
+      const res = initial
+        ? await apiFetch<{ data: VocabularyWord }>(`/api/vocabulary/${initial.id}/`, {
             method: 'PATCH',
             body: JSON.stringify(payload),
           })
-        : await apiFetch<VocabularyWord>('/api/vocabulary/', {
+        : await apiFetch<{ data: VocabularyWord }>('/api/vocabulary/', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
-      onSaved(saved);
+      onSaved(res.data);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar.');
     } finally {
@@ -116,7 +152,7 @@ function WordFormModal({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-start justify-center px-4 pt-20 pb-10 bg-black/60 backdrop-blur-sm">
+      <div className="flex min-h-full items-start justify-center px-4 pb-10 bg-black/60 backdrop-blur-sm">
         <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl max-w-lg w-full">
 
           {/* Header */}
@@ -210,6 +246,8 @@ function WordFormModal({
 // ── Page ──────────────────────────────────────────────────────
 
 export default function VocabularyPage() {
+  const { ref, inView } = useReveal();
+
   const [words, setWords]           = useState<VocabularyWord[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -218,6 +256,17 @@ export default function VocabularyPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing]       = useState<VocabularyWord | null>(null);
   const [deleting, setDeleting]     = useState<number | null>(null);
+
+  // Pagination
+  const [page, setPage]             = useState(1);
+  const [pageSize, setPageSize]     = useState(5);
+  const [pageSizeInput, setPSInput] = useState('20');
+
+  function applyPageSize() {
+    const n = parseInt(pageSizeInput, 10);
+    if (!isNaN(n) && n >= 1) { setPageSize(n); setPage(1); }
+    else setPSInput(String(pageSize));
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -241,6 +290,11 @@ export default function VocabularyPage() {
     const t = setTimeout(load, search ? 350 : 0);
     return () => clearTimeout(t);
   }, [load, search]);
+
+  useEffect(() => { setPage(1); }, [search, levelFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(words.length / pageSize));
+  const paginated  = words.slice((page - 1) * pageSize, page * pageSize);
 
   const handleSaved = (saved: VocabularyWord) => {
     setWords((prev) => {
@@ -269,117 +323,213 @@ export default function VocabularyPage() {
   };
 
   return (
-    <div className="flex h-screen bg-[#07090F] text-zinc-50 overflow-hidden">
+    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto px-6 py-5">
 
-      <main className="flex-1 overflow-y-auto px-8 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center">
-              <BookMarked className="h-4 w-4 text-violet-400" />
-            </div>
-            <div>
-              <h1 className="text-[18px] font-black tracking-[-0.02em] text-white/90">Vocabulario</h1>
-              <p className="text-[12px] text-white/30">{words.length} palabras</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors"
+          {/* ── Section header ── */}
+          <motion.div
+            ref={ref}
+            variants={reveal}
+            initial="hidden"
+            animate={inView ? 'visible' : 'hidden'}
+            className="mb-10"
           >
-            <Plus className="h-4 w-4" />
-            Nueva palabra
-          </button>
-        </div>
-
-        {/* Filters */}
-        <div className="flex gap-3 mb-5">
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar palabra…"
-              className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
-            />
-          </div>
-          <select
-            value={levelFilter}
-            onChange={(e) => setLevel(e.target.value)}
-            className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
-          >
-            <option value="">Todos los niveles</option>
-            {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </div>
-
-        {/* Table */}
-        <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl overflow-hidden">
-          {/* Table header */}
-          <div className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-white/[0.05] text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">
-            <span>Palabra</span>
-            <span>Significado</span>
-            <span>Nivel</span>
-            <span>Categoría</span>
-            <span />
-          </div>
-
-          {loading && (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-white/20" />
+            <div className="flex items-center gap-3 mb-3">
+              <span className="font-mono text-[11px] text-white/20 tracking-widest">002</span>
+              <span className="h-px flex-1 max-w-[32px] bg-white/[0.06]" />
+              <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
+                Vocabulary Bank
+              </span>
             </div>
-          )}
 
-          {!loading && error && (
-            <p className="text-center py-10 text-[13px] text-red-400/70">{error}</p>
-          )}
+            <h1 className="text-3xl md:text-4xl font-black tracking-[-0.03em] text-[#f5f3ff] mb-8">
+              Manage your vocabulary bank.
+            </h1>
 
-          {!loading && !error && words.length === 0 && (
-            <p className="text-center py-10 text-[13px] text-white/20">
-              {search || levelFilter ? 'No se encontraron palabras.' : 'Aún no hay palabras de vocabulario.'}
-            </p>
-          )}
+            {/* Toolbar */}
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+              <div className="flex items-center gap-3 flex-1 w-full">
+                {/* Search */}
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Buscar palabra…"
+                    className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
+                  />
+                </div>
+                {/* Level filter */}
+                <select
+                  value={levelFilter}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
+                >
+                  <option value="">Todos los niveles</option>
+                  {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+              </div>
 
-          {!loading && !error && words.map((w) => (
-            <div
-              key={w.id}
-              className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
+              <div className="flex items-center gap-3 shrink-0">
+                {/* Page size */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-white/30 whitespace-nowrap">Show</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={pageSizeInput}
+                    onChange={(e) => setPSInput(e.target.value)}
+                    onBlur={applyPageSize}
+                    onKeyDown={(e) => e.key === 'Enter' && applyPageSize()}
+                    className="w-14 bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 text-center focus:outline-none focus:border-violet-500/50 transition-colors"
+                    style={{ colorScheme: 'dark' }}
+                  />
+                  <span className="text-[11px] text-white/30">rows</span>
+                </div>
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4" />
+                  Nueva palabra
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ── Table ── */}
+          <motion.div
+            variants={reveal}
+            initial="hidden"
+            animate={inView ? 'visible' : 'hidden'}
+            custom={1}
+            className="border border-white/[0.05] rounded-2xl overflow-hidden bg-white/[0.01]"
+          >
+            {/* Table header */}
+            <div className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-white/[0.05] text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">
+              <span>Palabra</span>
+              <span>Significado</span>
+              <span>Nivel</span>
+              <span>Categoría</span>
+              <span />
+            </div>
+
+            {loading && (
+              Array.from({ length: pageSize }).map((_, i) => <SkeletonRow key={i} />)
+            )}
+
+            {!loading && error && (
+              <p className="text-center py-10 text-[13px] text-red-400/70">{error}</p>
+            )}
+
+            {!loading && !error && words.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24">
+                <p className="text-[14px] text-white/25 leading-relaxed">
+                  {search || levelFilter ? 'No se encontraron palabras.' : 'Aún no hay palabras de vocabulario.'}
+                </p>
+              </div>
+            )}
+
+            {!loading && !error && paginated.map((w) => (
+              <div
+                key={w.id}
+                className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-white/80 truncate">{w.word}</p>
+                  {w.pronunciation && (
+                    <p className="text-[11px] font-mono text-violet-400/50 truncate">{w.pronunciation}</p>
+                  )}
+                </div>
+                <p className="text-[12px] text-white/40 truncate">{w.meaning}</p>
+                <span className="text-[11px] font-mono text-white/30">{w.level}</span>
+                <span className="text-[11px] text-white/25 truncate">{w.category || '—'}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {w.audio_url && (
+                    <span title="Tiene audio" className="text-violet-400/40">
+                      <Star className="h-3 w-3" />
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setEditing(w)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] text-white/30 hover:text-white/60 hover:bg-white/[0.05] transition-colors"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(w.id)}
+                    disabled={deleting === w.id}
+                    className="px-2.5 py-1 rounded-lg text-[11px] text-red-400/40 hover:text-red-400/70 hover:bg-red-500/[0.06] transition-colors disabled:opacity-30"
+                  >
+                    {deleting === w.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Eliminar'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Pagination */}
+          {!loading && !error && words.length > 0 && (
+            <motion.div
+              variants={reveal}
+              initial="hidden"
+              animate={inView ? 'visible' : 'hidden'}
+              custom={2}
+              className="mt-4 flex items-center justify-between"
             >
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-white/80 truncate">{w.word}</p>
-                {w.pronunciation && (
-                  <p className="text-[11px] font-mono text-violet-400/50 truncate">{w.pronunciation}</p>
-                )}
-              </div>
-              <p className="text-[12px] text-white/40 truncate">{w.meaning}</p>
-              <span className="text-[11px] font-mono text-white/30">{w.level}</span>
-              <span className="text-[11px] text-white/25 truncate">{w.category || '—'}</span>
-              <div className="flex items-center gap-1 shrink-0">
-                {w.audio_url && (
-                  <span title="Tiene audio" className="text-violet-400/40">
-                    <Star className="h-3 w-3" />
-                  </span>
-                )}
+              <p className="text-[12px] text-white/20">
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, words.length)} de {words.length} palabra{words.length !== 1 ? 's' : ''}
+              </p>
+
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setEditing(w)}
-                  className="px-2.5 py-1 rounded-lg text-[11px] text-white/30 hover:text-white/60 hover:bg-white/[0.05] transition-colors"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 rounded-lg border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
                 >
-                  Editar
+                  <ChevronLeft className="h-4 w-4" />
                 </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | '…')[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, i) =>
+                    p === '…' ? (
+                      <span key={`el-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                    ) : (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p as number)}
+                        className={`min-w-[28px] h-7 rounded-lg text-[12px] font-medium transition-colors ${
+                          page === p
+                            ? 'bg-violet-600 text-white'
+                            : 'text-white/30 hover:text-white/70 hover:bg-white/[0.05]'
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+
                 <button
-                  onClick={() => handleDelete(w.id)}
-                  disabled={deleting === w.id}
-                  className="px-2.5 py-1 rounded-lg text-[11px] text-red-400/40 hover:text-red-400/70 hover:bg-red-500/[0.06] transition-colors disabled:opacity-30"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1.5 rounded-lg border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
                 >
-                  {deleting === w.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Eliminar'}
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
-            </div>
-          ))}
+            </motion.div>
+          )}
         </div>
-      </main>
+      </div>
 
       {showCreate && (
         <WordFormModal onClose={() => setShowCreate(false)} onSaved={handleSaved} />

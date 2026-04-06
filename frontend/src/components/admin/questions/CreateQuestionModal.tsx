@@ -108,7 +108,6 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 </div>
                 <VocabularyPanel
                   questionId={createdQuestion.id}
-                  questionLevel={createdQuestion.level}
                 />
               </div>
             )}

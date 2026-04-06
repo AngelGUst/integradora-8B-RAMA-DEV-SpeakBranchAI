@@ -1,25 +1,27 @@
 import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
-import { Loader2, Search, X, Star, StarOff, Plus } from 'lucide-react';
+import { Loader2, Search, X, Star, StarOff, Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { questionsService } from '../../../services/questionsService';
 import type { QuestionVocabularyItem, VocabularyWord } from '../../../services/questionsService';
 import { INPUT, LABEL } from './questionFormUtils';
 
 interface Props {
   questionId: number;
-  questionLevel: string;
 }
 
-export default function VocabularyPanel({ questionId, questionLevel }: Props) {
-  const [linked, setLinked]         = useState<QuestionVocabularyItem[]>([]);
+export default function VocabularyPanel({ questionId }: Props) {
+  const [linked, setLinked]               = useState<QuestionVocabularyItem[]>([]);
   const [loadingLinked, setLoadingLinked] = useState(true);
 
-  const [searchQuery, setSearchQuery]     = useState('');
-  const [searchResults, setSearchResults] = useState<VocabularyWord[]>([]);
-  const [searching, setSearching]         = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [allWords, setAllWords]       = useState<VocabularyWord[]>([]);
+  const [loadingBank, setLoadingBank] = useState(true);
 
-  const [adding, setAdding]   = useState<number | null>(null);
+  const [adding, setAdding]     = useState<number | null>(null);
   const [removing, setRemoving] = useState<number | null>(null);
-  const [error, setError]     = useState<string | null>(null);
+  const [error, setError]       = useState<string | null>(null);
+
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   // Load linked vocabulary on mount
   const loadLinked = useCallback(async () => {
@@ -36,36 +38,34 @@ export default function VocabularyPanel({ questionId, questionLevel }: Props) {
 
   useEffect(() => { loadLinked(); }, [loadLinked]);
 
-  // Search vocabulary bank
+  // Load full vocabulary bank once (no level filter — admin can link any word)
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const timeout = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
-        const token = localStorage.getItem('sb_access_token');
-        const params = new URLSearchParams({ level: questionLevel, search: searchQuery });
-        const res = await fetch(`${API_BASE}/api/vocabulary/?${params}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const json = await res.json();
-          // VocabularyListView returns { data: [...] }
-          const words: VocabularyWord[] = json.data ?? [];
-          const linkedIds = new Set(linked.map((l) => l.vocabulary.id));
-          setSearchResults(words.filter((w) => !linkedIds.has(w.id)));
-        }
-      } catch {
-        /* silent */
-      } finally {
-        setSearching(false);
-      }
-    }, 350);
-    return () => clearTimeout(timeout);
-  }, [searchQuery, questionLevel, linked]);
+    const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+    const token = localStorage.getItem('sb_access_token');
+    setLoadingBank(true);
+    fetch(`${API_BASE}/api/vocabulary/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(json => setAllWords(json.data ?? []))
+      .catch(() => { /* silent */ })
+      .finally(() => setLoadingBank(false));
+  }, []);
+
+  // Derive search results client-side
+  const linkedIds = new Set(linked.map(l => l.vocabulary.id));
+  const query = searchQuery.trim().toLowerCase();
+  const searchResults = allWords.filter(w => {
+    if (linkedIds.has(w.id)) return false;
+    if (!query) return true;
+    return w.word.toLowerCase().includes(query) || w.meaning.toLowerCase().includes(query);
+  });
+
+  // Reset to page 1 when query changes
+  useEffect(() => { setPage(1); }, [searchQuery]);
+
+  const totalPages  = Math.max(1, Math.ceil(searchResults.length / PAGE_SIZE));
+  const paginated   = searchResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleAdd = async (vocab: VocabularyWord) => {
     setAdding(vocab.id);
@@ -77,7 +77,6 @@ export default function VocabularyPanel({ questionId, questionLevel }: Props) {
         order: 0,
       });
       setLinked((prev) => [...prev, item]);
-      setSearchResults((prev) => prev.filter((w) => w.id !== vocab.id));
     } catch {
       setError('No se pudo agregar la palabra.');
     } finally {
@@ -192,17 +191,17 @@ export default function VocabularyPanel({ questionId, questionLevel }: Props) {
             type="text"
             value={searchQuery}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder={`Buscar palabras de nivel ${questionLevel}…`}
+            placeholder="Buscar por palabra o significado…"
             className={`${INPUT} pl-9`}
           />
-          {searching && (
+          {loadingBank && (
             <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-white/20" />
           )}
         </div>
 
         {searchResults.length > 0 && (
-          <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
-            {searchResults.map((word) => (
+          <div className="mt-2 space-y-1.5">
+            {paginated.map((word) => (
               <div
                 key={word.id}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/20 transition-colors"
@@ -225,12 +224,44 @@ export default function VocabularyPanel({ questionId, questionLevel }: Props) {
                 </button>
               </div>
             ))}
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-[10px] text-white/20">
+                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, searchResults.length)} de {searchResults.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1 rounded-md border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <span className="text-[10px] text-white/25 px-1">{page}/{totalPages}</span>
+                <button
+                  type="button"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1 rounded-md border border-white/[0.07] text-white/30 hover:text-white/70 hover:border-white/20 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {searchQuery.trim() && !searching && searchResults.length === 0 && (
+        {!loadingBank && searchQuery.trim() && searchResults.length === 0 && (
           <p className="text-[11px] text-white/20 mt-2 text-center">
-            No se encontraron palabras disponibles.
+            No se encontraron palabras con "{searchQuery}".
+          </p>
+        )}
+
+        {!loadingBank && !searchQuery.trim() && allWords.length === 0 && (
+          <p className="text-[11px] text-white/20 mt-2 text-center">
+            El banco de vocabulario está vacío.
           </p>
         )}
       </div>

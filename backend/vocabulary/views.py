@@ -236,6 +236,95 @@ class VocabularyDetailView(View):
         return JsonResponse({}, status=204)
 
 
+class MyVocabularyView(View):
+    """
+    GET /api/vocabulary/my/
+
+    Returns all vocabulary words the user has accumulated through exercises
+    (every DailyVocabulary record ever created for this user), sorted by
+    most recently added first.
+
+    Response 200:
+        { "data": [ <DailyVocabulary>, ... ], "total": <int> }
+    """
+
+    def get(self, request):
+        auth_error = _require_auth(request)
+        if auth_error:
+            return auth_error
+
+        qs = (
+            DailyVocabulary.objects
+            .filter(user=request.user)
+            .select_related('vocabulary')
+        )
+
+        level = request.GET.get('level')
+        if level:
+            qs = qs.filter(vocabulary__level=level)
+
+        mastery = request.GET.get('mastery')
+        if mastery is not None and mastery != '':
+            qs = qs.filter(mastery_level=int(mastery))
+
+        search = request.GET.get('search', '').strip()
+        if search:
+            qs = qs.filter(vocabulary__word__icontains=search)
+
+        # Deduplicate by vocabulary word, keeping the entry with the highest
+        # mastery level (and most recent if tied). Uses PostgreSQL DISTINCT ON.
+        qs = qs.order_by('vocabulary_id', '-mastery_level', '-created_at').distinct('vocabulary_id')
+
+        items = list(qs)
+        return JsonResponse(
+            {'data': DailyVocabularySerializer(instance=items, many=True).data,
+             'total': len(items)},
+            status=200,
+        )
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PracticeVocabularyView(View):
+    """
+    POST /api/vocabulary/daily/<pk>/practice/
+
+    Updates mastery_level based on whether the user answered correctly.
+
+    Request body:
+        { "success": true | false }
+
+    Response 200:
+        { "data": <updated DailyVocabulary> }
+    """
+
+    def post(self, request, pk):
+        auth_error = _require_auth(request)
+        if auth_error:
+            return auth_error
+
+        try:
+            daily_vocab = (
+                DailyVocabulary.objects
+                .select_related('vocabulary')
+                .get(pk=pk, user=request.user)
+            )
+        except DailyVocabulary.DoesNotExist:
+            return JsonResponse({'error': 'Not found.'}, status=404)
+
+        try:
+            body = json.loads(request.body)
+            success = bool(body.get('success', True))
+        except (json.JSONDecodeError, ValueError):
+            success = True
+
+        daily_vocab.mark_as_practiced(success=success)
+
+        return JsonResponse(
+            {'data': DailyVocabularySerializer(instance=daily_vocab).data},
+            status=200,
+        )
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ExerciseVocabularyView(View):
     """
@@ -273,7 +362,7 @@ class ExerciseVocabularyView(View):
         items = (
             QuestionVocabulary.objects
             .select_related('vocabulary')
-            .filter(question_id=question_id, is_key=True)
+            .filter(question_id=question_id)
             .order_by('order')
         )
 

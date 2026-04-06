@@ -121,7 +121,6 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
             ) : (
               <VocabularyPanel
                 questionId={question.id}
-                questionLevel={question.level}
               />
             )}
           </div>

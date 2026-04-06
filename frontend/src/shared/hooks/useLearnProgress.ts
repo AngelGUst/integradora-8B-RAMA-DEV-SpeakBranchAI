@@ -19,12 +19,14 @@ interface ProgressResponse {
   total_xp: number;
   streak_days: number;
   completed_question_ids: string[];
+  question_scores: Record<string, number>;
 }
 
 export function useLearnProgress() {
-  const [totalXP,      setTotalXP]      = useState(0);
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
-  const [streakDays,   setStreakDays]   = useState(0);
+  const [totalXP,        setTotalXP]        = useState(0);
+  const [completedIds,   setCompletedIds]   = useState<string[]>([]);
+  const [streakDays,     setStreakDays]     = useState(0);
+  const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
 
   useEffect(() => {
     apiFetch<ProgressResponse>('/api/auth/progress/')
@@ -32,9 +34,9 @@ export function useLearnProgress() {
         setTotalXP(data.total_xp);
         setCompletedIds(data.completed_question_ids);
         setStreakDays(data.streak_days);
+        setQuestionScores(data.question_scores ?? {});
       })
       .catch(() => {
-        // fallback to localStorage if not authenticated yet
         setTotalXP(Number(localStorage.getItem('sb_total_xp') ?? 0));
         try {
           setCompletedIds(JSON.parse(localStorage.getItem('sb_completed_exercises') ?? '[]'));
@@ -42,10 +44,21 @@ export function useLearnProgress() {
       });
   }, []);
 
-  const completeExercise = useCallback(async (exerciseId: string, xpEarned: number, questionType?: string, score?: number) => {
+  const completeExercise = useCallback(async (
+    exerciseId: string,
+    xpEarned: number,
+    questionType?: string,
+    score?: number,
+  ) => {
     // Optimistic update
     setCompletedIds(prev => [...new Set([...prev, exerciseId])]);
     setTotalXP(prev => prev + xpEarned);
+    if (score !== undefined) {
+      setQuestionScores(prev => ({
+        ...prev,
+        [exerciseId]: Math.max(prev[exerciseId] ?? 0, score),
+      }));
+    }
 
     try {
       const data = await apiFetch<{ total_xp: number; streak_days: number }>('/api/auth/progress/complete/', {
@@ -57,7 +70,6 @@ export function useLearnProgress() {
           xp_earned:     xpEarned,
         }),
       });
-      // Sync with server values
       setTotalXP(data.total_xp);
       setStreakDays(data.streak_days);
     } catch {
@@ -65,5 +77,5 @@ export function useLearnProgress() {
     }
   }, []);
 
-  return { totalXP, completedIds, streakDays, completeExercise };
+  return { totalXP, completedIds, streakDays, questionScores, completeExercise };
 }

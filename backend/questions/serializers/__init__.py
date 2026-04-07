@@ -1,5 +1,11 @@
 from .base_serializer import BaseQuestionSerializer
-from .diagnostic_serializer import DiagnosticQuestionSerializer
+from .diagnostic_serializer import (
+    DiagnosticQuestionSerializer,
+    DiagnosticAnswerSerializer,
+    DiagnosticSubmitRequestSerializer,
+    DiagnosticSubmitResponseSerializer,
+    AdaptiveNextRequestSerializer,
+)
 from .speaking_serializer import SpeakingQuestionSerializer
 from .reading_serializer import ReadingQuestionSerializer
 from .listening_shadowing_serializer import ListeningShadowingSerializer
@@ -13,6 +19,10 @@ from .question_vocabulary_serializer import (
 __all__ = [
     'BaseQuestionSerializer',
     'DiagnosticQuestionSerializer',
+    'DiagnosticAnswerSerializer',
+    'DiagnosticSubmitRequestSerializer',
+    'DiagnosticSubmitResponseSerializer',
+    'AdaptiveNextRequestSerializer',
     'SpeakingQuestionSerializer',
     'ReadingQuestionSerializer',
     'ListeningShadowingSerializer',

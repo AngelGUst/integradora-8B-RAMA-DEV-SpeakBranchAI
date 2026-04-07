@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
 
 from questions.filters import QuestionFilter
 from questions.models import Question, QuestionVocabulary
@@ -28,6 +29,11 @@ TYPE_SERIALIZER_MAP = {
 class QuestionViewSet(ModelViewSet):
     permission_classes = [IsAdminRole]
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAdminRole()]
 
     def get_queryset(self):
         qs = Question.objects.select_related('created_by').filter(is_active=True)

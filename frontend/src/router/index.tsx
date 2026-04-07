@@ -65,7 +65,7 @@ function PrivateRoute({
   if (allowedRoles && user?.role && !allowedRoles.includes(user.role)) {
     return <Navigate to={getDefaultRoute(user.role, user.diagnostic_completed)} replace />;
   }
-  if (requiresPlacement && !isPlacementDone(user?.diagnostic_completed)) {
+  if (requiresPlacement && user?.role !== 'ADMIN' && !isPlacementDone(user?.diagnostic_completed)) {
     return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;
@@ -153,7 +153,7 @@ export default function AppRouter() {
       <Route
         path="/learn"
         element={(
-          <PrivateRoute>
+          <PrivateRoute requiresPlacement>
             <LearnPathPage />
           </PrivateRoute>
         )}

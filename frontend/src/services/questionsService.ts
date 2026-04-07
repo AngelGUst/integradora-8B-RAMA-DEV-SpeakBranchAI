@@ -1,4 +1,9 @@
 import type { Question, CreateQuestionPayload, QuestionType, Level, Difficulty, Category } from '../types/question';
+import type {
+  DiagnosticQuestion,
+  DiagnosticSubmitRequest,
+  DiagnosticSubmitResponse,
+} from '../types/diagnostic';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
@@ -27,6 +32,45 @@ export interface QuestionFilters {
 }
 
 export const questionsService = {
+  getDiagnosticQuestions(limit?: number): Promise<DiagnosticQuestion[]> {
+    const params = limit ? `?limit=${limit}` : '';
+    return apiFetch<DiagnosticQuestion[]>(`/api/questions/diagnostic/${params}`);
+  },
+
+  submitDiagnostic(payload: DiagnosticSubmitRequest): Promise<DiagnosticSubmitResponse> {
+    return apiFetch<DiagnosticSubmitResponse>('/api/questions/diagnostic/submit/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getLevelExercises(params?: {
+    level?: Level;
+    type?: QuestionType;
+    category?: string;
+    limit?: number;
+  }): Promise<DiagnosticQuestion[]> {
+    const query = new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '')
+      ) as Record<string, string>
+    ).toString();
+    return apiFetch<DiagnosticQuestion[]>(`/api/questions/level-exercises/${query ? `?${query}` : ''}`);
+  },
+
+  getAdaptiveNextQuestion(payload: {
+    level?: Level;
+    type?: QuestionType;
+    category?: string;
+    last_score?: number;
+    current_difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+    exclude_ids?: number[];
+  }): Promise<DiagnosticQuestion> {
+    return apiFetch<DiagnosticQuestion>('/api/questions/adaptive/next/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
   getQuestions(filters?: QuestionFilters): Promise<Question[]> {
     const params = new URLSearchParams(
       Object.fromEntries(

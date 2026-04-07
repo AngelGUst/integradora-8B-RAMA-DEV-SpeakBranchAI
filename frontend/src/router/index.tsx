@@ -163,7 +163,7 @@ export default function AppRouter() {
       <Route
         path="/exercise/:id"
         element={(
-          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT', 'ADMIN']}>
             <ExercisePage />
           </PrivateRoute>
         )}

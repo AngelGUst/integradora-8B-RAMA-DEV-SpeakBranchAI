@@ -21,8 +21,9 @@ export interface Question {
   audio_url?: string;
   phonetic_text?: string;
   max_replays?: number | null;
-  created_by: number;
+  created_by: string;
   created_at: string;
+  vocabulary_items?: string[];
 }
 
 export interface CreateQuestionPayload {

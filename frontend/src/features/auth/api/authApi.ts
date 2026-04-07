@@ -13,6 +13,7 @@ import type {
 
 const MOCK_TOKEN = 'mock-dev-token';
 const MOCK_USER_KEY = 'sb_mock_user';
+const ENABLE_AUTH_MOCK = (import.meta.env['VITE_ENABLE_AUTH_MOCK'] as string | undefined) === 'true';
 
 function buildMockUser(email: string, firstName?: string): User {
   return {
@@ -70,7 +71,7 @@ export const authApi = {
       };
     } catch (err: unknown) {
       // Fall back to mock when backend is not running
-      if (axios.isAxiosError(err) && !err.response) {
+      if (ENABLE_AUTH_MOCK && axios.isAxiosError(err) && !err.response) {
         const user = buildMockUser(credentials.email);
         localStorage.setItem(MOCK_USER_KEY, JSON.stringify(user));
         return { access: MOCK_TOKEN, refresh: MOCK_TOKEN, user };
@@ -99,7 +100,7 @@ export const authApi = {
       );
       return data;
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && !err.response) {
+      if (ENABLE_AUTH_MOCK && axios.isAxiosError(err) && !err.response) {
         return { message: 'Check your email to confirm your account' };
       }
       throw err;
@@ -111,6 +112,9 @@ export const authApi = {
    */
   getMe: async (): Promise<User> => {
     if (isMockToken()) {
+      if (!ENABLE_AUTH_MOCK) {
+        throw new Error('Mock auth disabled.');
+      }
       const stored = localStorage.getItem(MOCK_USER_KEY);
       if (stored) return JSON.parse(stored) as User;
       return buildMockUser('demo@speakbranch.com');
@@ -125,6 +129,9 @@ export const authApi = {
    */
   logout: async (): Promise<void> => {
     if (isMockToken()) {
+      if (!ENABLE_AUTH_MOCK) {
+        return;
+      }
       localStorage.removeItem(MOCK_USER_KEY);
       return;
     }

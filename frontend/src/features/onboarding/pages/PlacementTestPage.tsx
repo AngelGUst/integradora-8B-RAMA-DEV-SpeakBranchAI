@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, CheckCheck, BookOpen, Mic, Headphones, PenLine, Trophy, ArrowRight } from 'lucide-react';
 import Logo from '@/shared/components/ui/Logo';
 import type { CefrLevel } from '@/features/auth/types/auth.types';
+import type { Question as ApiQuestion, QuestionType } from '@/types/question';
 import apiClient from '@/shared/api/client';
+import { questionsApi } from '@/features/questions/api/questionsApi';
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -74,114 +76,80 @@ const CEFR_META: Record<CefrLevel, {
 
 // ── Question bank ─────────────────────────────────────────────
 
-interface Question {
+interface PlacementQuestion {
   id: number;
   level: CefrLevel;
-  skill: 'Grammar' | 'Vocabulary' | 'Reading' | 'Idioms';
+  type: QuestionType;
   text: string;
+  mode: 'mcq' | 'open';
+  options?: string[];
+  correctIndex?: number;
+  expectedAnswer?: string;
+}
+const TYPE_ICONS: Record<QuestionType, ReactNode> = {
+  SPEAKING: <Mic size={12} />,
+  READING: <BookOpen size={12} />,
+  LISTENING_SHADOWING: <Headphones size={12} />,
+  LISTENING_COMPREHENSION: <Headphones size={12} />,
+  WRITING: <PenLine size={12} />,
+};
+
+function parseDiagnosticAnswer(payload: string | null | undefined): {
   options: string[];
-  correct: number;
+  correctIndex: number;
+} | null {
+  if (!payload) return null;
+  try {
+    const data = JSON.parse(payload) as { options?: string[]; correct?: string };
+    if (!Array.isArray(data.options) || data.options.length < 2) return null;
+    if (!data.correct || !data.options.includes(data.correct)) return null;
+    return { options: data.options, correctIndex: data.options.indexOf(data.correct) };
+  } catch {
+    return null;
+  }
 }
 
-const FALLBACK_QUESTIONS: Question[] = [
-  {
-    id: 1,
-    level: 'A1',
-    skill: 'Grammar',
-    text: 'Choose the correct article: "___ umbrella is on the table."',
-    options: ['A', 'An', 'The', '(no article)'],
-    correct: 1,
-  },
-  {
-    id: 2,
-    level: 'A1',
-    skill: 'Vocabulary',
-    text: 'What is the opposite of the word "hot"?',
-    options: ['Big', 'Cold', 'Fast', 'Dark'],
-    correct: 1,
-  },
-  {
-    id: 3,
-    level: 'A2',
-    skill: 'Grammar',
-    text: 'Complete the sentence: "Yesterday, I ___ to the cinema with my friends."',
-    options: ['go', 'going', 'went', 'gone'],
-    correct: 2,
-  },
-  {
-    id: 4,
-    level: 'A2',
-    skill: 'Vocabulary',
-    text: 'What does the word "exhausted" mean?',
-    options: ['Very excited', 'Very hungry', 'Very tired', 'Very happy'],
-    correct: 2,
-  },
-  {
-    id: 5,
-    level: 'B1',
-    skill: 'Grammar',
-    text: 'Select the grammatically correct sentence:',
-    options: [
-      'If I will have money, I buy a car.',
-      'If I had money, I would buy a car.',
-      'If I have money, I had bought a car.',
-      'If I would have money, I will buy a car.',
-    ],
-    correct: 1,
-  },
-  {
-    id: 6,
-    level: 'B1',
-    skill: 'Grammar',
-    text: 'Fill in the blank: "By the time she arrived, the guests ___ already left."',
-    options: ['have', 'has', 'had', 'having'],
-    correct: 2,
-  },
-  {
-    id: 7,
-    level: 'B2',
-    skill: 'Vocabulary',
-    text: "The company's new strategy proved highly ___ in reducing operational costs.",
-    options: ['efficient', 'effected', 'affective', 'deficient'],
-    correct: 0,
-  },
-  {
-    id: 8,
-    level: 'B2',
-    skill: 'Grammar',
-    text: 'Which option correctly uses the passive voice? "The new policy ___ last month."',
-    options: ['announced', 'was announced', 'has announced', 'were announcing'],
-    correct: 1,
-  },
-  {
-    id: 9,
-    level: 'C1',
-    skill: 'Vocabulary',
-    text: 'Choose the most precise word: "His ___ address moved the entire audience to tears."',
-    options: ['eloquent', 'loquacious', 'verbose', 'garrulous'],
-    correct: 0,
-  },
-  {
-    id: 10,
-    level: 'C2',
-    skill: 'Idioms',
-    text: '"To burn the midnight oil" means:',
-    options: [
-      'To accidentally start a fire',
-      'To stay up late working or studying',
-      'To waste expensive resources carelessly',
-      'To work in darkness without electricity',
-    ],
-    correct: 1,
-  },
-];
+function mapToPlacementQuestion(question: ApiQuestion): PlacementQuestion | null {
+  const parsed = parseDiagnosticAnswer(question.correct_answer);
+  if (parsed) {
+    return {
+      id: question.id,
+      level: question.level,
+      type: question.type,
+      text: question.text,
+      mode: 'mcq',
+      options: parsed.options,
+      correctIndex: parsed.correctIndex,
+    };
+  }
+  return {
+    id: question.id,
+    level: question.level,
+    type: question.type,
+    text: question.text,
+    mode: 'open',
+    expectedAnswer: question.correct_answer ?? '',
+  };
+}
 
-const SKILL_ICONS = {
-  Grammar: <PenLine size={12} />,
-  Vocabulary: <BookOpen size={12} />,
-  Reading: <BookOpen size={12} />,
-  Idioms: <Mic size={12} />,
-};
+type AnswerState =
+  | { kind: 'mcq'; selected: number | null; isCorrect?: boolean }
+  | { kind: 'open'; response: string; isCorrect?: boolean };
+
+function normalizeAnswer(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+function evaluateOpenAnswer(type: QuestionType, response: string, expected?: string): boolean | undefined {
+  if (!expected) return undefined;
+  if (type === 'SPEAKING' || type === 'LISTENING_SHADOWING') {
+    return normalizeAnswer(response) === normalizeAnswer(expected);
+  }
+  return undefined;
+}
 
 // ── CEFR from score ───────────────────────────────────────────
 
@@ -292,19 +260,34 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 // ── Quiz Screen ───────────────────────────────────────────────
 
 interface QuizScreenProps {
-  question: Question;
+  question: PlacementQuestion;
   current: number;
   total: number;
   selected: number | null;
+  response: string;
   onSelect: (i: number) => void;
+  onResponseChange: (value: string) => void;
   onNext: () => void;
   isLast: boolean;
 }
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 
-function QuizScreen({ question, current, total, selected, onSelect, onNext, isLast }: QuizScreenProps) {
+function QuizScreen({
+  question,
+  current,
+  total,
+  selected,
+  response,
+  onSelect,
+  onResponseChange,
+  onNext,
+  isLast,
+}: QuizScreenProps) {
   const progress = ((current + 1) / total) * 100;
+  const canContinue = question.mode === 'mcq'
+    ? selected !== null
+    : response.trim().length > 0;
 
   return (
     <motion.div
@@ -356,10 +339,10 @@ function QuizScreen({ question, current, total, selected, onSelect, onNext, isLa
             exit={{ opacity: 0, x: -40 }}
             transition={{ duration: 0.35, ease: EASE }}
           >
-            {/* Skill tag */}
+            {/* Type tag */}
             <div className="mb-5 flex items-center gap-1.5">
-              <span className="text-slate-500">{SKILL_ICONS[question.skill]}</span>
-              <span className="text-xs font-medium text-slate-500">{question.skill}</span>
+              <span className="text-slate-500">{TYPE_ICONS[question.type]}</span>
+              <span className="text-xs font-medium text-slate-500">{question.type}</span>
             </div>
 
             {/* Question */}
@@ -367,79 +350,95 @@ function QuizScreen({ question, current, total, selected, onSelect, onNext, isLa
               {question.text}
             </h2>
 
-            {/* Options */}
-            <div className="space-y-2.5">
-              {question.options.map((opt, i) => {
-                const isSelected = selected === i;
-                return (
-                  <motion.button
-                    key={i}
-                    onClick={() => onSelect(i)}
-                    className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
-                    style={{
-                      borderColor: isSelected
-                        ? 'rgba(16,185,129,0.5)'
-                        : 'rgba(255,255,255,0.07)',
-                      background: isSelected
-                        ? 'rgba(16,185,129,0.08)'
-                        : 'rgba(255,255,255,0.025)',
-                    }}
-                    whileHover={{ scale: 1.005 }}
-                    whileTap={{ scale: 0.995 }}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06, duration: 0.3 }}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Letter badge */}
-                      <span
-                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold transition-all"
-                        style={{
-                          borderColor: isSelected
-                            ? 'rgba(16,185,129,0.5)'
-                            : 'rgba(255,255,255,0.1)',
-                          color: isSelected ? '#10b981' : 'rgba(255,255,255,0.4)',
-                          background: isSelected
-                            ? 'rgba(16,185,129,0.15)'
-                            : 'rgba(255,255,255,0.04)',
-                        }}
-                      >
-                        {OPTION_LABELS[i]}
-                      </span>
-                      <span className={`transition-colors ${isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
-                        {opt}
-                      </span>
-                    </div>
+            {/* Answer */}
+            {question.mode === 'mcq' && (
+              <div className="space-y-2.5">
+                {(question.options ?? []).map((opt, i) => {
+                  const isSelected = selected === i;
+                  return (
+                    <motion.button
+                      key={i}
+                      onClick={() => onSelect(i)}
+                      className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
+                      style={{
+                        borderColor: isSelected
+                          ? 'rgba(16,185,129,0.5)'
+                          : 'rgba(255,255,255,0.07)',
+                        background: isSelected
+                          ? 'rgba(16,185,129,0.08)'
+                          : 'rgba(255,255,255,0.025)',
+                      }}
+                      whileHover={{ scale: 1.005 }}
+                      whileTap={{ scale: 0.995 }}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06, duration: 0.3 }}
+                    >
+                      <div className="flex items-center gap-3">
+                        {/* Letter badge */}
+                        <span
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold transition-all"
+                          style={{
+                            borderColor: isSelected
+                              ? 'rgba(16,185,129,0.5)'
+                              : 'rgba(255,255,255,0.1)',
+                            color: isSelected ? '#10b981' : 'rgba(255,255,255,0.4)',
+                            background: isSelected
+                              ? 'rgba(16,185,129,0.15)'
+                              : 'rgba(255,255,255,0.04)',
+                          }}
+                        >
+                          {OPTION_LABELS[i]}
+                        </span>
+                        <span className={`transition-colors ${isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                          {opt}
+                        </span>
+                      </div>
 
-                    {/* Selected indicator */}
-                    {isSelected && (
-                      <motion.div
-                        className="absolute right-4 top-1/2 -translate-y-1/2"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                      >
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                      </motion.div>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
+                      {/* Selected indicator */}
+                      {isSelected && (
+                        <motion.div
+                          className="absolute right-4 top-1/2 -translate-y-1/2"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                        >
+                          <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            )}
+            {question.mode === 'open' && (
+              <div className="space-y-3">
+                <p className="text-xs text-slate-500">
+                  Escribe tu respuesta para continuar.
+                </p>
+                <textarea
+                  value={response}
+                  onChange={(event) => onResponseChange(event.target.value)}
+                  rows={4}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white outline-none transition focus:border-emerald-500/50"
+                  placeholder="Tu respuesta aquí"
+                />
+              </div>
+            )}
 
             {/* Next button */}
             <motion.div
               className="mt-6 flex justify-end"
               initial={{ opacity: 0 }}
-              animate={{ opacity: selected !== null ? 1 : 0.3 }}
+              animate={{ opacity: canContinue ? 1 : 0.3 }}
               transition={{ duration: 0.3 }}
             >
               <motion.button
                 onClick={onNext}
-                disabled={selected === null}
+                disabled={!canContinue}
                 className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-emerald-500/20 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-30"
-                whileHover={selected !== null ? { scale: 1.02 } : {}}
-                whileTap={selected !== null ? { scale: 0.97 } : {}}
+                whileHover={canContinue ? { scale: 1.02 } : {}}
+                whileTap={canContinue ? { scale: 0.97 } : {}}
               >
                 {isLast ? 'Ver resultado' : 'Siguiente'}
                 <ArrowRight size={15} />
@@ -629,24 +628,45 @@ export default function PlacementTestPage() {
   const navigate = useNavigate();
   const [screen, setScreen] = useState<Screen>('welcome');
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
+  const [answers, setAnswers] = useState<AnswerState[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [questions, setQuestions] = useState<Question[]>(FALLBACK_QUESTIONS);
+  const [response, setResponse] = useState('');
+  const [questions, setQuestions] = useState<PlacementQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
     const loadQuestions = async () => {
       try {
-        const { data } = await apiClient.get<{ questions: Question[] }>('/questions/diagnostic/');
+        setIsLoading(true);
+        setError(null);
+        const data = await questionsApi.getDiagnosticQuestions();
         if (!isMounted) return;
-        const incoming = data?.questions?.length ? data.questions : FALLBACK_QUESTIONS;
+        const incoming = data
+          .map(mapToPlacementQuestion)
+          .filter((item): item is PlacementQuestion => Boolean(item));
+        if (!incoming.length) {
+          setQuestions([]);
+          setAnswers([]);
+          setError('No diagnostic questions are available yet.');
+          return;
+        }
         setQuestions(incoming);
-        setAnswers(Array(incoming.length).fill(null));
-      } catch {
+        setAnswers(
+          incoming.map((item) => (
+            item.mode === 'mcq'
+              ? { kind: 'mcq', selected: null }
+              : { kind: 'open', response: '' }
+          )),
+        );
+      } catch (err: unknown) {
         if (!isMounted) return;
-        setQuestions(FALLBACK_QUESTIONS);
-        setAnswers(Array(FALLBACK_QUESTIONS.length).fill(null));
+        const message = err instanceof Error ? err.message : 'Failed to load diagnostic questions.';
+        setQuestions([]);
+        setAnswers([]);
+        setError(message);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -656,14 +676,24 @@ export default function PlacementTestPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  useEffect(() => {
+    const currentAnswer = answers[current];
+    if (!currentAnswer) return;
+    if (currentAnswer.kind === 'mcq') {
+      setSelected(currentAnswer.selected);
+      setResponse('');
+    } else {
+      setSelected(null);
+      setResponse(currentAnswer.response);
+    }
+  }, [answers, current]);
 
   const question = questions[current];
   const isLast = current === questions.length - 1;
 
-  const correctCount = answers.filter(
-    (a, i) => a !== null && a === questions[i]?.correct
-  ).length;
+  const correctCount = answers.filter((answer) => answer?.isCorrect).length;
   const determinedLevel = scoreToCefr(correctCount);
 
   function handleSelect(idx: number) {
@@ -671,11 +701,30 @@ export default function PlacementTestPage() {
   }
 
   function handleNext() {
-    if (selected === null) return;
+    const question = questions[current];
+    if (!question) return;
     const newAnswers = [...answers];
-    newAnswers[current] = selected;
+
+    if (question.mode === 'mcq') {
+      if (selected === null) return;
+      newAnswers[current] = {
+        kind: 'mcq',
+        selected,
+        isCorrect: selected === question.correctIndex,
+      };
+      setSelected(null);
+    } else {
+      const trimmed = response.trim();
+      if (!trimmed) return;
+      newAnswers[current] = {
+        kind: 'open',
+        response: trimmed,
+        isCorrect: evaluateOpenAnswer(question.type, trimmed, question.expectedAnswer),
+      };
+      setResponse('');
+    }
+
     setAnswers(newAnswers);
-    setSelected(null);
 
     if (isLast) {
       setScreen('result');
@@ -687,7 +736,7 @@ export default function PlacementTestPage() {
   function handleFinish() {
     localStorage.setItem(PLACEMENT_KEY, 'true');
     void apiClient.post('/auth/diagnostic/complete/', { level: determinedLevel }).finally(() => {
-      navigate('/learn', { replace: true });
+      navigate('/dashboard', { replace: true });
     });
   }
 
@@ -710,14 +759,29 @@ export default function PlacementTestPage() {
         {screen === 'quiz' && isLoading && (
           <QuizLoading />
         )}
-        {screen === 'quiz' && !isLoading && (
+        {screen === 'quiz' && !isLoading && error && (
+          <div className="mx-auto mt-28 max-w-xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+            <p className="text-lg font-semibold">No pudimos cargar el diagnóstico.</p>
+            <p className="mt-2 text-sm">{error}</p>
+            <button
+              type="button"
+              onClick={() => setReloadKey(prev => prev + 1)}
+              className="mt-5 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold"
+            >
+              Reintentar
+            </button>
+          </div>
+        )}
+        {screen === 'quiz' && !isLoading && !error && question && (
           <QuizScreen
             key="quiz"
             question={question}
             current={current}
             total={questions.length}
             selected={selected}
+            response={response}
             onSelect={handleSelect}
+            onResponseChange={setResponse}
             onNext={handleNext}
             isLast={isLast}
           />

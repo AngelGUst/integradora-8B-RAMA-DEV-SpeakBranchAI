@@ -54,6 +54,7 @@ function scoreToY(score: number): number {
 }
 
 function indexToX(i: number, total: number): number {
+  if (total <= 1) return C.x + C.w / 2;
   return C.x + (i / (total - 1)) * C.w;
 }
 
@@ -72,6 +73,11 @@ function buildLinePath(pts: Pt[]): string {
 }
 
 function buildAreaPath(pts: Pt[]): string {
+  if (pts.length === 0) return '';
+  if (pts.length === 1) {
+    const bottomY = (C.y + C.h).toFixed(2);
+    return `M ${pts[0].x.toFixed(2)} ${pts[0].y.toFixed(2)} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
+  }
   const line = buildLinePath(pts);
   const bottomY = (C.y + C.h).toFixed(2);
   return `${line} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
@@ -119,8 +125,8 @@ export default function VicissitudesChart({
   const linePath = buildLinePath(pts);
   const areaPath = buildAreaPath(pts);
 
-  const lastPt = pts[pts.length - 1];
-  const lastScore = data[data.length - 1].score;
+  const lastPt = pts.length ? pts[pts.length - 1] : null;
+  const lastScore = data.length ? data[data.length - 1].score : 0;
   const lastZone = getZoneLabel(lastScore);
 
   // Zone Y coordinates
@@ -327,7 +333,7 @@ export default function VicissitudesChart({
           })}
 
           {/* ── Current position pulsating dot ── */}
-          {animated && (
+          {animated && lastPt && (
             <>
               {/* Outer pulse ring */}
               <motion.circle

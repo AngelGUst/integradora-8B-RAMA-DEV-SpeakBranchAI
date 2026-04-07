@@ -20,8 +20,10 @@ import type { UserRole } from '@/features/auth/types/auth.types';
 const PLACEMENT_KEY = 'sb_placement_done';
 
 function isPlacementDone(value?: boolean): boolean {
-  if (typeof value === 'boolean') return value;
-  return localStorage.getItem(PLACEMENT_KEY) === 'true';
+  const localFlag = localStorage.getItem(PLACEMENT_KEY) === 'true';
+  if (value === true) return true;
+  if (value === false) return localFlag;
+  return localFlag;
 }
 
 function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string {
@@ -87,7 +89,7 @@ function OnboardingRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (isPlacementDone(user?.diagnostic_completed)) return <Navigate to="/learn" replace />;
+  if (isPlacementDone(user?.diagnostic_completed)) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 

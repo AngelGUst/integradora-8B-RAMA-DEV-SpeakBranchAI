@@ -199,6 +199,9 @@ function Atmosphere({ uid }: { uid: string }) {
 function Trayectoria({ pts, attempts, uid }: {
   pts: [number, number][]; attempts: Attempt[]; uid: string
 }) {
+  if (!pts.length || pts.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) {
+    return null;
+  }
   const path = catmull(pts);
   const area = trailFill(pts);
   return (
@@ -241,6 +244,7 @@ function Trayectoria({ pts, attempts, uid }: {
 function AlienPilot({ cx, cy, color, mood }: {
   cx: number; cy: number; color: string; mood: 'neutral' | 'up' | 'down'
 }) {
+  if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
   // La nave mide 28 × 50 unidades SVG.
   // `cy` es el punto donde el nozzle de la nave toca la línea.
   // Desplazamos el grupo para que el fondo del cuerpo quede en cy.

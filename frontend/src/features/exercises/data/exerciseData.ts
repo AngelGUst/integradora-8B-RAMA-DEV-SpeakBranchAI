@@ -28,6 +28,7 @@ export interface SpeakingExercise {
   instruction: string;
   phrase: string;
   translation: string;
+  audioUrl?: string;
   maxXP: number;
 }
 
@@ -39,6 +40,7 @@ export interface ComprehensionExercise {
   title: string;
   /** Read aloud via browser TTS. Hidden from user during quiz. */
   audioText: string;
+  audioUrl?: string;
   maxReplays: number;
   questions: MCQQuestion[];
   maxXP: number;

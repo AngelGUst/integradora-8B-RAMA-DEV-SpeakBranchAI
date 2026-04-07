@@ -7,6 +7,8 @@ from datetime import timedelta
 import os
 from dotenv import load_dotenv
 
+from backend.db_settings import get_database_config
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,6 +45,7 @@ INSTALLED_APPS = [
     'attempts.apps.AttemptsConfig',
     'exams.apps.ExamsConfig',
     'vocabulary.apps.VocabularyConfig',
+    'courses.apps.CoursesConfig',
     'django_extensions'
 ]
 
@@ -87,16 +90,7 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database — Supabase / PostgreSQL
 # ---------------------------------------------------------------------------
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('SUPABASE_DB_NAME'),
-        'USER': os.getenv('SUPABASE_DB_USER'),
-        'PASSWORD': os.getenv('SUPABASE_DB_PASSWORD'),
-        'HOST': os.getenv('SUPABASE_HOST'),
-        'PORT': os.getenv('SUPABASE_PORT', '5432'),
-    }
-}
+DATABASES = get_database_config()
 
 
 # ---------------------------------------------------------------------------

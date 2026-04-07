@@ -43,6 +43,7 @@ function backendToExercise(q: Question): AnyExercise {
       instruction: 'Lee la siguiente frase en voz alta en inglés con claridad.',
       phrase: q.text,
       translation: q.phonetic_text ?? '',
+      audioUrl: q.audio_url ?? undefined,
     };
   }
 
@@ -55,6 +56,7 @@ function backendToExercise(q: Question): AnyExercise {
       instruction: 'Escucha el audio con atención y luego repite exactamente lo que escuchas.',
       phrase: q.correct_answer,
       translation: q.text ?? '',
+      audioUrl: q.audio_url ?? undefined,
     };
   }
 
@@ -136,6 +138,7 @@ function backendToExercise(q: Question): AnyExercise {
       skill: 'comprehension' as const,
       title: q.text || 'Listening · Comprensión',
       audioText: q.phonetic_text ?? '',
+      audioUrl: q.audio_url ?? undefined,
       maxReplays: q.max_replays ?? 3,
       questions,
     };
@@ -413,18 +416,29 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
   const [showResult,  setShowResult] = useState(false);
   const [audioPlayed, setAudioReady] = useState(ex.skill !== 'shadowing');
   const recRef = useRef<SpeechRecognition | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Check Web Speech API availability
   const SpeechAPI =
     (window as unknown as Record<string, unknown>).SpeechRecognition as typeof SpeechRecognition | undefined ??
     (window as unknown as Record<string, unknown>).webkitSpeechRecognition as typeof SpeechRecognition | undefined;
 
-  const playTTS = () => {
+  const playAudio = () => {
+    if (ex.audioUrl) {
+      audioRef.current?.pause();
+      const audio = new Audio(ex.audioUrl);
+      audioRef.current = audio;
+      audio.onplay = () => setAudioReady(true);
+      audio.onerror = () => setAudioReady(false);
+      void audio.play();
+      return;
+    }
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(ex.phrase);
     u.lang = 'en-US'; u.rate = 0.82;
+    u.onend = () => setAudioReady(true);
+    u.onerror = () => setAudioReady(false);
     speechSynthesis.speak(u);
-    setAudioReady(true);
   };
 
   const startRec = () => {
@@ -474,7 +488,7 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
             Escucha la frase. No verás el texto mientras grabas.
           </p>
           <button
-            onClick={playTTS}
+            onClick={playAudio}
             className="flex items-center gap-2 text-sm font-medium text-violet-300 bg-violet-500/10 border border-violet-500/25 px-4 py-2 rounded-lg hover:bg-violet-500/20 transition-colors"
           >
             <Volume2 size={15} /> Reproducir audio
@@ -606,14 +620,28 @@ function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; on
   const [submitted,   setSubmit]   = useState(false);
   const [feedback,    setFeedback] = useState<QFeedback[]>([]);
   const [result,      setResult]   = useState({ score: 0, xp: 0 });
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const hasAudio = Boolean(ex.audioUrl || ex.audioText?.trim());
 
   const playAudio = () => {
     if (replaysLeft <= 0) return;
+    if (ex.audioUrl) {
+      audioRef.current?.pause();
+      const audio = new Audio(ex.audioUrl);
+      audioRef.current = audio;
+      audio.onplay = () => setPlayed(true);
+      audio.onerror = () => setPlayed(false);
+      void audio.play();
+      setReplays(p => p - 1);
+      return;
+    }
+    if (!ex.audioText?.trim()) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(ex.audioText);
     u.lang = 'en-US'; u.rate = 0.82;
+    u.onend = () => setPlayed(true);
+    u.onerror = () => setPlayed(false);
     speechSynthesis.speak(u);
-    setPlayed(true);
     setReplays(p => p - 1);
   };
 
@@ -650,10 +678,13 @@ function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; on
             Escucha el audio. Tienes <strong className="text-amber-400">{ex.maxReplays}</strong> reproducción(es) disponibles.
             No podrás escucharlo al contestar.
           </p>
+          {!hasAudio && (
+            <p className="text-xs text-amber-300">Audio no disponible. Contacta al admin para cargar el audio o el texto TTS.</p>
+          )}
           <div className="flex items-center justify-between">
             <button
               onClick={playAudio}
-              disabled={replaysLeft <= 0}
+              disabled={!hasAudio || replaysLeft <= 0}
               className="flex items-center gap-2 text-sm font-medium text-amber-300 bg-amber-500/10 border border-amber-500/25 px-4 py-2 rounded-lg hover:bg-amber-500/20 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <Volume2 size={15} /> Reproducir audio
@@ -666,7 +697,7 @@ function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; on
 
         <button
           onClick={() => { window.speechSynthesis.cancel(); setQuiz(true); }}
-          disabled={!audioPlayed}
+          disabled={hasAudio && !audioPlayed}
           className="w-full py-3 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           Responder preguntas →

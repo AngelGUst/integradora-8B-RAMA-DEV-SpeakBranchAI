@@ -57,6 +57,13 @@ class RegisterView(APIView):
         tags=['Auth'],
     )
     def post(self, request):
+        from system_config.models import SystemConfig
+        if not SystemConfig.get().registration_enabled:
+            return Response(
+                {'error': 'El registro de nuevos usuarios está desactivado temporalmente.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

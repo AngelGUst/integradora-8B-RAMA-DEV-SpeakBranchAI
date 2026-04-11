@@ -1,0 +1,531 @@
+Plan de Implementación: Panel de Configuración del Sistema
+Alcance (MVP viable)
+Basado en el código actual, implementaremos 3 funcionalidades:
+
+Umbrales del motor adaptativo — los valores 16 y 10 están hardcodeados en user_progress.py:68-74
+Toggle de registro de usuarios — RegisterView siempre acepta, sin flag
+Visor de logs de errores — errors.log ya existe, solo falta un endpoint de lectura
+FASE 1 — Backend
+Paso 1.1 — Crear la app system_config
+
+# Desde la carpeta backend/
+cd backend
+python manage.py startapp system_config
+Registrar en backend/settings.py dentro de INSTALLED_APPS:
+
+
+'system_config',
+Paso 1.2 — Crear el modelo SystemConfig
+Crear backend/system_config/models.py:
+
+
+from django.db import models
+
+class SystemConfig(models.Model):
+    # Motor adaptativo
+    adaptive_threshold_up   = models.FloatField(default=16.0)   # avg >= este valor → HARD
+    adaptive_threshold_down = models.FloatField(default=10.0)   # avg <  este valor → EASY
+
+    # Registro
+    registration_enabled = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'system_config'
+        verbose_name = 'Configuración del Sistema'
+
+    def save(self, *args, **kwargs):
+        # Singleton: solo puede existir una fila
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+Generar y aplicar la migración:
+
+
+python manage.py makemigrations system_config
+python manage.py migrate
+Paso 1.3 — Conectar SystemConfig al motor adaptativo
+En backend/users/models/user_progress.py, reemplazar los valores hardcodeados en get_recommended_difficulty:
+
+
+# ANTES (líneas 68-74):
+def get_recommended_difficulty(self, skill_avg):
+    if skill_avg >= 16:
+        return 'HARD'
+    elif skill_avg >= 10:
+        return 'MEDIUM'
+    else:
+        return 'EASY'
+
+# DESPUÉS:
+def get_recommended_difficulty(self, skill_avg):
+    from system_config.models import SystemConfig
+    cfg = SystemConfig.get()
+    if skill_avg >= cfg.adaptive_threshold_up:
+        return 'HARD'
+    elif skill_avg >= cfg.adaptive_threshold_down:
+        return 'MEDIUM'
+    else:
+        return 'EASY'
+Paso 1.4 — Conectar SystemConfig al registro
+En backend/users/views/auth_views.py, al inicio del método post de RegisterView:
+
+
+def post(self, request):
+    from system_config.models import SystemConfig
+    if not SystemConfig.get().registration_enabled:
+        return Response(
+            {'error': 'El registro de nuevos usuarios está desactivado temporalmente.'},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    # ... resto del método sin cambios
+Paso 1.5 — Crear la view de configuración (admin)
+Crear backend/system_config/views.py:
+
+
+import json
+from django.http import JsonResponse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+from system_config.models import SystemConfig
+
+
+def _require_admin(request):
+    if not request.user.is_authenticated:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            try:
+                from rest_framework_simplejwt.authentication import JWTAuthentication
+                jwt_auth = JWTAuthentication()
+                token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
+                request.user = jwt_auth.get_user(token)
+            except Exception:
+                return JsonResponse({'error': 'Authentication required.'}, status=401)
+        else:
+            return JsonResponse({'error': 'Authentication required.'}, status=401)
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required.'}, status=401)
+    if request.user.role != 'ADMIN':
+        return JsonResponse({'error': 'Admin access required.'}, status=403)
+    return None
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class SystemConfigView(View):
+
+    def get(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+        cfg = SystemConfig.get()
+        return JsonResponse({
+            'adaptive_threshold_up':   cfg.adaptive_threshold_up,
+            'adaptive_threshold_down': cfg.adaptive_threshold_down,
+            'registration_enabled':    cfg.registration_enabled,
+        })
+
+    def patch(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+        try:
+            body = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON.'}, status=400)
+
+        cfg = SystemConfig.get()
+        changed = []
+
+        if 'adaptive_threshold_up' in body:
+            val = float(body['adaptive_threshold_up'])
+            if val <= 0 or val > 100:
+                return JsonResponse({'error': 'adaptive_threshold_up debe estar entre 0 y 100.'}, status=400)
+            cfg.adaptive_threshold_up = val
+            changed.append('adaptive_threshold_up')
+
+        if 'adaptive_threshold_down' in body:
+            val = float(body['adaptive_threshold_down'])
+            if val <= 0 or val > 100:
+                return JsonResponse({'error': 'adaptive_threshold_down debe estar entre 0 y 100.'}, status=400)
+            cfg.adaptive_threshold_down = val
+            changed.append('adaptive_threshold_down')
+
+        if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
+            return JsonResponse(
+                {'error': 'El umbral inferior debe ser menor que el superior.'},
+                status=400,
+            )
+
+        if 'registration_enabled' in body:
+            cfg.registration_enabled = bool(body['registration_enabled'])
+            changed.append('registration_enabled')
+
+        if changed:
+            cfg.save(update_fields=changed)
+
+        return JsonResponse({
+            'adaptive_threshold_up':   cfg.adaptive_threshold_up,
+            'adaptive_threshold_down': cfg.adaptive_threshold_down,
+            'registration_enabled':    cfg.registration_enabled,
+        })
+Paso 1.6 — Crear la view de logs
+Añadir en backend/system_config/views.py:
+
+
+import os
+from pathlib import Path
+from django.conf import settings
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ErrorLogsView(View):
+
+    # Palabras clave por fuente
+    SOURCE_KEYWORDS = {
+        'whisper': ['whisper', 'transcri', 'audio'],
+        'gpt':     ['gpt', 'openai', 'writing', 'evaluat'],
+        'all':     [],
+    }
+
+    def get(self, request):
+        err = _require_admin(request)
+        if err:
+            return err
+
+        source = request.GET.get('source', 'all').lower()   # whisper | gpt | all
+        limit  = min(int(request.GET.get('limit', 100)), 500)
+
+        log_path = Path(settings.LOGS_DIR) / 'errors.log'
+        if not log_path.exists():
+            return JsonResponse({'lines': [], 'total': 0})
+
+        keywords = self.SOURCE_KEYWORDS.get(source, [])
+
+        lines = []
+        with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                line = line.rstrip()
+                if not line:
+                    continue
+                if keywords:
+                    lower = line.lower()
+                    if not any(kw in lower for kw in keywords):
+                        continue
+                lines.append(line)
+
+        # Devolver las últimas `limit` líneas
+        result = lines[-limit:]
+        return JsonResponse({'lines': result, 'total': len(lines)})
+Paso 1.7 — Registrar las URLs
+Crear backend/system_config/urls.py:
+
+
+from django.urls import path
+from system_config.views import SystemConfigView, ErrorLogsView
+
+urlpatterns = [
+    path('',     SystemConfigView.as_view(), name='system-config'),
+    path('logs/', ErrorLogsView.as_view(),   name='system-config-logs'),
+]
+En backend/backend/urls.py, añadir:
+
+
+path('api/system/', include('system_config.urls')),
+Paso 1.8 — Verificar endpoints con curl
+
+# Obtener token admin primero
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@test.com","password":"admin123"}' | python -c "import sys,json; print(json.load(sys.stdin)['access'])")
+
+# GET config
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/system/
+
+# PATCH umbrales
+curl -X PATCH http://localhost:8000/api/system/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"adaptive_threshold_up": 18, "adaptive_threshold_down": 8}'
+
+# PATCH toggle registro
+curl -X PATCH http://localhost:8000/api/system/ \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"registration_enabled": false}'
+
+# Intentar registrar (debe fallar con 403)
+curl -X POST http://localhost:8000/api/auth/register/ \
+  -H "Content-Type: application/json" \
+  -d '{"email":"nuevo@test.com","password":"test1234","first_name":"Test","last_name":"User"}'
+
+# GET logs de whisper
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/system/logs/?source=whisper&limit=50"
+
+# GET logs de GPT
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/system/logs/?source=gpt&limit=50"
+Resultado esperado para cada uno:
+
+GET /api/system/ → {"adaptive_threshold_up": 16.0, "adaptive_threshold_down": 10.0, "registration_enabled": true}
+PATCH umbrales → misma estructura con valores nuevos
+PATCH toggle + intento de registro → {"error": "El registro de nuevos usuarios está desactivado temporalmente."}
+GET logs → {"lines": [...], "total": N}
+FASE 2 — Frontend
+Paso 2.1 — Crear el servicio API
+Crear frontend/src/services/systemConfigService.ts:
+
+
+import axios from '@/lib/axios'; // o donde tengas tu instancia configurada
+
+export interface SystemConfig {
+  adaptive_threshold_up: number;
+  adaptive_threshold_down: number;
+  registration_enabled: boolean;
+}
+
+export interface LogsResponse {
+  lines: string[];
+  total: number;
+}
+
+export type LogSource = 'all' | 'whisper' | 'gpt';
+
+export const systemConfigService = {
+  get: (): Promise<SystemConfig> =>
+    axios.get('/api/system/').then(r => r.data),
+
+  update: (data: Partial<SystemConfig>): Promise<SystemConfig> =>
+    axios.patch('/api/system/', data).then(r => r.data),
+
+  getLogs: (source: LogSource = 'all', limit = 100): Promise<LogsResponse> =>
+    axios.get('/api/system/logs/', { params: { source, limit } }).then(r => r.data),
+};
+Nota: reemplaza @/lib/axios por la ruta real de tu instancia de axios. Búscala con grep -r "axios.create" frontend/src.
+
+Paso 2.2 — Crear la página SystemConfigPage
+Crear frontend/src/pages/admin/SystemConfigPage.tsx:
+
+
+import { useEffect, useState } from 'react';
+import { systemConfigService, type SystemConfig, type LogSource } from '@/services/systemConfigService';
+
+export default function SystemConfigPage() {
+  const [config, setConfig]     = useState<SystemConfig | null>(null);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [success, setSuccess]   = useState(false);
+
+  // Logs state
+  const [logSource, setLogSource] = useState<LogSource>('all');
+  const [logs, setLogs]           = useState<string[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsLoading, setLogsLoading] = useState(false);
+
+  // Local form state (derivado de config)
+  const [thresholdUp, setThresholdUp]     = useState('');
+  const [thresholdDown, setThresholdDown] = useState('');
+
+  useEffect(() => {
+    systemConfigService.get().then(cfg => {
+      setConfig(cfg);
+      setThresholdUp(String(cfg.adaptive_threshold_up));
+      setThresholdDown(String(cfg.adaptive_threshold_down));
+    });
+  }, []);
+
+  const handleSaveThresholds = async () => {
+    const up   = parseFloat(thresholdUp);
+    const down = parseFloat(thresholdDown);
+    if (isNaN(up) || isNaN(down)) return setError('Los umbrales deben ser números.');
+    if (down >= up) return setError('El umbral inferior debe ser menor que el superior.');
+    setSaving(true); setError(null);
+    try {
+      const updated = await systemConfigService.update({
+        adaptive_threshold_up: up,
+        adaptive_threshold_down: down,
+      });
+      setConfig(updated);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2500);
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? 'Error al guardar.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleRegistration = async () => {
+    if (!config) return;
+    setSaving(true); setError(null);
+    try {
+      const updated = await systemConfigService.update({
+        registration_enabled: !config.registration_enabled,
+      });
+      setConfig(updated);
+    } catch (e: any) {
+      setError(e?.response?.data?.error ?? 'Error al guardar.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleLoadLogs = async () => {
+    setLogsLoading(true);
+    try {
+      const res = await systemConfigService.getLogs(logSource, 100);
+      setLogs(res.lines);
+      setLogsTotal(res.total);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  if (!config) return <div className="p-8 text-slate-400">Cargando configuración…</div>;
+
+  return (
+    <div className="min-h-screen bg-[#07090F] text-white p-8 space-y-10 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-semibold">Configuración del Sistema</h1>
+
+      {/* ── Motor adaptativo ── */}
+      <section className="bg-white/5 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-medium">Motor Adaptativo</h2>
+        <p className="text-sm text-slate-400">
+          El promedio de habilidad se calcula como un EMA (α=0.2). Si el promedio supera
+          el umbral superior, el siguiente ejercicio será HARD. Si cae por debajo del
+          inferior, será EASY.
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="space-y-1">
+            <span className="text-xs text-slate-400">Umbral superior (→ HARD)</span>
+            <input
+              type="number" step="0.5" min="1" max="99"
+              value={thresholdUp}
+              onChange={e => setThresholdUp(e.target.value)}
+              className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="space-y-1">
+            <span className="text-xs text-slate-400">Umbral inferior (→ EASY)</span>
+            <input
+              type="number" step="0.5" min="1" max="99"
+              value={thresholdDown}
+              onChange={e => setThresholdDown(e.target.value)}
+              className="w-full bg-white/10 rounded-lg px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {success && <p className="text-emerald-400 text-sm">Guardado correctamente.</p>}
+        <button
+          onClick={handleSaveThresholds}
+          disabled={saving}
+          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+        >
+          {saving ? 'Guardando…' : 'Guardar umbrales'}
+        </button>
+      </section>
+
+      {/* ── Registro de usuarios ── */}
+      <section className="bg-white/5 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-medium">Registro de Nuevos Usuarios</h2>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-slate-300">
+            {config.registration_enabled
+              ? 'El registro está activo. Nuevos usuarios pueden crear cuentas.'
+              : 'El registro está desactivado. Nuevos usuarios no pueden registrarse.'}
+          </span>
+          <button
+            onClick={handleToggleRegistration}
+            disabled={saving}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+              config.registration_enabled ? 'bg-emerald-600' : 'bg-slate-600'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              config.registration_enabled ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
+      </section>
+
+      {/* ── Logs de errores ── */}
+      <section className="bg-white/5 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-medium">Logs de Errores</h2>
+        <div className="flex gap-3 items-center">
+          <select
+            value={logSource}
+            onChange={e => setLogSource(e.target.value as LogSource)}
+            className="bg-white/10 rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="all">Todos los errores</option>
+            <option value="whisper">API Whisper</option>
+            <option value="gpt">API GPT (Writing)</option>
+          </select>
+          <button
+            onClick={handleLoadLogs}
+            disabled={logsLoading}
+            className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
+          >
+            {logsLoading ? 'Cargando…' : 'Cargar logs'}
+          </button>
+          {logsTotal > 0 && (
+            <span className="text-xs text-slate-500">{logsTotal} líneas totales</span>
+          )}
+        </div>
+        {logs.length > 0 ? (
+          <pre className="bg-black/40 rounded-lg p-4 text-xs text-slate-300 overflow-auto max-h-80 whitespace-pre-wrap">
+            {logs.join('\n')}
+          </pre>
+        ) : (
+          <p className="text-sm text-slate-500">
+            {logsTotal === 0 && logs.length === 0 ? 'Presiona "Cargar logs" para ver los errores.' : 'No hay errores registrados para esta fuente.'}
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
+Paso 2.3 — Registrar la ruta
+En frontend/src/router/index.tsx:
+
+
+// Al inicio, añadir el import:
+import SystemConfigPage from '@/pages/admin/SystemConfigPage';
+
+// Dentro de <Routes>, junto a las otras rutas /admin:
+<Route
+  path="/admin/system"
+  element={<AdminRoute><SystemConfigPage /></AdminRoute>}
+/>
+Paso 2.4 — Añadir enlace en la navegación admin
+Busca el sidebar o navbar del admin (probablemente dentro de QuestionsPage o un layout compartido). Añade:
+
+
+<a href="/admin/system" className="...">
+  Configuración del Sistema
+</a>
+Para encontrar el componente exacto ejecuta:
+
+
+grep -r "admin/questions\|admin/users\|admin/vocabulary" frontend/src --include="*.tsx" -l
+Paso 2.5 — Verificación visual (checklist)
+Abre http://localhost:5173/admin/system con cuenta admin y verifica:
+
+ La página carga y muestra los valores actuales (16.0 y 10.0)
+ Cambiar umbrales y guardar → los valores persisten después de recargar la página
+ Poner umbral inferior ≥ superior → aparece mensaje de error, no se guarda
+ Toggle de registro → el estado cambia visualmente sin recargar
+ Con registro desactivado, abrir http://localhost:5173/register → aparece error 403
+ Cargar logs "Todos" → aparece el contenido de errors.log
+ Cargar logs "Whisper" → solo muestra líneas que contienen palabras clave de Whisper
+ Un usuario sin token admin accediendo a GET /api/system/ → respuesta 403
+Orden recomendado de ejecución
+
+Paso 1.1 → 1.2 → migrate → 1.3 → 1.4 → 1.5 → 1.6 → 1.7
+Verificar con curl (Paso 1.8)
+Paso 2.1 → 2.2 → 2.3 → 2.4
+Verificar en browser (Paso 2.5)
+¿Quieres que empiece a implementar algún paso específico?

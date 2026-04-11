@@ -1,7 +1,7 @@
 # users/models/user_progress.py
 from django.db import models
 from django.conf import settings
-
+from system_config.models import SystemConfig
 class UserProgress(models.Model):
     """Progreso del usuario para el motor adaptativo"""
     
@@ -80,9 +80,10 @@ class UserProgress(models.Model):
         Determina la dificultad recomendada según el promedio
         Retorna: 'EASY', 'MEDIUM', 'HARD'
         """
-        if skill_avg >= 16:
+        cfg = SystemConfig.get()
+        if skill_avg >= cfg.adaptive_threshold_up:
             return 'HARD'
-        elif skill_avg >= 10:
+        elif skill_avg >= cfg.adaptive_threshold_down:
             return 'MEDIUM'
         else:
             return 'EASY'

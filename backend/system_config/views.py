@@ -45,7 +45,7 @@ class SystemConfigView(View):
             "registration_enabled": cfg.registration_enabled,
         })
     
-    def patch(selft, request):
+    def patch(self, request):
         err = _require_admin(request)
         if err:
             return err
@@ -64,31 +64,31 @@ class SystemConfigView(View):
             cfg.adaptive_threshold_up = val
             changed.append('adaptive_threshold_up')
 
-            if 'adaptive_threshold_down' in body:
-                val = float(body['adaptive_threshold_down'])
-                if val <=0 or val > 100:
-                    return JsonResponse({'error': 'adaptive_threshold_down must be between 0 and 100'}, status=400)
-                cfg.adaptive_threshold_down = val
-                changed.append('adaptive_threshold_down')
+        if 'adaptive_threshold_down' in body:
+            val = float(body['adaptive_threshold_down'])
+            if val <=0 or val > 100:
+                return JsonResponse({'error': 'adaptive_threshold_down must be between 0 and 100'}, status=400)
+            cfg.adaptive_threshold_down = val
+            changed.append('adaptive_threshold_down')
 
-            if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
-                return JsonResponse(
-                    {'error': 'The lower threshold must be lower than the upper threshold.'}, 
-                    status=400
-                )
+        if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
+            return JsonResponse(
+                {'error': 'The lower threshold must be lower than the upper threshold.'}, 
+                status=400
+            )
 
-            if 'registration_enabled' in body:
-                cfg.registered_enable = bool(body['registration_enabled'])
-                changed.append('registration_enabled')
+        if 'registration_enabled' in body:
+            cfg.registration_enabled = bool(body['registration_enabled'])
+            changed.append('registration_enabled')
 
-            if changed:
-                cfg.save(update_fields=changed)
+        if changed:
+            cfg.save()
 
-            return JsonResponse({
-                'adaptive_threshold_up': cfg.adaptive_threshold_up,
-                'adaptive_threshold_down': cfg.adaptive_threshold_down,
-                'registration_enabled': cfg.registration_enabled,
-            })
+        return JsonResponse({
+            'adaptive_threshold_up': cfg.adaptive_threshold_up,
+            'adaptive_threshold_down': cfg.adaptive_threshold_down,
+            'registration_enabled': cfg.registration_enabled,
+        })
         
 @method_decorator(csrf_exempt, name='dispatch')
 class ErrorLogsView(View):

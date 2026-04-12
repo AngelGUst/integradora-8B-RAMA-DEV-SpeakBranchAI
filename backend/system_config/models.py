@@ -6,7 +6,7 @@ class SystemConfig(models.Model):
     adaptive_threshold_up = models.FloatField(default=16.0)
     adaptive_threshold_down = models.FloatField(default=10.0)
 
-    registered_enable = models.BooleanField(default=True)
+    registration_enabled = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'system_config'

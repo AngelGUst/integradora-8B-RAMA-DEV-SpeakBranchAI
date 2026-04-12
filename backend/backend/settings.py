@@ -13,7 +13,7 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.getenv('SECRET_KEY')
+SECRET_KEY = os.getenv('SECRET_KEY', 'dev-local-secret-key')
 
 DEBUG = True
 
@@ -90,7 +90,16 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 # Database — Supabase / PostgreSQL
 # ---------------------------------------------------------------------------
 
-DATABASES = get_database_config()
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('SUPABASE_DB_NAME'),
+        'USER': os.getenv('SUPABASE_DB_USER'),
+        'PASSWORD': os.getenv('SUPABASE_DB_PASSWORD'),
+        'HOST': os.getenv('SUPABASE_HOST'),
+        'PORT': os.getenv('SUPABASE_PORT'),
+    }
+}
 
 
 # ---------------------------------------------------------------------------

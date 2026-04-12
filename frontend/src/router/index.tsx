@@ -12,6 +12,7 @@ import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
+import SpeakingPage from '@/pages/user/SpeakingPage';
 import Logo from '@/shared/components/ui/Logo';
 import type { UserRole } from '@/features/auth/types/auth.types';
 
@@ -165,6 +166,16 @@ export default function AppRouter() {
         element={(
           <PrivateRoute requiresPlacement allowedRoles={['STUDENT', 'ADMIN']}>
             <ExercisePage />
+          </PrivateRoute>
+        )}
+      />
+
+      {/* Speaking practice */}
+      <Route
+        path="/speaking"
+        element={(
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT', 'ADMIN']}>
+            <SpeakingPage />
           </PrivateRoute>
         )}
       />

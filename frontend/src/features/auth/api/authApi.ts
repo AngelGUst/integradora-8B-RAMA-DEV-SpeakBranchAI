@@ -51,6 +51,14 @@ export const authApi = {
     const baseUrl = apiClient.defaults.baseURL ?? '';
     return `${baseUrl.replace(/\/$/, '')}/auth/google/`;
   },
+
+  /**
+   * Get Google OAuth Client ID from env
+   */
+  getGoogleClientId: (): string => {
+    return import.meta.env.VITE_GOOGLE_CLIENT_ID as string;
+  },
+
   /**
    * Authenticate with email + password.
    * Returns JWT pair and the authenticated user profile.
@@ -169,5 +177,20 @@ export const authApi = {
       user,
       isNewUser: data.is_new_user,
     };
+  },
+
+  /**
+   * Handle Google OAuth credential response
+   */
+  handleGoogleResponse: async (credential: string): Promise<GoogleOAuthResponse> => {
+    try {
+      const response = await authApi.googleCallback(credential);
+      localStorage.setItem('sb_access_token', response.access);
+      localStorage.setItem('sb_refresh_token', response.refresh);
+      return response;
+    } catch (error) {
+      console.error('Google login failed:', error);
+      throw error;
+    }
   },
 };

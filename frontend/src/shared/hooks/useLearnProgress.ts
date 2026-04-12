@@ -23,9 +23,9 @@ interface ProgressResponse {
 }
 
 export function useLearnProgress() {
-  const [totalXP,        setTotalXP]        = useState(0);
-  const [completedIds,   setCompletedIds]   = useState<string[]>([]);
-  const [streakDays,     setStreakDays]     = useState(0);
+  const [totalXP, setTotalXP] = useState(0);
+  const [completedIds, setCompletedIds] = useState<string[]>([]);
+  const [streakDays, setStreakDays] = useState(0);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -44,38 +44,54 @@ export function useLearnProgress() {
       });
   }, []);
 
-  const completeExercise = useCallback(async (
-    exerciseId: string,
-    xpEarned: number,
-    questionType?: string,
-    score?: number,
-  ) => {
-    // Optimistic update
-    setCompletedIds(prev => [...new Set([...prev, exerciseId])]);
-    setTotalXP(prev => prev + xpEarned);
-    if (score !== undefined) {
-      setQuestionScores(prev => ({
-        ...prev,
-        [exerciseId]: Math.max(prev[exerciseId] ?? 0, score),
-      }));
-    }
+  const completeExercise = useCallback(
+    async (
+      exerciseId: string,
+      xpEarned: number,
+      questionType?: string,
+      score?: number,
+    ) => {
+      // Optimistic update
+      setCompletedIds(prev => [...new Set([...prev, exerciseId])]);
+      setTotalXP(prev => prev + xpEarned);
+      if (score !== undefined) {
+        setQuestionScores(prev => ({
+          ...prev,
+          [exerciseId]: Math.max(prev[exerciseId] ?? 0, score),
+        }));
+      }
 
-    try {
-      const data = await apiFetch<{ total_xp: number; streak_days: number }>('/api/auth/progress/complete/', {
-        method: 'POST',
-        body: JSON.stringify({
-          question_id:   exerciseId,
-          question_type: questionType ?? '',
-          score:         score ?? 0,
-          xp_earned:     xpEarned,
-        }),
-      });
-      setTotalXP(data.total_xp);
-      setStreakDays(data.streak_days);
-    } catch {
-      // Keep optimistic update — will sync on next load
-    }
-  }, []);
+      try {
+        // POST to complete exercise
+        await apiFetch<{ total_xp: number; streak_days: number }>(
+          '/api/auth/progress/complete/',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              question_id: exerciseId,
+              question_type: questionType ?? '',
+              score: score ?? 0,
+              xp_earned: xpEarned,
+            }),
+          }
+        );
+
+        // ★ RE-FETCH full progress to sync with server
+        const updatedProgress = await apiFetch<ProgressResponse>(
+          '/api/auth/progress/'
+        );
+        setTotalXP(updatedProgress.total_xp);
+        setStreakDays(updatedProgress.streak_days);
+        setCompletedIds(updatedProgress.completed_question_ids);
+        setQuestionScores(updatedProgress.question_scores ?? {});
+        localStorage.setItem('sb_total_xp', String(updatedProgress.total_xp));
+      } catch (err) {
+        console.error('Error completing exercise:', err);
+        // Keep optimistic update — will sync on next load
+      }
+    },
+    []
+  );
 
   return { totalXP, completedIds, streakDays, questionScores, completeExercise };
 }

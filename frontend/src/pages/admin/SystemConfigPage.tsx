@@ -151,42 +151,7 @@ export default function SystemConfigPage() {
                 }`} />
               </button>
             </div>
-          </section>
-
-          {/* ── Logs de errores ── */}
-          <section className="bg-white/5 rounded-xl p-6 space-y-4">
-            <h2 className="text-lg font-medium">Logs de Errores</h2>
-            <div className="flex gap-3 items-center">
-              <select
-                value={logSource}
-                onChange={e => setLogSource(e.target.value as LogSource)}
-                className="bg-white/10 rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="all">Todos los errores</option>
-                <option value="whisper">API Whisper</option>
-                <option value="gpt">API GPT (Writing)</option>
-              </select>
-              <button
-                onClick={handleLoadLogs}
-                disabled={logsLoading}
-                className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-              >
-                {logsLoading ? 'Cargando…' : 'Cargar logs'}
-              </button>
-              {logsTotal > 0 && (
-                <span className="text-xs text-slate-500">{logsTotal} líneas totales</span>
-              )}
-            </div>
-            {logs.length > 0 ? (
-              <pre className="bg-black/40 rounded-lg p-4 text-xs text-slate-300 overflow-auto max-h-80 whitespace-pre-wrap">
-                {logs.join('\n')}
-              </pre>
-            ) : (
-              <p className="text-sm text-slate-500">
-                {logsTotal === 0 && logs.length === 0 ? 'Presiona "Cargar logs" para ver los errores.' : 'No hay errores registrados para esta fuente.'}
-              </p>
-            )}
-          </section>
+          </section>  
         </div>
       </div>
     </div>

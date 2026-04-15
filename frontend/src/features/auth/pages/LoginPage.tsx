@@ -12,7 +12,7 @@ import Button from '@/shared/components/ui/Button';
 import type { LoginFormData } from '../schemas/authSchemas';
 import type { ApiError } from '@/shared/types/api.types';
 
-// ── Floating word pills ───────────────────────────────────────
+// ── Floating word pills ──────────────────────────────────────
 
 const PILLS = [
   { word: 'sophisticated', delay: 0 },

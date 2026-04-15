@@ -8,6 +8,7 @@ import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
+import LevelExamPage from '@/features/exams/pages/LevelExamPage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
@@ -22,10 +23,10 @@ import type { UserRole } from '@/features/auth/types/auth.types';
 const PLACEMENT_KEY = 'sb_placement_done';
 
 function isPlacementDone(value?: boolean): boolean {
-  const localFlag = localStorage.getItem(PLACEMENT_KEY) === 'true';
-  if (value === true) return true;
-  if (value === false) return localFlag;
-  return localFlag;
+  // Fuente de verdad: backend (`diagnostic_completed`) cuando está disponible.
+  // El flag local solo aplica mientras aún no cargamos perfil de usuario.
+  if (typeof value === 'boolean') return value;
+  return localStorage.getItem(PLACEMENT_KEY) === 'true';
 }
 
 function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string {

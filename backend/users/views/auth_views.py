@@ -13,7 +13,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiResponse, inline_serializer
 
-from users.models import User
+from users.models import User, UserProgress
 from users.serializers import (
     LoginSerializer,
     PasswordChangeSerializer,
@@ -208,6 +208,12 @@ class DiagnosticCompleteView(APIView):
 
         request.user.diagnostic_completed = True
         request.user.save(update_fields=['diagnostic_completed', 'level'] if level else ['diagnostic_completed'])
+
+        progress, _ = UserProgress.objects.get_or_create(user=request.user)
+        if progress.level != request.user.level:
+            progress.level = request.user.level
+        progress.level_start_xp = progress.total_xp
+        progress.save(update_fields=['level', 'level_start_xp'])
 
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)

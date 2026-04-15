@@ -8,19 +8,22 @@
  * Layout: [Shared Sidebar] | [Scrollable path] | [Right stats panel]
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Mic, Repeat, Headphones, PenLine,
   Star, Trophy, Lock, CheckCircle2, RefreshCw,
-  Flame, Zap, Target,
+  Flame, Zap, Target, Award,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
 import { questionsService } from '@/services/questionsService';
+import { examService } from '@/services/examService';
+import { systemConfigService, type LevelProgressionConfig } from '@/services/systemConfigService';
 import type { Question } from '@/types/question';
+import type { Exam } from '@/types/exam';
 import { LEARN_PATH } from '../data/pathData';
 import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
 import VocabularyGameDrawer from '../components/VocabularyGameDrawer';
@@ -31,28 +34,74 @@ const SKILL_CFG: Record<SkillType, {
   Icon: React.ElementType;
   bg: string; border: string; text: string; glowRgb: string;
 }> = {
-  reading:       { Icon: BookOpen,   bg: 'bg-sky-500/15',     border: 'border-sky-500/50',     text: 'text-sky-400',     glowRgb: '14,165,233'  },
-  speaking:      { Icon: Mic,        bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-400', glowRgb: '16,185,129'  },
-  shadowing:     { Icon: Repeat,     bg: 'bg-violet-500/15',  border: 'border-violet-500/50',  text: 'text-violet-400',  glowRgb: '139,92,246'  },
-  comprehension: { Icon: Headphones, bg: 'bg-amber-500/15',   border: 'border-amber-500/50',   text: 'text-amber-400',   glowRgb: '245,158,11'  },
-  writing:       { Icon: PenLine,    bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
-  checkpoint:    { Icon: Star,       bg: 'bg-yellow-500/15',  border: 'border-yellow-500/50',  text: 'text-yellow-400',  glowRgb: '234,179,8'   },
-  exam:          { Icon: Trophy,     bg: 'bg-rose-500/15',    border: 'border-rose-500/50',    text: 'text-rose-400',    glowRgb: '244,63,94'   },
+  reading: { Icon: BookOpen, bg: 'bg-sky-500/15', border: 'border-sky-500/50', text: 'text-sky-400', glowRgb: '14,165,233' },
+  speaking: { Icon: Mic, bg: 'bg-emerald-500/15', border: 'border-emerald-500/50', text: 'text-emerald-400', glowRgb: '16,185,129' },
+  shadowing: { Icon: Repeat, bg: 'bg-violet-500/15', border: 'border-violet-500/50', text: 'text-violet-400', glowRgb: '139,92,246' },
+  comprehension: { Icon: Headphones, bg: 'bg-amber-500/15', border: 'border-amber-500/50', text: 'text-amber-400', glowRgb: '245,158,11' },
+  writing: { Icon: PenLine, bg: 'bg-rose-500/15', border: 'border-rose-500/50', text: 'text-rose-400', glowRgb: '244,63,94' },
+  checkpoint: { Icon: Star, bg: 'bg-yellow-500/15', border: 'border-yellow-500/50', text: 'text-yellow-400', glowRgb: '234,179,8' },
+  exam: { Icon: Trophy, bg: 'bg-rose-500/15', border: 'border-rose-500/50', text: 'text-rose-400', glowRgb: '244,63,94' },
 };
 
 const POS_X_CYCLE: PosX[] = ['center', 'right', 'center', 'left'];
+const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2'] as const;
+const TYPE_PATH_ORDER: Record<string, number> = {
+  READING: 1,
+  SPEAKING: 2,
+  LISTENING_SHADOWING: 3,
+  LISTENING_COMPREHENSION: 4,
+  WRITING: 5,
+};
+const DIFFICULTY_PATH_ORDER: Record<string, number> = {
+  EASY: 1,
+  MEDIUM: 2,
+  HARD: 3,
+};
+
+function getLevelIndex(level?: string | null): number {
+  if (!level) return Number.MAX_SAFE_INTEGER;
+  const idx = CEFR_ORDER.indexOf(level as (typeof CEFR_ORDER)[number]);
+  return idx >= 0 ? idx : Number.MAX_SAFE_INTEGER;
+}
 
 function questionToSkill(q: Question): SkillType {
   if (q.category === 'DIAGNOSTIC') return 'checkpoint';
-  if (q.category === 'LEVEL_UP')   return 'exam';
+  if (q.category === 'LEVEL_UP') return 'exam';
   const map: Record<string, SkillType> = {
-    SPEAKING:                'speaking',
-    READING:                 'reading',
-    LISTENING_SHADOWING:     'shadowing',
+    SPEAKING: 'speaking',
+    READING: 'reading',
+    LISTENING_SHADOWING: 'shadowing',
     LISTENING_COMPREHENSION: 'comprehension',
-    WRITING:                 'writing',
+    WRITING: 'writing',
   };
   return map[q.type] ?? 'reading';
+}
+
+function shouldIncludeInPath(q: Question): boolean {
+  const category = String(q.category || '');
+  // Solo ejercicios de práctica real en el camino; diagnóstico y exámenes van aparte.
+  if (category === 'DIAGNOSTIC' || category === 'LEVEL_UP' || category === 'TOEFL') {
+    return false;
+  }
+  return true;
+}
+
+function sortQuestionsForPath(a: Question, b: Question): number {
+  const typeA = TYPE_PATH_ORDER[a.type] ?? 99;
+  const typeB = TYPE_PATH_ORDER[b.type] ?? 99;
+  if (typeA !== typeB) return typeA - typeB;
+
+  const diffA = DIFFICULTY_PATH_ORDER[a.difficulty] ?? 99;
+  const diffB = DIFFICULTY_PATH_ORDER[b.difficulty] ?? 99;
+  if (diffA !== diffB) return diffA - diffB;
+
+  const createdA = Date.parse(a.created_at || '');
+  const createdB = Date.parse(b.created_at || '');
+  if (Number.isFinite(createdA) && Number.isFinite(createdB) && createdA !== createdB) {
+    return createdA - createdB;
+  }
+
+  return a.id - b.id;
 }
 
 const ACCENT_CFG = {
@@ -77,18 +126,37 @@ function computeNodes(
   completedIds: string[],
   questionScores: Record<string, number>,
   sectionLocked: boolean,
+  allowProgressPointer: boolean,
 ): (LessonNode & { state: NodeState })[] {
+  if (nodes.length === 0) return [];
+
   if (sectionLocked) {
     return nodes.map(n => ({ ...n, state: 'locked' }));
   }
 
-  let foundCurrent = false;
-  const result = nodes.map((node, i) => {
-    if (completedIds.includes(node.id)) return { ...node, state: 'completed' as NodeState };
+  // Read-only section (past levels): keep only completed visible, without advancing pointer.
+  if (!allowProgressPointer) {
+    return nodes.map(n => ({
+      ...n,
+      state: completedIds.includes(n.id) ? ('completed' as NodeState) : ('locked' as NodeState),
+    }));
+  }
 
-    const prevAllDone = nodes.slice(0, i).every(n => completedIds.includes(n.id));
-    if (prevAllDone && !foundCurrent) {
-      foundCurrent = true;
+  // Progressión profesional: solo cuenta avance secuencial contiguo.
+  // Si el usuario resolvió ejercicios fuera de orden, no adelanta el puntero.
+  let contiguousCompleted = 0;
+  while (
+    contiguousCompleted < nodes.length &&
+    completedIds.includes(nodes[contiguousCompleted].id)
+  ) {
+    contiguousCompleted += 1;
+  }
+
+  const result = nodes.map((node, i) => {
+    if (i < contiguousCompleted) {
+      return { ...node, state: 'completed' as NodeState };
+    }
+    if (i === contiguousCompleted && contiguousCompleted < nodes.length) {
       return { ...node, state: 'current' as NodeState };
     }
     return { ...node, state: 'locked' as NodeState };
@@ -193,7 +261,7 @@ function NodeCircle({
       </motion.div>
     );
   }
- 
+
 
   return (
     <motion.div
@@ -221,27 +289,35 @@ function PathSection({
   completedIds,
   questionScores,
   totalXP,
+  sectionLocked,
+  allowProgressPointer,
   onNodeClick,
 }: {
   section: CEFRSection;
   completedIds: string[];
   questionScores: Record<string, number>;
   totalXP: number;
+  sectionLocked: boolean;
+  allowProgressPointer: boolean;
   onNodeClick: (nodeId: string) => void;
 }) {
   const accent = ACCENT_CFG[section.accent];
   const [xpMin, xpMax] = section.xpRange;
-  const sectionLocked = totalXP < xpMin;
 
   const nodes = useMemo(
-    () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
-    [section.nodes, completedIds, questionScores, sectionLocked],
+    () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked, allowProgressPointer),
+    [section.nodes, completedIds, questionScores, sectionLocked, allowProgressPointer],
   );
 
-  const totalH = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
-  const fullPath = buildPath(nodes);
-  const litIdx = nodes.findIndex(n => n.state === 'current');
-  const litPath = litIdx > 0 ? buildPath(nodes.slice(0, litIdx + 1)) : null;
+  const visibleNodes = useMemo(
+    () => nodes.filter(n => n.state !== 'locked'),
+    [nodes],
+  );
+
+  const totalH = START_Y + (Math.max(visibleNodes.length, 1) - 1) * SPACING_Y + NODE_SIZE + 60;
+  const fullPath = visibleNodes.length > 1 ? buildPath(visibleNodes) : null;
+  const litIdx = visibleNodes.findIndex(n => n.state === 'current');
+  const litPath = litIdx > 0 ? buildPath(visibleNodes.slice(0, litIdx + 1)) : null;
   const xpPct = sectionLocked ? 0 : Math.min(1, (totalXP - xpMin) / (xpMax - xpMin));
 
   return (
@@ -278,102 +354,110 @@ function PathSection({
       </div>
 
       {/* Node path */}
-      <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
-        <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
-          <defs>
-            <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={accent.hex} stopOpacity="0.7" />
-              <stop offset="100%" stopColor={accent.hex} stopOpacity="0.1" />
-            </linearGradient>
-          </defs>
-          <path d={fullPath} stroke="rgba(255,255,255,0.04)" strokeWidth="3" fill="none" strokeLinecap="round" />
-          {litPath && (
-            <path d={litPath} stroke={`url(#lg-${section.level})`} strokeWidth="3" fill="none" strokeLinecap="round" />
-          )}
-        </svg>
+      {visibleNodes.length > 0 && (
+        <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
+          <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
+            <defs>
+              <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={accent.hex} stopOpacity="0.7" />
+                <stop offset="100%" stopColor={accent.hex} stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
+            {fullPath && (
+              <path d={fullPath} stroke="rgba(255,255,255,0.04)" strokeWidth="3" fill="none" strokeLinecap="round" />
+            )}
+            {litPath && (
+              <path d={litPath} stroke={`url(#lg-${section.level})`} strokeWidth="3" fill="none" strokeLinecap="round" />
+            )}
+          </svg>
 
-        {nodes.map((node, i) => {
-          const x = POS_X[node.posX];
-          const y = START_Y + i * SPACING_Y;
-          const sCfg = SKILL_CFG[node.skill];
-          const canClick = node.state === 'current' || node.state === 'completed';
+          {visibleNodes.map((node, i) => {
+            const x = POS_X[node.posX];
+            const y = START_Y + i * SPACING_Y;
+            const sCfg = SKILL_CFG[node.skill];
+            const canClick = node.state === 'current' || node.state === 'completed';
 
-          return (
-            <div key={node.id} style={{ position: 'absolute', left: x, top: y }}>
-              {/* CTA above current node */}
-              {node.state === 'current' && (
-                <motion.div
-                  className="absolute flex flex-col items-center"
-                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <button
-                    onClick={() => onNodeClick(node.id)}
-                    className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-emerald-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+            return (
+              <div
+                key={node.id}
+                data-current-node={node.state === 'current' ? 'true' : undefined}
+                style={{ position: 'absolute', left: x, top: y }}
+              >
+                {/* CTA above current node */}
+                {node.state === 'current' && (
+                  <motion.div
+                    className="absolute flex flex-col items-center"
+                    style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
                   >
-                    ▶ COMENZAR
-                  </button>
-                  <div className="w-px h-2.5 bg-emerald-500/40 mt-0.5" />
-                </motion.div>
-              )}
-
-              {/* CTA above replay node */}
-              {node.state === 'replay' && (
-                <motion.div
-                  className="absolute flex flex-col items-center"
-                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
                     <button
                       onClick={() => onNodeClick(node.id)}
-                      className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                      className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-emerald-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
                     >
-                      <RefreshCw size={11} /> REPASAR
+                      ▶ COMENZAR
                     </button>
-                    <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
-                      score bajo · gana más XP
+                    <div className="w-px h-2.5 bg-emerald-500/40 mt-0.5" />
+                  </motion.div>
+                )}
+
+                {/* CTA above replay node */}
+                {node.state === 'replay' && (
+                  <motion.div
+                    className="absolute flex flex-col items-center"
+                    style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                  >
+                    <div className="flex flex-col items-center gap-0.5">
+                      <button
+                        onClick={() => onNodeClick(node.id)}
+                        className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                      >
+                        <RefreshCw size={11} /> REPASAR
+                      </button>
+                      <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
+                        score bajo · gana más XP
+                      </span>
+                    </div>
+                    <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
+                  </motion.div>
+                )}
+
+                <NodeCircle
+                  node={node}
+                  onClick={canClick ? () => onNodeClick(node.id) : undefined}
+                />
+
+                {/* Label below current/replay */}
+                {(node.state === 'current' || node.state === 'replay') && (
+                  <div
+                    className="absolute whitespace-nowrap text-center"
+                    style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
+                  >
+                    <p className="text-[10px] text-zinc-500">{node.title}</p>
+                    <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
+                      {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
                     </span>
                   </div>
-                  <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
-                </motion.div>
-              )}
+                )}
 
-              <NodeCircle
-                node={node}
-                onClick={canClick ? () => onNodeClick(node.id) : undefined}
-              />
-
-              {/* Label below current/replay */}
-              {(node.state === 'current' || node.state === 'replay') && (
-                <div
-                  className="absolute whitespace-nowrap text-center"
-                  style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
-                >
-                  <p className="text-[10px] text-zinc-500">{node.title}</p>
-                  <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
-                    {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
-                  </span>
-                </div>
-              )}
-
-              {/* XP badge on non-locked nodes */}
-              {node.state !== 'locked' && (
-                <div
-                  className="absolute -top-2 -right-2 bg-[#07090F] border border-zinc-800 rounded-full px-1.5"
-                  style={{ fontSize: 9, fontWeight: 700, color: '#71717a', lineHeight: '18px' }}
-                >
-                  +{node.xpMax}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {/* XP badge on non-locked nodes */}
+                {node.state !== 'locked' && (
+                  <div
+                    className="absolute -top-2 -right-2 bg-[#07090F] border border-zinc-800 rounded-full px-1.5"
+                    style={{ fontSize: 9, fontWeight: 700, color: '#71717a', lineHeight: '18px' }}
+                  >
+                    +{node.xpMax}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -383,11 +467,19 @@ function PathSection({
 function RightPanel({
   totalXP,
   currentSection,
-  nextSection,
+  levelProgress,
 }: {
   totalXP: number;
   currentSection: CEFRSection;
-  nextSection: CEFRSection | null;
+  levelProgress?: {
+    current_level: string;
+    next_level: string | null;
+    required_xp: number;
+    current_level_xp: number;
+    remaining_xp: number;
+    progress_percentage: number;
+    at_max_level: boolean;
+  };
 }) {
   const dailyGoal = 100;
   const dailyDone = Math.min(totalXP, dailyGoal);
@@ -397,6 +489,15 @@ function RightPanel({
 
   const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   const doneD = [true, true, true, false, false, false, false];
+
+  const requiredLevelXp = levelProgress?.required_xp ?? currentSection.xpRange[1];
+  const currentLevelXp = levelProgress?.current_level_xp ?? Math.min(totalXP, currentSection.xpRange[1]);
+  const remainingLevelXp = levelProgress?.remaining_xp ?? Math.max(0, currentSection.xpRange[1] - totalXP);
+  const levelPct = requiredLevelXp > 0
+    ? Math.min(100, (currentLevelXp / requiredLevelXp) * 100)
+    : 100;
+  const nextLevelFromBackend = levelProgress?.next_level ?? null;
+  const atMaxLevel = Boolean(levelProgress?.at_max_level);
 
   return (
     <aside className="w-72 shrink-0 h-screen overflow-y-auto border-l border-white/[0.05] bg-[#0C1018]">
@@ -452,22 +553,24 @@ function RightPanel({
           </p>
           <div className="bg-zinc-900/60 rounded-xl p-4 border border-zinc-800 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-zinc-400">XP acumulado</span>
+              <span className="text-zinc-400">XP hacia el próximo examen</span>
               <span className="font-semibold text-emerald-400">
-                {Math.min(totalXP, currentSection.xpRange[1])} / {currentSection.xpRange[1]}
+                {currentLevelXp} / {requiredLevelXp}
               </span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-zinc-500">XP total del usuario</span>
+              <span className="font-semibold text-zinc-300">{totalXP}</span>
             </div>
             <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
               <motion.div
                 className="h-full bg-emerald-500 rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${Math.min(100, (totalXP / currentSection.xpRange[1]) * 100)}%` }}
+                animate={{ width: `${levelPct}%` }}
                 transition={{ duration: 0.9, ease: 'easeOut', delay: 0.4 }}
               />
             </div>
-            <p className="text-xs text-zinc-600">
-              {Math.max(0, currentSection.xpRange[1] - totalXP)} XP para completar {currentSection.level}
-            </p>
+
           </div>
         </div>
 
@@ -502,15 +605,15 @@ function RightPanel({
               </div>
               <div>
                 <p className="text-sm font-medium text-zinc-200">
-                  {nextSection ? `Nivel ${nextSection.level}` : 'Nivel máximo'}
+                  {atMaxLevel ? 'Nivel máximo' : `Nivel ${nextLevelFromBackend ?? '—'}`}
                 </p>
-                <p className="text-xs text-zinc-500">{nextSection?.label ?? 'Completado'}</p>
+                <p className="text-xs text-zinc-500">{atMaxLevel ? 'Completado' : 'Meta activa'}</p>
               </div>
             </div>
             <p className="text-xs text-zinc-500 leading-relaxed">
-              {nextSection
+              {!atMaxLevel && nextLevelFromBackend
                 ? (
-                  <>Necesitas <span className="text-cyan-400 font-semibold">{Math.max(0, nextSection.xpRange[0] - totalXP)} XP más</span> para desbloquear {nextSection.level}.</>
+                  <>Necesitas <span className="text-cyan-400 font-semibold">{levelProgress?.remaining_xp ?? 0} XP más</span> para desbloquear el examen y subir a {nextLevelFromBackend}.</>
                 )
                 : 'Has completado el nivel más alto.'}
             </p>
@@ -539,58 +642,155 @@ function RightPanel({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function LearnPathPage() {
-  const { user }                              = useAuth();
-  const { totalXP, completedIds, questionScores } = useLearnProgress();
-  const navigate                   = useNavigate();
+  const { user } = useAuth();
+  const { totalXP, completedIds, questionScores, levelProgress } = useLearnProgress();
+  const navigate = useNavigate();
 
-  const [questions, setQuestions]   = useState<Question[]>([]);
-  const [loadingQ, setLoadingQ]     = useState(true);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loadingQ, setLoadingQ] = useState(true);
   const [vocabDrawer, setVocabDrawer] = useState(false);
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [loadingExams, setLoadingExams] = useState(true);
+  const [progressionCfg, setProgressionCfg] = useState<LevelProgressionConfig | null>(null);
+  const [loadingProgression, setLoadingProgression] = useState(true);
+  const didAutoScrollRef = useRef(false);
+  const pathScrollRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     questionsService.getQuestions()
       .then(setQuestions)
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoadingQ(false));
+  }, []);
+
+  useEffect(() => {
+    examService.getExams()
+      .then(setExams)
+      .catch(() => { })
+      .finally(() => setLoadingExams(false));
+  }, []);
+
+  useEffect(() => {
+    systemConfigService.getProgression()
+      .then(setProgressionCfg)
+      .catch(() => { })
+      .finally(() => setLoadingProgression(false));
   }, []);
 
   // Build sections from backend questions, keeping CEFR metadata from pathData
   const dynamicPath = useMemo((): CEFRSection[] => {
-    return LEARN_PATH.map(section => {
-      const sectionQs = questions.filter(q => q.level === section.level);
-      const nodes: LessonNode[] = sectionQs.map((q, i) => ({
-        id: String(q.id),
-        title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
-        skill: questionToSkill(q),
-        state: 'locked' as const,
-        xpMax: q.xp_max,
-        posX: POS_X_CYCLE[i % 4],
-      }));
-      return { ...section, nodes };
-    }).filter(s => s.nodes.length > 0);
-  }, [questions]);
+    return LEARN_PATH
+      .filter(section => CEFR_ORDER.includes(section.level as (typeof CEFR_ORDER)[number]))
+      .map(section => {
+        const sectionQs = questions
+          .filter(q => q.level === section.level)
+          .filter(shouldIncludeInPath)
+          .sort(sortQuestionsForPath);
+
+        const nodes: LessonNode[] = sectionQs.map((q, i) => ({
+          id: String(q.id),
+          title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
+          skill: questionToSkill(q),
+          state: 'locked' as const,
+          xpMax: q.xp_max,
+          posX: POS_X_CYCLE[i % 4],
+        }));
+
+        const dynamicRange = progressionCfg?.level_ranges?.[section.level];
+        const xpRange = Array.isArray(dynamicRange) && dynamicRange.length === 2
+          ? [Number(dynamicRange[0] ?? 0), Number(dynamicRange[1] ?? 0)] as [number, number]
+          : section.xpRange;
+
+        return { ...section, xpRange, nodes };
+      });
+  }, [questions, progressionCfg]);
+
+  const effectiveCurrentLevel = useMemo(() => {
+    const fromProgress = levelProgress?.current_level;
+    if (fromProgress && CEFR_ORDER.includes(fromProgress as (typeof CEFR_ORDER)[number])) {
+      return fromProgress;
+    }
+
+    if (user?.level && CEFR_ORDER.includes(user.level as (typeof CEFR_ORDER)[number])) {
+      return user.level;
+    }
+
+    return 'A1';
+  }, [levelProgress?.current_level, user?.level]);
 
   const currentSection = useMemo(() => {
-    return dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
+    return dynamicPath.find(s => s.level === effectiveCurrentLevel)
+      ?? dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
       ?? dynamicPath[0]
       ?? LEARN_PATH[0];
-  }, [dynamicPath, totalXP]);
+  }, [dynamicPath, totalXP, effectiveCurrentLevel]);
 
-  const nextSection = useMemo(() => {
-    const idx = dynamicPath.indexOf(currentSection);
-    return idx >= 0 && idx < dynamicPath.length - 1 ? dynamicPath[idx + 1] : null;
-  }, [dynamicPath, currentSection]);
+  const visiblePath = useMemo(() => {
+    const idx = getLevelIndex(effectiveCurrentLevel);
+    return dynamicPath.filter(section => getLevelIndex(section.level) <= idx);
+  }, [dynamicPath, effectiveCurrentLevel]);
 
   const handleNodeClick = (nodeId: string) => {
     navigate(`/exercise/${nodeId}`);
   };
+
+  const handleExamClick = (examId: number) => {
+    navigate(`/exam/${examId}`);
+  };
+
+  const getExamForLevel = (level: string) => {
+    return exams.find(e => e.level === level && e.type === 'LEVEL_UP');
+  };
+
+  const currentUserLevelIdx = getLevelIndex(effectiveCurrentLevel);
+
+  useEffect(() => {
+    if (loadingQ || loadingExams || loadingProgression || didAutoScrollRef.current) return;
+
+    const container = pathScrollRef.current;
+    if (!container) return;
+
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const tryScroll = () => {
+      attempts += 1;
+      const currentNode = container.querySelector('[data-current-node="true"]') as HTMLElement | null;
+
+      if (currentNode) {
+        const containerRect = container.getBoundingClientRect();
+        const nodeRect = currentNode.getBoundingClientRect();
+        const stickyHeaderOffset = 96;
+        const targetTop = container.scrollTop + (nodeRect.top - containerRect.top) - stickyHeaderOffset;
+
+        container.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: 'smooth',
+        });
+
+        didAutoScrollRef.current = true;
+        return;
+      }
+
+      if (attempts < maxAttempts) {
+        window.setTimeout(tryScroll, 90);
+      }
+    };
+
+    const raf = window.requestAnimationFrame(tryScroll);
+    return () => window.cancelAnimationFrame(raf);
+  }, [loadingQ, loadingExams, loadingProgression, dynamicPath, completedIds.length]);
+
+  useEffect(() => {
+    didAutoScrollRef.current = false;
+  }, [effectiveCurrentLevel]);
 
   return (
     <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
       <AppSidebar />
 
       {/* Scrollable path */}
-      <main className="flex-1 h-screen overflow-y-auto">
+      <main ref={pathScrollRef} className="flex-1 h-screen overflow-y-auto">
         {/* Sticky header */}
         <header className="sticky top-0 z-20 bg-[#07090F]/90 backdrop-blur-md border-b border-white/[0.05]">
           <div className="flex items-center justify-between px-6 py-3.5">
@@ -624,26 +824,84 @@ export default function LearnPathPage() {
         </header>
 
         <div className="pb-28">
-          {loadingQ ? (
+          {loadingQ || loadingExams || loadingProgression ? (
             <div className="flex items-center justify-center py-24">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
             </div>
-          ) : dynamicPath.length === 0 ? (
+          ) : visiblePath.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <Trophy size={32} className="text-zinc-700" />
               <p className="text-sm text-zinc-500">No hay ejercicios disponibles todavía.</p>
             </div>
           ) : (
-            dynamicPath.map(section => (
-              <PathSection
-                key={section.level}
-                section={section}
-                completedIds={completedIds}
-                questionScores={questionScores}
-                totalXP={totalXP}
-                onNodeClick={handleNodeClick}
-              />
-            ))
+            visiblePath.map((section) => {
+              const examForNextLevel = getExamForLevel(section.level);
+              const sectionLevelIdx = getLevelIndex(section.level);
+              const sectionLockedByLevel = sectionLevelIdx > currentUserLevelIdx;
+              const isCurrentUserSection = sectionLevelIdx === currentUserLevelIdx;
+              const examPassed = examForNextLevel?.last_attempt?.passed === true;
+              const canTakeExam = Boolean(
+                examForNextLevel && (examForNextLevel.can_unlock || examForNextLevel.is_unlocked)
+              );
+              const requiredForLevel = examForNextLevel?.required_xp_for_level ?? examForNextLevel?.xp_required;
+              const nextLevel = CEFR_ORDER[sectionLevelIdx + 1] ?? '';
+              const hideExercisesBecauseExamGate = Boolean(examForNextLevel && canTakeExam && !examPassed);
+
+              return (
+                <div key={section.level}>
+                  {/* Level exam gate */}
+                  {examForNextLevel && (
+                    <div className="mx-6 my-6">
+                      <div className={`rounded-xl border ${canTakeExam
+                        ? 'border-emerald-500/30 bg-emerald-500/10'
+                        : 'border-zinc-800 bg-zinc-900/50'
+                        } p-4`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-full ${canTakeExam ? 'bg-emerald-500/20' : 'bg-zinc-800'
+                            }`}>
+                            <Award size={24} className={canTakeExam ? 'text-emerald-400' : 'text-zinc-600'} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className={`font-semibold ${canTakeExam ? 'text-emerald-300' : 'text-zinc-400'
+                              }`}>
+                              Examen de Nivel {section.level} → {nextLevel}
+                            </h3>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                              {canTakeExam
+                                ? '¡Has alcanzado el XP necesario! Demuestra tus conocimientos para avanzar.'
+                                : `Requiere ${requiredForLevel ?? 0} XP en tu nivel actual para desbloquear el examen.`
+                              }
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => canTakeExam && handleExamClick(examForNextLevel.id)}
+                            disabled={!canTakeExam}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${canTakeExam
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                              }`}
+                          >
+                            {canTakeExam ? 'Comenzar Examen' : 'Bloqueado'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {hideExercisesBecauseExamGate ? null : (
+                    <PathSection
+                      section={section}
+                      completedIds={completedIds}
+                      questionScores={questionScores}
+                      totalXP={totalXP}
+                      sectionLocked={sectionLockedByLevel}
+                      allowProgressPointer={isCurrentUserSection}
+                      onNodeClick={handleNodeClick}
+                    />
+                  )}
+                </div>
+              );
+            })
           )}
 
           {/* End marker */}
@@ -657,7 +915,7 @@ export default function LearnPathPage() {
         </div>
       </main>
 
-      <RightPanel totalXP={totalXP} currentSection={currentSection} nextSection={nextSection} />
+      <RightPanel totalXP={totalXP} currentSection={currentSection} levelProgress={levelProgress} />
 
       <VocabularyGameDrawer open={vocabDrawer} onClose={() => setVocabDrawer(false)} />
     </div>

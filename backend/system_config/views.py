@@ -8,6 +8,7 @@ from django.utils.decorators import method_decorator
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from system_config.models import SystemConfig
+from system_config.services import LevelProgressionService
 
 import os
 from pathlib import Path
@@ -30,6 +31,24 @@ def _require_admin(request):
             return JsonResponse({'error': 'Authentication required'}, status=401)
         if request.user.role != 'ADMIN':
             return JsonResponse({'error': 'Admin privileges required'}, status=403)
+    return None
+
+
+def _require_auth(request):
+    if request.user.is_authenticated:
+        return None
+
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            jwt_auth = JWTAuthentication()
+            token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
+            request.user = jwt_auth.get_user(token)
+            return None
+        except Exception:
+            pass
+
+    return JsonResponse({'error': 'Authentication required'}, status=401)
         
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -43,6 +62,8 @@ class SystemConfigView(View):
             'adaptive_threshold_up': cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
             "registration_enabled": cfg.registration_enabled,
+            'level_xp_requirements': cfg.level_xp_requirements,
+            'level_xp_requirements_resolved': LevelProgressionService.get_level_xp_requirements(),
         })
     
     def patch(self, request):
@@ -81,6 +102,46 @@ class SystemConfigView(View):
             cfg.registration_enabled = bool(body['registration_enabled'])
             changed.append('registration_enabled')
 
+        if 'level_xp_requirements' in body:
+            incoming = body['level_xp_requirements']
+            if not isinstance(incoming, dict):
+                return JsonResponse({'error': 'level_xp_requirements must be a JSON object'}, status=400)
+
+            normalized = LevelProgressionService._normalize_overrides(incoming)
+            invalid_levels = [
+                key for key in incoming.keys()
+                if str(key).upper() not in LevelProgressionService.LEVEL_SEQUENCE
+            ]
+            if invalid_levels:
+                return JsonResponse(
+                    {'error': f'Invalid levels in level_xp_requirements: {", ".join(map(str, invalid_levels))}'},
+                    status=400
+                )
+
+            resolved_base = LevelProgressionService.get_level_xp_requirements()
+            candidate = {**resolved_base, **normalized}
+
+            prev_level = None
+            prev_value = None
+            for level in LevelProgressionService.LEVEL_SEQUENCE:
+                current_value = int(candidate.get(level, 0) or 0)
+                if prev_value is not None and current_value < prev_value:
+                    return JsonResponse(
+                        {
+                            'error': (
+                                'level_xp_requirements must be monotonic: '
+                                f'{level} ({current_value}) cannot be lower than '
+                                f'{prev_level} ({prev_value}).'
+                            )
+                        },
+                        status=400,
+                    )
+                prev_level = level
+                prev_value = current_value
+
+            cfg.level_xp_requirements = normalized
+            changed.append('level_xp_requirements')
+
         if changed:
             cfg.save()
 
@@ -88,6 +149,8 @@ class SystemConfigView(View):
             'adaptive_threshold_up': cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
             'registration_enabled': cfg.registration_enabled,
+            'level_xp_requirements': cfg.level_xp_requirements,
+            'level_xp_requirements_resolved': LevelProgressionService.get_level_xp_requirements(),
         })
         
 @method_decorator(csrf_exempt, name='dispatch')
@@ -127,5 +190,20 @@ class ErrorLogsView(View):
                 
         result= lines[-limit:]
         return JsonResponse({'lines': result, 'total': len(lines)})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class LevelProgressionView(View):
+    """Endpoint de consumo para frontend (no admin) con reglas dinámicas de XP por nivel."""
+
+    def get(self, request):
+        err = _require_auth(request)
+        if err:
+            return err
+
+        return JsonResponse({
+            'level_xp_requirements': LevelProgressionService.get_level_xp_requirements(),
+            'level_ranges': LevelProgressionService.get_cumulative_level_ranges(),
+        })
     
     

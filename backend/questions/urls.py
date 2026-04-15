@@ -1,0 +1,28 @@
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
+
+from questions.views import (
+    QuestionViewSet,
+    QuestionVocabularyAddView,
+    QuestionVocabularyRemoveView,
+)
+from questions.views.diagnostic_views import (
+    DiagnosticQuestionsView,
+    DiagnosticSubmitView,
+    LevelExercisesView,
+    AdaptiveNextQuestionView,
+)
+
+router = DefaultRouter()
+router.register(r'questions', QuestionViewSet, basename='questions')
+
+urlpatterns = [
+    path('questions/diagnostic/', DiagnosticQuestionsView.as_view(), name='questions-diagnostic'),
+    path('questions/diagnostic/submit/', DiagnosticSubmitView.as_view(), name='questions-diagnostic-submit'),
+    path('questions/level-exercises/', LevelExercisesView.as_view(), name='questions-level-exercises'),
+    path('questions/adaptive/next/', AdaptiveNextQuestionView.as_view(), name='questions-adaptive-next'),
+    path('', include(router.urls)),
+    # Vocabulary management endpoints
+    path('questions/<int:question_id>/vocabulary/', QuestionVocabularyAddView.as_view(), name='add-question-vocabulary'),
+    path('questions/<int:question_id>/vocabulary/<int:vocab_id>/', QuestionVocabularyRemoveView.as_view(), name='remove-question-vocabulary'),
+]

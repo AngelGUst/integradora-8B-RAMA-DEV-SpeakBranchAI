@@ -31,11 +31,8 @@ class Question(models.Model):
         INTERMEDIATE = 'INTERMEDIATE', 'Intermedio'
         ADVANCED = 'ADVANCED', 'Avanzado'
         DIAGNOSTIC = 'DIAGNOSTIC', 'Diagnóstico'
-    CATEGORY_CHOICES = [
-        ('DIAGNOSTIC', 'Examen diagnóstico'),
-        ('PRACTICE', 'Solo ejercicio'),
-        ('LEVEL_UP', 'Examen subir nivel'),
-    ]
+        PRACTICE = 'PRACTICE', 'Solo ejercicio'
+        LEVEL_UP = 'LEVEL_UP', 'Examen subir nivel'
     
     # Dificultad
     DIFFICULTY_CHOICES = [
@@ -75,11 +72,10 @@ class Question(models.Model):
         verbose_name='URL del audio',
         help_text='URL del audio pregrabado (TTS)'
     )
-    phonetic_text = models.CharField(
-        max_length=300,
+    phonetic_text = models.TextField(
         blank=True,
-        verbose_name='transcripción fonética',
-        help_text='Transcripción IPA ej: /dɒɡ/'
+        verbose_name='transcripción fonética / texto TTS',
+        help_text='IPA ej: /dɒɡ/ — o pasaje completo para TTS en listening'
     )
     
     # Dificultad y XP
@@ -127,7 +123,7 @@ class Question(models.Model):
         db_table = 'questions'
         verbose_name = 'Pregunta'
         verbose_name_plural = 'Preguntas'
-        ordering = ['level', 'difficulty', 'type']
+        ordering = ['type', 'level', 'difficulty']
         indexes = [
             models.Index(fields=['type', 'level', 'difficulty']),
             models.Index(fields=['category']),

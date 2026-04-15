@@ -25,6 +25,9 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
+  const setValue = (key: keyof FormState, value: FormState[keyof FormState]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
   const setOption = (idx: number) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => {
       const opts = [...prev.options] as [string, string, string, string];
@@ -93,6 +96,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 type={selectedType!}
                 form={form}
                 set={set}
+                setValue={setValue}
                 setOption={setOption}
                 onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
               />

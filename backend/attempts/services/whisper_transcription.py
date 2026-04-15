@@ -1,6 +1,5 @@
 from openai import OpenAI
 from django.conf import settings
-from gtts import gTTS
 import requests
 import uuid
 from io import BytesIO
@@ -26,6 +25,12 @@ def generate_audio_url(text: str, question_id: int) -> Optional[str]:
     Retorna la URL pública del audio, o None si hay error.
     """
     try:
+        try:
+            from gtts import gTTS
+        except ImportError:
+            print("❌ gTTS no está instalado. Instala el paquete 'gTTS' para generar audio.")
+            return None
+
         tts = gTTS(text=text, lang='en', slow=False)
         audio_buffer = BytesIO()
         tts.write_to_fp(audio_buffer)

@@ -1,6 +1,6 @@
 import type { ChangeEvent, ReactNode } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
-import type { QuestionType, Level } from '../../../types/question';
+import type { QuestionType, Level, Category } from '../../../types/question';
 import { INPUT, LABEL, SELECT, XP_MAP, type FormState, type ReadingQuestion } from './questionFormUtils';
 
 type ChangeHandler = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
@@ -9,16 +9,61 @@ interface Props {
   type: QuestionType;
   form: FormState;
   set: (key: keyof FormState) => ChangeHandler;
+  setValue: (key: keyof FormState, value: FormState[keyof FormState]) => void;
   setOption: (idx: number) => (e: ChangeEvent<HTMLInputElement>) => void;
   onReadingQuestionsChange: (qs: ReadingQuestion[]) => void;
 }
 
 const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
+const TARGET_CATEGORIES: Array<{ value: Category; title: string; description: string }> = [
+  {
+    value: 'DIAGNOSTIC',
+    title: 'DIAGNOSTIC',
+    description: 'Úsala para medir nivel inicial y detectar vacíos de aprendizaje.',
+  },
+  {
+    value: 'LEVEL_UP',
+    title: 'LEVEL_UP',
+    description: 'Úsala para exámenes de promoción y validación por nivel.',
+  },
+];
 
-export default function QuestionFormBody({ type, form, set, setOption, onReadingQuestionsChange }: Props) {
+export default function QuestionFormBody({ type, form, set, setValue, setOption, onReadingQuestionsChange }: Props) {
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35 mb-1">
+            Sección de evaluación
+          </p>
+          <p className="text-[12px] text-white/45 leading-relaxed">
+            Marca la pregunta para diagnóstico o subida de nivel y construye bancos más sólidos.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {TARGET_CATEGORIES.map((category) => {
+            const active = form.category === category.value;
+            return (
+              <button
+                key={category.value}
+                type="button"
+                onClick={() => setValue('category', category.value)}
+                className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+                  active
+                    ? 'border-violet-500/60 bg-violet-500/[0.12]'
+                    : 'border-white/[0.08] bg-white/[0.01] hover:border-violet-500/30 hover:bg-violet-500/[0.04]'
+                }`}
+              >
+                <p className="text-[11px] font-semibold tracking-[0.14em] text-white/75">{category.title}</p>
+                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">{category.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── Shared fields ── */}
       <div className="grid grid-cols-3 gap-3">
         <div>

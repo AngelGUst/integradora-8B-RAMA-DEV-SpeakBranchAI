@@ -11,6 +11,11 @@ export interface LogsResponse {
   total: number;
 }
 
+export interface LevelProgressionConfig {
+  level_xp_requirements: Record<string, number>;
+  level_ranges: Record<string, [number, number]>;
+}
+
 export type LogSource = 'all' | 'whisper' | 'gpt';
 
 export const systemConfigService = {
@@ -22,4 +27,7 @@ export const systemConfigService = {
 
   getLogs: (source: LogSource = 'all', limit = 100): Promise<LogsResponse> =>
     apiClient.get('/system/logs/', { params: { source, limit } }).then(r => r.data),
+
+  getProgression: (): Promise<LevelProgressionConfig> =>
+    apiClient.get('/system/progression/').then(r => r.data),
 };

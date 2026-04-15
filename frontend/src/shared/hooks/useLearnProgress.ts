@@ -20,6 +20,18 @@ interface ProgressResponse {
   streak_days: number;
   completed_question_ids: string[];
   question_scores: Record<string, number>;
+  level_progress?: {
+    current_level: string;
+    next_level: string | null;
+    required_xp: number;
+    current_xp: number;
+    current_level_xp: number;
+    remaining_xp: number;
+    progress_percentage: number;
+    diagnostic_completed: boolean;
+    can_take_level_exam: boolean;
+    at_max_level: boolean;
+  };
 }
 
 export function useLearnProgress() {
@@ -27,6 +39,7 @@ export function useLearnProgress() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
+  const [levelProgress, setLevelProgress] = useState<ProgressResponse['level_progress']>(undefined);
 
   useEffect(() => {
     apiFetch<ProgressResponse>('/api/auth/progress/')
@@ -35,6 +48,7 @@ export function useLearnProgress() {
         setCompletedIds(data.completed_question_ids);
         setStreakDays(data.streak_days);
         setQuestionScores(data.question_scores ?? {});
+        setLevelProgress(data.level_progress);
       })
       .catch(() => {
         setTotalXP(Number(localStorage.getItem('sb_total_xp') ?? 0));

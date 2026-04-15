@@ -96,46 +96,58 @@ class ExamAttempt(models.Model):
         """
         Completa el intento del examen calculando el score
         """
-        from questions.models import Question
-        
+        import json
+
         self.answers = answers_dict
         self.status = 'COMPLETED'
         self.completed_at = timezone.now()
-        
-        # Calcular score
+
         total_points = 0
         earned_points = 0
-        
+
         exam_questions = self.exam.exam_questions.select_related('question')
-        
+
         for eq in exam_questions:
             question = eq.question
             user_answer = answers_dict.get(str(question.id))
-            
+
             total_points += eq.points
-            
+
             if user_answer:
-                # Verificar si la respuesta es correcta
                 if question.type in ['READING', 'LISTENING_COMPREHENSION']:
-                    is_correct = user_answer.strip().lower() == question.correct_answer.strip().lower()
-                    if is_correct:
+                    correct_value = self._extract_correct_answer(question.correct_answer)
+                    if correct_value and user_answer.strip().lower() == correct_value.strip().lower():
                         earned_points += eq.points
                 elif question.type == 'SPEAKING':
-                    # Para speaking, necesitaríamos procesar con Whisper
-                    # Por ahora, asumimos que se procesó antes
                     pass
-        
+
         if total_points > 0:
             self.score = (earned_points / total_points) * 100
-        
+
         self.calculate_xp()
         self.save()
-        
-        # Si aprobó, actualizar nivel del usuario
+
         if self.passed:
             self._handle_passed_exam()
-        
+
         return self.score
+
+    @staticmethod
+    def _extract_correct_answer(correct_answer_field):
+        """Parse correct_answer JSON to extract the expected correct value."""
+        import json
+        try:
+            data = json.loads(correct_answer_field)
+        except (json.JSONDecodeError, TypeError):
+            return correct_answer_field
+
+        if isinstance(data, dict):
+            if 'questions' in data and isinstance(data['questions'], list) and data['questions']:
+                return data['questions'][0].get('correct', '')
+            if 'correct' in data:
+                return data['correct']
+
+        return correct_answer_field
     
     def calculate_xp(self):
         """Calcula el XP ganado en el examen"""
@@ -149,22 +161,27 @@ class ExamAttempt(models.Model):
     def _handle_passed_exam(self):
         """Maneja las consecuencias de aprobar un examen"""
         from users.models import UserProgress
+        from system_config.services import LevelProgressionService
         
         # Actualizar nivel del usuario si es examen de nivelación
         if self.exam.type == 'LEVEL_UP':
             progress, _ = UserProgress.objects.get_or_create(user=self.user)
-            
-            # Subir de nivel (siguiente nivel)
-            levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
-            current_index = levels.index(progress.level)
-            if current_index < len(levels) - 1:
-                next_level = levels[current_index + 1]
-                progress.level = next_level
-                progress.save()
-                
-                # Actualizar también el nivel en el usuario
-                self.user.level = next_level
-                self.user.save(update_fields=['level'])
+
+            # Debe aprobar el examen del nivel actual para poder subir
+            if progress.level != self.exam.level:
+                return
+
+            next_level = LevelProgressionService.get_next_level(progress.level)
+            if not next_level:
+                return
+
+            progress.level = next_level
+            progress.level_start_xp = progress.total_xp
+            progress.save(update_fields=['level', 'level_start_xp', 'last_updated'])
+
+            # Actualizar también el nivel en el usuario
+            self.user.level = next_level
+            self.user.save(update_fields=['level'])
     
     def time_remaining(self):
         """Calcula el tiempo restante en segundos"""

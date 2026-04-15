@@ -22,6 +22,7 @@ httpx==0.28.1
 huggingface_hub==1.8.0
 idna==3.11
 jellyfish==1.2.1
+gTTS==2.5.4
 loguru==0.7.3
 markdown-it-py==4.0.0
 mdurl==0.1.2

@@ -43,19 +43,12 @@ class UnlockedExam(models.Model):
         Desbloquea un examen para un usuario si cumple los requisitos
         Retorna: (UnlockedExam, created, message)
         """
-        from users.models import UserProgress
-        
         # Verificar si ya está desbloqueado
         if cls.objects.filter(user=user, exam=exam).exists():
             return None, False, "El examen ya estaba desbloqueado"
-        
-        # Verificar requisitos de XP
-        try:
-            progress = UserProgress.objects.get(user=user)
-            if progress.total_xp < exam.xp_required:
-                return None, False, f"Se requieren {exam.xp_required} XP para desbloquear"
-        except UserProgress.DoesNotExist:
-            return None, False, "Usuario no tiene progreso registrado"
+
+        if not exam.can_unlock(user):
+            return None, False, "No cumples los requisitos para desbloquear este examen"
         
         # Desbloquear examen
         unlocked = cls.objects.create(user=user, exam=exam)

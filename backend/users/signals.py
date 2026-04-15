@@ -25,9 +25,12 @@ def create_user_progress(sender, instance, created, **kwargs):
         user=instance,
         level=instance.level,       # Inherit initial level from user (default A1)
         total_xp=0,
+        level_start_xp=0,
         streak_days=0,
+        streak_freeze=0,
         average_speaking=0.0,
         average_reading=0.0,
         average_listening=0.0,
         average_writing=0.0,
+        skill_metrics={},
     )

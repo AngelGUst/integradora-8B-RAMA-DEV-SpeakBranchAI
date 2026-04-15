@@ -31,6 +31,13 @@ export interface QuestionFilters {
   category?: Category;
 }
 
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export const questionsService = {
   getDiagnosticQuestions(limit?: number): Promise<DiagnosticQuestion[]> {
     const params = limit ? `?limit=${limit}` : '';
@@ -49,13 +56,35 @@ export const questionsService = {
     type?: QuestionType;
     category?: string;
     limit?: number;
+    dynamic?: boolean;
+    strict_limit?: boolean;
   }): Promise<DiagnosticQuestion[]> {
+    const merged = {
+      dynamic: true,
+      strict_limit: false,
+      ...params,
+    };
+
     const query = new URLSearchParams(
       Object.fromEntries(
-        Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '')
+        Object.entries(merged).filter(([, v]) => v !== undefined && v !== '')
       ) as Record<string, string>
     ).toString();
     return apiFetch<DiagnosticQuestion[]>(`/api/questions/level-exercises/${query ? `?${query}` : ''}`);
+  },
+
+  getAdaptiveSessionExercises(params?: {
+    level?: Level;
+    type?: QuestionType;
+    category?: string;
+    limit?: number;
+    strict_limit?: boolean;
+  }): Promise<DiagnosticQuestion[]> {
+    return questionsService.getLevelExercises({
+      dynamic: true,
+      strict_limit: false,
+      ...params,
+    });
   },
 
   getAdaptiveNextQuestion(payload: {
@@ -71,13 +100,27 @@ export const questionsService = {
       body: JSON.stringify(payload),
     });
   },
-  getQuestions(filters?: QuestionFilters): Promise<Question[]> {
+  async getQuestions(filters?: QuestionFilters): Promise<Question[]> {
     const params = new URLSearchParams(
       Object.fromEntries(
         Object.entries(filters ?? {}).filter(([, v]) => v !== undefined && v !== '')
       ) as Record<string, string>
-    ).toString();
-    return apiFetch<Question[]>(`/api/questions/${params ? `?${params}` : ''}`);
+    );
+
+    params.set('all', 'true');
+
+    const response = await apiFetch<PaginatedResponse<Question> | Question[] | Question>(`/api/questions/?${params.toString()}`);
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && typeof response === 'object' && 'results' in response && Array.isArray(response.results)) {
+      return response.results;
+    }
+    if (response && typeof response === 'object') {
+      return [response as Question];
+    }
+
+    return [];
   },
 
   createQuestion(data: CreateQuestionPayload): Promise<Question> {

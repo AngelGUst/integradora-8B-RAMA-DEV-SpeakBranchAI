@@ -14,6 +14,7 @@ from django.core.exceptions import ValidationError
 
 from .models import Course, Lesson, CourseEnrollment, LessonProgress
 from users.models import UserProgress
+from system_config.services import LevelProgressionService
 
 
 class CourseEnrollmentService:
@@ -177,6 +178,7 @@ class LessonCompletionService:
         user_progress, _ = UserProgress.objects.get_or_create(user=user)
         user_progress.total_xp += xp_earned
         user_progress.save()
+        level_progress = LevelProgressionService.get_user_level_progress(user, progress=user_progress)
 
         # Refrescar enrollment para leer el estado actualizado por el signal
         enrollment.refresh_from_db()
@@ -187,6 +189,7 @@ class LessonCompletionService:
             'score': progress.score,
             'xp_earned': xp_earned,
             'total_xp': user_progress.total_xp,
+            'level_progress': level_progress,
             'is_first_completion': is_first_completion,
             'course_completed': enrollment.completed_at is not None,
             'next_lesson': lesson.next_lesson,

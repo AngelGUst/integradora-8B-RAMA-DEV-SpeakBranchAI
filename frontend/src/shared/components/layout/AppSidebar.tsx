@@ -1,4 +1,4 @@
-import { BarChart2, Route, LogOut, BookOpen, BookMarked, Users, Library } from 'lucide-react';
+import { BarChart2, Route, LogOut, BookOpen, BookMarked, Users, Library, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import Logo from '@/shared/components/ui/Logo';
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { label: 'Preguntas', icon: BookOpen, path: '/admin/questions', adminOnly: true },
   { label: 'Vocabulario', icon: BookMarked, path: '/admin/vocabulary', adminOnly: true },
   { label: 'Usuarios', icon: Users, path: '/admin/users', adminOnly: true },
+  { label: 'Configuración', icon: Settings, path: '/admin/system', adminOnly: true },
   { label: 'Mi Vocabulario', icon: Library, path: '/vocabulary', adminOnly: false },
 ];
 

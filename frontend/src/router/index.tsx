@@ -11,6 +11,7 @@ import ExercisePage from '@/features/exercises/pages/ExercisePage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
+import SystemConfigPage from '@/pages/admin/SystemConfigPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import SpeakingPage from '@/pages/user/SpeakingPage';
 import Logo from '@/shared/components/ui/Logo';
@@ -198,6 +199,10 @@ export default function AppRouter() {
       <Route
         path="/admin/users"
         element={<AdminRoute><UsersPage /></AdminRoute>}
+      />
+      <Route
+        path="/admin/system"
+        element={<AdminRoute><SystemConfigPage /></AdminRoute>}
       />
 
       {/* Fallback */}

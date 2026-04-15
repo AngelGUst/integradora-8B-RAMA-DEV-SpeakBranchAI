@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'exams.apps.ExamsConfig',
     'vocabulary.apps.VocabularyConfig',
     'courses.apps.CoursesConfig',
-    'django_extensions'
+    'django_extensions',
+    'system_config.apps.SystemConfigConfig',
 ]
 
 # ---------------------------------------------------------------------------

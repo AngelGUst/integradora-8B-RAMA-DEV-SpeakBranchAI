@@ -35,7 +35,7 @@ pillow==12.1.1
 protobuf==7.34.1
 psycopg2-binary==2.9.11
 Pygments==2.19.2
-PyJWT==2.12.1
+PyJWT==2.9.0
 python-decouple==3.8
 python-dotenv==1.2.2
 PyYAML==6.0.3

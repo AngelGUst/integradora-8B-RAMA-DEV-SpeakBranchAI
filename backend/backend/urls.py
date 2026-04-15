@@ -8,6 +8,7 @@ from drf_spectacular.views import (
     SpectacularSwaggerView,
 )
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -21,4 +22,6 @@ urlpatterns = [
     path('api/vocabulary/', include('vocabulary.urls')),
     path('api/', include('attempts.urls')),
     path('api/', include('questions.urls')),
+    path('api/system/', include('system_config.url')),
+
 ]

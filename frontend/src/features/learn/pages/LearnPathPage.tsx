@@ -94,20 +94,22 @@ function computeNodes(
     return { ...node, state: 'locked' as NodeState };
   });
 
-  // All exercises completed → mark the one with the worst score as 'replay'
+  // All exercises completed → mark the one with score < 80 as 'replay' (if any)
   if (!foundCurrent) {
-    let worstIdx = 0;
-    let worstScore = Infinity;
+    let worstIdx = -1;
+    let worstScore = 80;  // ★ Threshold mínimo de aprobación
     result.forEach((node, i) => {
       const s = questionScores[node.id] ?? 0;
       if (s < worstScore) { worstScore = s; worstIdx = i; }
     });
-    result[worstIdx] = { ...result[worstIdx], state: 'replay' };
+    // ★ Solo marcar como 'replay' si hay algo con score < 80
+    if (worstIdx >= 0) {
+      result[worstIdx] = { ...result[worstIdx], state: 'replay' };
+    }
   }
 
   return result;
 }
-
 // ─── Path geometry ────────────────────────────────────────────────────────────
 
 const NODE_SIZE = 72;

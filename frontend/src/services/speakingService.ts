@@ -1,9 +1,10 @@
 import type { EvaluatePayload, SpeakingQuestion, SpeakingResult } from '../types/speaking';
+import { TOKEN_KEY } from '@/shared/api/client';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem(TOKEN_KEY);
     const res = await fetch(`${API_BASE}${path}`, {
         headers: {
             'Content-Type': 'application/json',
@@ -36,7 +37,7 @@ export const speakingService = {
     },
 
     transcribeAudio(audioBlob: Blob): Promise<{ transcript: string }> {
-        const token = localStorage.getItem('access_token');
+        const token = localStorage.getItem(TOKEN_KEY);
         const formData = new FormData();
         formData.append('audio', audioBlob, 'recording.webm');
         return fetch(`${API_BASE}/speaking/transcribe/`, {

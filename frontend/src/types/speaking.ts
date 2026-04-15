@@ -7,6 +7,17 @@ export interface SpeakingQuestion {
     xp_max: number;
 }
 
+export interface LessonProgress {
+    total_xp: number;
+    max_xp: number;
+    is_completed: boolean;
+    xp_breakdown: {
+        easy: number;
+        medium: number;
+        hard: number;
+    };
+}
+
 export interface SpeakingResult {
     id: number;
     word: string;
@@ -15,6 +26,7 @@ export interface SpeakingResult {
     xp_earned: number;
     attempts_count: number;
     created_at: string;
+    lesson_progress: LessonProgress;
 }
 
 export interface EvaluatePayload {

@@ -8,6 +8,8 @@ import { authApi } from '../api/authApi';
 import type { User } from '../types/auth.types';
 import { TOKEN_KEY, REFRESH_KEY } from '@/shared/api/client';
 
+const PLACEMENT_KEY = 'sb_placement_done';
+
 // ── State ────────────────────────────────────────────────────
 
 interface AuthState {
@@ -68,6 +70,11 @@ interface AuthContextValue extends AuthState {
    * Attempts to invalidate the refresh token on the server.
    */
   logout: () => Promise<void>;
+  /**
+   * Re-fetch the user profile from the server and update context state.
+   * Useful after actions that change user data (e.g. diagnostic completion).
+   */
+  refreshUser: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
@@ -119,12 +126,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(REFRESH_KEY);
+      localStorage.removeItem(PLACEMENT_KEY);
       dispatch({ type: 'LOGOUT' });
     }
   };
 
+  const refreshUser = async () => {
+    try {
+      const user = await authApi.getMe();
+      dispatch({ type: 'LOGIN_SUCCESS', payload: user });
+    } catch {
+      // Silently ignore — session might have expired
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ ...state, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

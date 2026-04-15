@@ -1,16 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, CheckCheck, BookOpen, Mic, Headphones, PenLine, Trophy, ArrowRight } from 'lucide-react';
+import { ChevronRight, CheckCheck, BookOpen, Headphones, Trophy, ArrowRight, Volume2, Mic } from 'lucide-react';
 import Logo from '@/shared/components/ui/Logo';
 import type { CefrLevel } from '@/features/auth/types/auth.types';
-import type { Question as ApiQuestion, QuestionType } from '@/types/question';
-import apiClient from '@/shared/api/client';
-import { questionsApi } from '@/features/questions/api/questionsApi';
+import type { QuestionType } from '@/types/question';
+import type { DiagnosticQuestion, DiagnosticSubmitResponse } from '@/types/diagnostic';
+import { questionsService } from '@/services/questionsService';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 // ── Constants ─────────────────────────────────────────────────
 
 export const PLACEMENT_KEY = 'sb_placement_done';
+const PLACEMENT_RESULT_LEVEL_KEY = 'sb_placement_result_level';
+
+const DIAGNOSTIC_LIMIT = 15;
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -74,102 +78,24 @@ const CEFR_META: Record<CefrLevel, {
   },
 };
 
-// ── Question bank ─────────────────────────────────────────────
+// ── Type icons ────────────────────────────────────────────────
 
-interface PlacementQuestion {
-  id: number;
-  level: CefrLevel;
-  type: QuestionType;
-  text: string;
-  mode: 'mcq' | 'open';
-  options?: string[];
-  correctIndex?: number;
-  expectedAnswer?: string;
-}
 const TYPE_ICONS: Record<QuestionType, ReactNode> = {
-  SPEAKING: <Mic size={12} />,
+  SPEAKING: <BookOpen size={12} />,
   READING: <BookOpen size={12} />,
   LISTENING_SHADOWING: <Headphones size={12} />,
   LISTENING_COMPREHENSION: <Headphones size={12} />,
-  WRITING: <PenLine size={12} />,
+  WRITING: <BookOpen size={12} />,
 };
-
-function parseDiagnosticAnswer(payload: string | null | undefined): {
-  options: string[];
-  correctIndex: number;
-} | null {
-  if (!payload) return null;
-  try {
-    const data = JSON.parse(payload) as { options?: string[]; correct?: string };
-    if (!Array.isArray(data.options) || data.options.length < 2) return null;
-    if (!data.correct || !data.options.includes(data.correct)) return null;
-    return { options: data.options, correctIndex: data.options.indexOf(data.correct) };
-  } catch {
-    return null;
-  }
-}
-
-function mapToPlacementQuestion(question: ApiQuestion): PlacementQuestion | null {
-  const parsed = parseDiagnosticAnswer(question.correct_answer);
-  if (parsed) {
-    return {
-      id: question.id,
-      level: question.level,
-      type: question.type,
-      text: question.text,
-      mode: 'mcq',
-      options: parsed.options,
-      correctIndex: parsed.correctIndex,
-    };
-  }
-  return {
-    id: question.id,
-    level: question.level,
-    type: question.type,
-    text: question.text,
-    mode: 'open',
-    expectedAnswer: question.correct_answer ?? '',
-  };
-}
-
-type AnswerState =
-  | { kind: 'mcq'; selected: number | null; isCorrect?: boolean }
-  | { kind: 'open'; response: string; isCorrect?: boolean };
-
-function normalizeAnswer(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, ' ')
-    .trim();
-}
-
-function evaluateOpenAnswer(type: QuestionType, response: string, expected?: string): boolean | undefined {
-  if (!expected) return undefined;
-  if (type === 'SPEAKING' || type === 'LISTENING_SHADOWING') {
-    return normalizeAnswer(response) === normalizeAnswer(expected);
-  }
-  return undefined;
-}
-
-// ── CEFR from score ───────────────────────────────────────────
-
-function scoreToCefr(correct: number): CefrLevel {
-  if (correct <= 1) return 'A1';
-  if (correct <= 3) return 'A2';
-  if (correct <= 5) return 'B1';
-  if (correct <= 7) return 'B2';
-  if (correct <= 9) return 'C1';
-  return 'C2';
-}
 
 // ── Sub-screens ───────────────────────────────────────────────
 
 type Screen = 'welcome' | 'quiz' | 'result';
 
 const FEATURES = [
-  { icon: <CheckCheck size={14} />, label: '10 questions' },
-  { icon: <Headphones size={14} />, label: '~5 minutes' },
-  { icon: <Trophy size={14} />, label: 'CEFR result' },
+  { icon: <CheckCheck size={14} />, label: '15 preguntas' },
+  { icon: <Headphones size={14} />, label: '~8 minutos' },
+  { icon: <Trophy size={14} />, label: 'Resultado CEFR' },
 ];
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
@@ -196,7 +122,6 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
         className="max-w-md space-y-4"
       >
-        {/* Badge */}
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-1.5 text-xs font-semibold text-emerald-400">
           <BookOpen size={12} />
           Evaluación de Nivel · CEFR
@@ -208,12 +133,11 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         </h1>
 
         <p className="text-sm leading-relaxed text-slate-400">
-          Responde 10 preguntas cuidadosamente diseñadas para determinar
+          Responde 15 preguntas cuidadosamente diseñadas para determinar
           tu posición en el Marco Europeo de Referencia para las Lenguas.
         </p>
       </motion.div>
 
-      {/* Feature pills */}
       <motion.div
         className="mt-8 flex items-center gap-3"
         initial={{ opacity: 0, y: 16 }}
@@ -231,7 +155,6 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         ))}
       </motion.div>
 
-      {/* CTA */}
       <motion.button
         onClick={onStart}
         className="group mt-8 flex items-center gap-2.5 rounded-xl bg-emerald-500 px-7 py-3.5 text-sm font-bold text-[#07090F] shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-400 active:scale-95"
@@ -260,13 +183,11 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
 // ── Quiz Screen ───────────────────────────────────────────────
 
 interface QuizScreenProps {
-  question: PlacementQuestion;
+  question: DiagnosticQuestion;
   current: number;
   total: number;
   selected: number | null;
-  response: string;
   onSelect: (i: number) => void;
-  onResponseChange: (value: string) => void;
   onNext: () => void;
   isLast: boolean;
 }
@@ -278,16 +199,31 @@ function QuizScreen({
   current,
   total,
   selected,
-  response,
   onSelect,
-  onResponseChange,
   onNext,
   isLast,
 }: QuizScreenProps) {
   const progress = ((current + 1) / total) * 100;
-  const canContinue = question.mode === 'mcq'
-    ? selected !== null
-    : response.trim().length > 0;
+  const canContinue = selected !== null;
+  const resources = question.resource_requirements;
+
+  const playAudio = () => {
+    if (question.audio_url) {
+      const audio = new Audio(question.audio_url);
+      void audio.play();
+      return;
+    }
+
+    const ttsText = question.phonetic_text || question.text;
+    if (!ttsText || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(ttsText);
+    utterance.lang = 'en-US';
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  };
 
   return (
     <motion.div
@@ -314,7 +250,6 @@ function QuizScreen({
           <span className="text-xs text-slate-500">
             {current + 1} <span className="text-slate-700">/ {total}</span>
           </span>
-          {/* Level badge */}
           <div
             className="rounded-md border px-2.5 py-1 text-[11px] font-bold"
             style={{
@@ -343,6 +278,20 @@ function QuizScreen({
             <div className="mb-5 flex items-center gap-1.5">
               <span className="text-slate-500">{TYPE_ICONS[question.type]}</span>
               <span className="text-xs font-medium text-slate-500">{question.type}</span>
+              {resources?.requires_audio && (
+                <button
+                  type="button"
+                  onClick={playAudio}
+                  className="ml-2 inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-300"
+                >
+                  <Volume2 size={11} /> Audio
+                </button>
+              )}
+              {resources?.requires_microphone && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-semibold text-violet-300">
+                  <Mic size={11} /> Micrófono
+                </span>
+              )}
             </div>
 
             {/* Question */}
@@ -350,81 +299,70 @@ function QuizScreen({
               {question.text}
             </h2>
 
-            {/* Answer */}
-            {question.mode === 'mcq' && (
-              <div className="space-y-2.5">
-                {(question.options ?? []).map((opt, i) => {
-                  const isSelected = selected === i;
-                  return (
-                    <motion.button
-                      key={i}
-                      onClick={() => onSelect(i)}
-                      className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
-                      style={{
-                        borderColor: isSelected
-                          ? 'rgba(16,185,129,0.5)'
-                          : 'rgba(255,255,255,0.07)',
-                        background: isSelected
-                          ? 'rgba(16,185,129,0.08)'
-                          : 'rgba(255,255,255,0.025)',
-                      }}
-                      whileHover={{ scale: 1.005 }}
-                      whileTap={{ scale: 0.995 }}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.06, duration: 0.3 }}
-                    >
-                      <div className="flex items-center gap-3">
-                        {/* Letter badge */}
-                        <span
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold transition-all"
-                          style={{
-                            borderColor: isSelected
-                              ? 'rgba(16,185,129,0.5)'
-                              : 'rgba(255,255,255,0.1)',
-                            color: isSelected ? '#10b981' : 'rgba(255,255,255,0.4)',
-                            background: isSelected
-                              ? 'rgba(16,185,129,0.15)'
-                              : 'rgba(255,255,255,0.04)',
-                          }}
-                        >
-                          {OPTION_LABELS[i]}
-                        </span>
-                        <span className={`transition-colors ${isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
-                          {opt}
-                        </span>
-                      </div>
+            {/* Phonetic hint for listening questions */}
+            {question.phonetic_text && (
+              <p className="mb-4 text-sm text-slate-400 italic">
+                {question.phonetic_text}
+              </p>
+            )}
 
-                      {/* Selected indicator */}
-                      {isSelected && (
-                        <motion.div
-                          className="absolute right-4 top-1/2 -translate-y-1/2"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                        >
-                          <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                        </motion.div>
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            )}
-            {question.mode === 'open' && (
-              <div className="space-y-3">
-                <p className="text-xs text-slate-500">
-                  Escribe tu respuesta para continuar.
-                </p>
-                <textarea
-                  value={response}
-                  onChange={(event) => onResponseChange(event.target.value)}
-                  rows={4}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white outline-none transition focus:border-emerald-500/50"
-                  placeholder="Tu respuesta aquí"
-                />
-              </div>
-            )}
+            {/* MCQ Options */}
+            <div className="space-y-2.5">
+              {question.options.map((opt, i) => {
+                const isSelected = selected === i;
+                return (
+                  <motion.button
+                    key={i}
+                    onClick={() => onSelect(i)}
+                    className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
+                    style={{
+                      borderColor: isSelected
+                        ? 'rgba(16,185,129,0.5)'
+                        : 'rgba(255,255,255,0.07)',
+                      background: isSelected
+                        ? 'rgba(16,185,129,0.08)'
+                        : 'rgba(255,255,255,0.025)',
+                    }}
+                    whileHover={{ scale: 1.005 }}
+                    whileTap={{ scale: 0.995 }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.06, duration: 0.3 }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold transition-all"
+                        style={{
+                          borderColor: isSelected
+                            ? 'rgba(16,185,129,0.5)'
+                            : 'rgba(255,255,255,0.1)',
+                          color: isSelected ? '#10b981' : 'rgba(255,255,255,0.4)',
+                          background: isSelected
+                            ? 'rgba(16,185,129,0.15)'
+                            : 'rgba(255,255,255,0.04)',
+                        }}
+                      >
+                        {OPTION_LABELS[i]}
+                      </span>
+                      <span className={`transition-colors ${isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                        {opt}
+                      </span>
+                    </div>
+
+                    {isSelected && (
+                      <motion.div
+                        className="absolute right-4 top-1/2 -translate-y-1/2"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                      >
+                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+                      </motion.div>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
 
             {/* Next button */}
             <motion.div
@@ -465,21 +403,36 @@ function QuizLoading() {
   );
 }
 
+function SubmittingOverlay() {
+  return (
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
+      <p className="text-xs text-slate-500">Evaluando tus respuestas…</p>
+    </motion.div>
+  );
+}
+
 // ── Result Screen ─────────────────────────────────────────────
 
 interface ResultScreenProps {
   level: CefrLevel;
   correct: number;
   total: number;
+  accuracy: number;
   onFinish: () => void;
 }
 
 const CEFR_ORDER: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
+function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScreenProps) {
   const meta = CEFR_META[level];
   const levelIndex = CEFR_ORDER.indexOf(level);
-  const percentage = Math.round((correct / total) * 100);
+  const percentage = Math.round(accuracy * 100);
 
   return (
     <motion.div
@@ -488,7 +441,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
-      {/* Background glow */}
       <motion.div
         className="pointer-events-none absolute inset-0"
         initial={{ opacity: 0 }}
@@ -502,7 +454,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
       </motion.div>
 
       <div className="relative w-full max-w-md text-center">
-        {/* Trophy / icon */}
         <motion.div
           className="mb-6 text-5xl"
           initial={{ scale: 0, rotate: -20 }}
@@ -512,7 +463,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
           {meta.icon}
         </motion.div>
 
-        {/* "Tu nivel es" */}
         <motion.p
           className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
           initial={{ opacity: 0, y: 10 }}
@@ -522,7 +472,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
           Tu nivel de inglés es
         </motion.p>
 
-        {/* Level badge */}
         <motion.div
           className="mb-2 inline-flex items-center gap-3 rounded-2xl border px-8 py-4"
           style={{ borderColor: meta.border, background: meta.bg }}
@@ -539,7 +488,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
           </div>
         </motion.div>
 
-        {/* Description */}
         <motion.p
           className="mt-4 text-sm leading-relaxed text-slate-400"
           initial={{ opacity: 0, y: 8 }}
@@ -549,14 +497,12 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
           {meta.description}
         </motion.p>
 
-        {/* Score & CEFR scale */}
         <motion.div
           className="mt-7 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7, duration: 0.5 }}
         >
-          {/* Score row */}
           <div className="mb-4 flex items-center justify-between text-sm">
             <span className="text-slate-500">Respuestas correctas</span>
             <span className="font-bold text-white">
@@ -565,7 +511,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
             </span>
           </div>
 
-          {/* CEFR scale visual */}
           <div className="flex items-center gap-1.5">
             {CEFR_ORDER.map((lvl, i) => {
               const isActive = i <= levelIndex;
@@ -600,7 +545,6 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
           </div>
         </motion.div>
 
-        {/* CTA */}
         <motion.button
           onClick={onFinish}
           className="mt-7 flex w-full items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-bold text-[#07090F] shadow-lg transition-all active:scale-95"
@@ -626,44 +570,40 @@ function ResultScreen({ level, correct, total, onFinish }: ResultScreenProps) {
 
 export default function PlacementTestPage() {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [screen, setScreen] = useState<Screen>('welcome');
   const [current, setCurrent] = useState(0);
-  const [answers, setAnswers] = useState<AnswerState[]>([]);
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [selected, setSelected] = useState<number | null>(null);
-  const [response, setResponse] = useState('');
-  const [questions, setQuestions] = useState<PlacementQuestion[]>([]);
+  const [questions, setQuestions] = useState<DiagnosticQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticSubmitResponse | null>(null);
 
+  // Load questions from backend
   useEffect(() => {
     let isMounted = true;
     const loadQuestions = async () => {
       try {
         setIsLoading(true);
         setError(null);
-        const data = await questionsApi.getDiagnosticQuestions();
+        const data = await questionsService.getDiagnosticQuestions(DIAGNOSTIC_LIMIT);
         if (!isMounted) return;
-        const incoming = data
-          .map(mapToPlacementQuestion)
-          .filter((item): item is PlacementQuestion => Boolean(item));
-        if (!incoming.length) {
+        // Only keep questions that have options (MCQ)
+        const valid = data.filter((q) => q.options && q.options.length >= 2);
+        if (!valid.length) {
           setQuestions([]);
           setAnswers([]);
-          setError('No diagnostic questions are available yet.');
+          setError('No hay preguntas de diagnóstico disponibles.');
           return;
         }
-        setQuestions(incoming);
-        setAnswers(
-          incoming.map((item) => (
-            item.mode === 'mcq'
-              ? { kind: 'mcq', selected: null }
-              : { kind: 'open', response: '' }
-          )),
-        );
+        setQuestions(valid);
+        setAnswers(new Array(valid.length).fill(null));
       } catch (err: unknown) {
         if (!isMounted) return;
-        const message = err instanceof Error ? err.message : 'Failed to load diagnostic questions.';
+        const message = err instanceof Error ? err.message : 'Error al cargar las preguntas.';
         setQuestions([]);
         setAnswers([]);
         setError(message);
@@ -678,67 +618,68 @@ export default function PlacementTestPage() {
     };
   }, [reloadKey]);
 
+  // Sync selected state when navigating between questions
   useEffect(() => {
-    const currentAnswer = answers[current];
-    if (!currentAnswer) return;
-    if (currentAnswer.kind === 'mcq') {
-      setSelected(currentAnswer.selected);
-      setResponse('');
-    } else {
-      setSelected(null);
-      setResponse(currentAnswer.response);
-    }
+    setSelected(answers[current] ?? null);
   }, [answers, current]);
 
   const question = questions[current];
   const isLast = current === questions.length - 1;
-
-  const correctCount = answers.filter((answer) => answer?.isCorrect).length;
-  const determinedLevel = scoreToCefr(correctCount);
 
   function handleSelect(idx: number) {
     setSelected(idx);
   }
 
   function handleNext() {
-    const question = questions[current];
-    if (!question) return;
+    if (selected === null || !question) return;
+
     const newAnswers = [...answers];
-
-    if (question.mode === 'mcq') {
-      if (selected === null) return;
-      newAnswers[current] = {
-        kind: 'mcq',
-        selected,
-        isCorrect: selected === question.correctIndex,
-      };
-      setSelected(null);
-    } else {
-      const trimmed = response.trim();
-      if (!trimmed) return;
-      newAnswers[current] = {
-        kind: 'open',
-        response: trimmed,
-        isCorrect: evaluateOpenAnswer(question.type, trimmed, question.expectedAnswer),
-      };
-      setResponse('');
-    }
-
+    newAnswers[current] = selected;
     setAnswers(newAnswers);
+    setSelected(null);
 
     if (isLast) {
-      setScreen('result');
+      // Submit all answers to backend
+      void submitDiagnostic(newAnswers);
     } else {
-      setCurrent(c => c + 1);
+      setCurrent((c) => c + 1);
+    }
+  }
+
+  async function submitDiagnostic(finalAnswers: (number | null)[]) {
+    setIsSubmitting(true);
+    setScreen('quiz'); // Stay on quiz screen while submitting
+
+    const payload = questions.map((q, i) => ({
+      question_id: q.id,
+      answer: q.options[finalAnswers[i] ?? 0] ?? '',
+    }));
+
+    try {
+      const result = await questionsService.submitDiagnostic({ answers: payload });
+      setDiagnosticResult(result);
+
+      // Update localStorage and AuthContext
+      localStorage.setItem(PLACEMENT_KEY, 'true');
+      if (result?.assigned_level) {
+        sessionStorage.setItem(PLACEMENT_RESULT_LEVEL_KEY, String(result.assigned_level));
+      }
+      await refreshUser();
+
+      setScreen('result');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al enviar el diagnóstico.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   function handleFinish() {
-    localStorage.setItem(PLACEMENT_KEY, 'true');
-    void apiClient.post('/auth/diagnostic/complete/', { level: determinedLevel }).finally(() => {
-      navigate('/dashboard', { replace: true });
-    });
+    navigate('/dashboard', { replace: true });
   }
+
+  const assignedLevel = (diagnosticResult?.assigned_level ?? 'A1') as CefrLevel;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#07090F]">
@@ -759,39 +700,41 @@ export default function PlacementTestPage() {
         {screen === 'quiz' && isLoading && (
           <QuizLoading />
         )}
-        {screen === 'quiz' && !isLoading && error && (
+        {screen === 'quiz' && isSubmitting && (
+          <SubmittingOverlay />
+        )}
+        {screen === 'quiz' && !isLoading && !isSubmitting && error && (
           <div className="mx-auto mt-28 max-w-xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
             <p className="text-lg font-semibold">No pudimos cargar el diagnóstico.</p>
             <p className="mt-2 text-sm">{error}</p>
             <button
               type="button"
-              onClick={() => setReloadKey(prev => prev + 1)}
+              onClick={() => setReloadKey((prev) => prev + 1)}
               className="mt-5 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold"
             >
               Reintentar
             </button>
           </div>
         )}
-        {screen === 'quiz' && !isLoading && !error && question && (
+        {screen === 'quiz' && !isLoading && !isSubmitting && !error && question && (
           <QuizScreen
             key="quiz"
             question={question}
             current={current}
             total={questions.length}
             selected={selected}
-            response={response}
             onSelect={handleSelect}
-            onResponseChange={setResponse}
             onNext={handleNext}
             isLast={isLast}
           />
         )}
-        {screen === 'result' && (
+        {screen === 'result' && diagnosticResult && (
           <ResultScreen
             key="result"
-            level={determinedLevel}
-            correct={correctCount}
-            total={questions.length}
+            level={assignedLevel}
+            correct={diagnosticResult.total_correct}
+            total={diagnosticResult.total_items}
+            accuracy={diagnosticResult.overall_accuracy}
             onFinish={handleFinish}
           />
         )}

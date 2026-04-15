@@ -4,6 +4,10 @@ export interface SystemConfig {
   adaptive_threshold_up: number;
   adaptive_threshold_down: number;
   registration_enabled: boolean;
+  xp_level_a1: number;
+  xp_level_a2: number;
+  xp_level_b1: number;
+  xp_level_b2: number;
 }
 
 export interface LogsResponse {

@@ -20,6 +20,17 @@ interface ProgressResponse {
   streak_days: number;
   completed_question_ids: string[];
   question_scores: Record<string, number>;
+  average_speaking: number;
+  average_reading: number;
+  average_listening: number;
+  average_writing: number;
+}
+
+export interface SkillAverages {
+  speaking: number;
+  reading: number;
+  listening: number;
+  writing: number;
 }
 
 export function useLearnProgress() {
@@ -27,14 +38,23 @@ export function useLearnProgress() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
+  const [skillAverages, setSkillAverages] = useState<SkillAverages>({
+    speaking: 0, reading: 0, listening: 0, writing: 0,
+  });
 
   useEffect(() => {
-    apiFetch<ProgressResponse>('/api/auth/progress/')
+    apiFetch<ProgressResponse>('/auth/progress/')
       .then(data => {
         setTotalXP(data.total_xp);
         setCompletedIds(data.completed_question_ids);
         setStreakDays(data.streak_days);
         setQuestionScores(data.question_scores ?? {});
+        setSkillAverages({
+          speaking:  data.average_speaking  ?? 0,
+          reading:   data.average_reading   ?? 0,
+          listening: data.average_listening ?? 0,
+          writing:   data.average_writing   ?? 0,
+        });
       })
       .catch(() => {
         setTotalXP(Number(localStorage.getItem('sb_total_xp') ?? 0));
@@ -64,7 +84,7 @@ export function useLearnProgress() {
       try {
         // POST to complete exercise
         await apiFetch<{ total_xp: number; streak_days: number }>(
-          '/api/auth/progress/complete/',
+          '/auth/progress/complete/',
           {
             method: 'POST',
             body: JSON.stringify({
@@ -78,12 +98,18 @@ export function useLearnProgress() {
 
         // ★ RE-FETCH full progress to sync with server
         const updatedProgress = await apiFetch<ProgressResponse>(
-          '/api/auth/progress/'
+          '/auth/progress/'
         );
         setTotalXP(updatedProgress.total_xp);
         setStreakDays(updatedProgress.streak_days);
         setCompletedIds(updatedProgress.completed_question_ids);
         setQuestionScores(updatedProgress.question_scores ?? {});
+        setSkillAverages({
+          speaking:  updatedProgress.average_speaking  ?? 0,
+          reading:   updatedProgress.average_reading   ?? 0,
+          listening: updatedProgress.average_listening ?? 0,
+          writing:   updatedProgress.average_writing   ?? 0,
+        });
         localStorage.setItem('sb_total_xp', String(updatedProgress.total_xp));
       } catch (err) {
         console.error('Error completing exercise:', err);
@@ -93,5 +119,5 @@ export function useLearnProgress() {
     []
   );
 
-  return { totalXP, completedIds, streakDays, questionScores, completeExercise };
+  return { totalXP, completedIds, streakDays, questionScores, skillAverages, completeExercise };
 }

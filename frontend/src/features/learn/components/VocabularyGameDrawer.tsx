@@ -35,7 +35,7 @@ const CORRECT_MS = 2000;
 
 async function fetchMyVocabulary(): Promise<UserVocabEntry[]> {
   const token = localStorage.getItem('sb_access_token');
-  const res = await fetch(`${API_BASE}/api/vocabulary/my/`, {
+  const res = await fetch(`${API_BASE}/vocabulary/my/`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) throw new Error('Failed');

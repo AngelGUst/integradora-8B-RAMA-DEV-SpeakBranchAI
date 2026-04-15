@@ -19,6 +19,7 @@ import {
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
+import type { SkillAverages } from '@/shared/hooks/useLearnProgress';
 import { questionsService } from '@/services/questionsService';
 import type { Question } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
@@ -382,10 +383,14 @@ function PathSection({
 
 function RightPanel({
   totalXP,
+  streakDays,
+  skillAverages,
   currentSection,
   nextSection,
 }: {
   totalXP: number;
+  streakDays: number;
+  skillAverages: SkillAverages;
   currentSection: CEFRSection;
   nextSection: CEFRSection | null;
 }) {
@@ -476,10 +481,10 @@ function RightPanel({
           <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Habilidades</p>
           <div className="space-y-2">
             {[
-              { label: 'Reading', score: 82, bar: 'bg-sky-500', text: 'text-sky-400' },
-              { label: 'Speaking', score: 68, bar: 'bg-emerald-500', text: 'text-emerald-400' },
-              { label: 'Shadowing', score: 45, bar: 'bg-violet-500', text: 'text-violet-400' },
-              { label: 'Listening', score: 59, bar: 'bg-amber-500', text: 'text-amber-400' },
+              { label: 'Reading',   score: Math.round(skillAverages.reading),   bar: 'bg-sky-500',     text: 'text-sky-400'     },
+              { label: 'Speaking',  score: Math.round(skillAverages.speaking),  bar: 'bg-emerald-500', text: 'text-emerald-400' },
+              { label: 'Shadowing', score: Math.round(skillAverages.listening), bar: 'bg-violet-500',  text: 'text-violet-400'  },
+              { label: 'Listening', score: Math.round(skillAverages.listening), bar: 'bg-amber-500',   text: 'text-amber-400'   },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-3 bg-zinc-900/40 rounded-lg px-3 py-2.5">
                 <span className="text-xs text-zinc-500 w-16 shrink-0">{s.label}</span>
@@ -521,7 +526,7 @@ function RightPanel({
         <div className="flex gap-2">
           <div className="flex-1 bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
             <Flame size={15} className="text-amber-500 mx-auto mb-1" />
-            <p className="text-lg font-bold leading-none">3</p>
+            <p className="text-lg font-bold leading-none">{streakDays}</p>
             <p className="text-[9px] text-zinc-600 mt-0.5 uppercase tracking-wider">Racha</p>
           </div>
           <div className="flex-1 bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
@@ -538,20 +543,47 @@ function RightPanel({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+// Valores por defecto si el endpoint falla
+const DEFAULT_XP_RANGES: Record<string, [number, number]> = {
+  A1: [0,    200],
+  A2: [200,  500],
+  B1: [500,  1000],
+  B2: [1000, 2000],
+};
+
 export default function LearnPathPage() {
   const { user }                              = useAuth();
-  const { totalXP, completedIds, questionScores } = useLearnProgress();
+  const { totalXP, completedIds, streakDays, questionScores, skillAverages } = useLearnProgress();
   const navigate                   = useNavigate();
 
   const [questions, setQuestions]   = useState<Question[]>([]);
   const [loadingQ, setLoadingQ]     = useState(true);
   const [vocabDrawer, setVocabDrawer] = useState(false);
+  const [xpRanges, setXpRanges]     = useState<Record<string, [number, number]>>(DEFAULT_XP_RANGES);
 
   useEffect(() => {
     questionsService.getQuestions()
       .then(setQuestions)
       .catch(() => {})
       .finally(() => setLoadingQ(false));
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('sb_access_token');
+    fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/system/levels/`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setXpRanges({
+          A1: [0,                data.xp_level_a1],
+          A2: [data.xp_level_a1, data.xp_level_a2],
+          B1: [data.xp_level_a2, data.xp_level_b1],
+          B2: [data.xp_level_b1, data.xp_level_b2],
+        });
+      })
+      .catch(() => {/* usa defaults */});
   }, []);
 
   // Build sections from backend questions, keeping CEFR metadata from pathData
@@ -566,9 +598,9 @@ export default function LearnPathPage() {
         xpMax: q.xp_max,
         posX: POS_X_CYCLE[i % 4],
       }));
-      return { ...section, nodes };
+      return { ...section, xpRange: xpRanges[section.level] ?? section.xpRange, nodes };
     }).filter(s => s.nodes.length > 0);
-  }, [questions]);
+  }, [questions, xpRanges]);
 
   const currentSection = useMemo(() => {
     return dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
@@ -611,7 +643,7 @@ export default function LearnPathPage() {
               </button>
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <Flame size={13} className="text-amber-500" />
-                <span className="text-sm font-semibold">3</span>
+                <span className="text-sm font-semibold">{streakDays}</span>
                 <span className="text-[11px] text-zinc-500">días</span>
               </div>
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
@@ -657,7 +689,7 @@ export default function LearnPathPage() {
         </div>
       </main>
 
-      <RightPanel totalXP={totalXP} currentSection={currentSection} nextSection={nextSection} />
+      <RightPanel totalXP={totalXP} streakDays={streakDays} skillAverages={skillAverages} currentSection={currentSection} nextSection={nextSection} />
 
       <VocabularyGameDrawer open={vocabDrawer} onClose={() => setVocabDrawer(false)} />
     </div>

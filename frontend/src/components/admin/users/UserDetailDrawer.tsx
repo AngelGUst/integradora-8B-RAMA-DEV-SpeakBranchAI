@@ -101,7 +101,7 @@ function AttemptsPanel({ userId }: { userId: number }) {
   useEffect(() => {
     setLoading(true);
     setData([]);
-    apiFetch<{ tab: string; results: unknown[] }>(`/api/auth/users/${userId}/attempts/?tab=${activeTab}`)
+    apiFetch<{ tab: string; results: unknown[] }>(`/auth/users/${userId}/attempts/?tab=${activeTab}`)
       .then(r => setData(r.results))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
@@ -295,7 +295,7 @@ export default function UserDetailDrawer({
 
   useEffect(() => {
     setLD(true);
-    apiFetch<UserDetail>(`/api/auth/users/${initialUser.id}/`)
+    apiFetch<UserDetail>(`/auth/users/${initialUser.id}/`)
       .then(d => {
         setDetail(d);
         setLevel(d.level);
@@ -311,7 +311,7 @@ export default function UserDetailDrawer({
     setSaveError('');
     setSaved(false);
     try {
-      const updated = await apiFetch<UserDetail>(`/api/auth/users/${detail.id}/`, {
+      const updated = await apiFetch<UserDetail>(`/auth/users/${detail.id}/`, {
         method: 'PATCH',
         body: JSON.stringify({ level, role }),
       });
@@ -337,7 +337,7 @@ export default function UserDetailDrawer({
     }
     setSavingPwd(true);
     try {
-      await apiFetch(`/api/auth/users/${initialUser.id}/reset-password/`, {
+      await apiFetch(`/auth/users/${initialUser.id}/reset-password/`, {
         method: 'POST',
         body: JSON.stringify({ new_password: newPassword }),
       });
@@ -354,7 +354,7 @@ export default function UserDetailDrawer({
   async function handleDelete() {
     setDeleting(true);
     try {
-      await apiFetch(`/api/auth/users/${initialUser.id}/`, { method: 'DELETE' });
+      await apiFetch(`/auth/users/${initialUser.id}/`, { method: 'DELETE' });
       onDeleted(initialUser.id);
     } catch {
       setDeleting(false);

@@ -4,13 +4,13 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import Logo from '@/shared/components/ui/Logo';
 
 const NAV_ITEMS = [
-  { label: 'Panel de Control', icon: BarChart2, path: '/dashboard', adminOnly: false },
-  { label: 'Ruta de Aprendizaje', icon: Route, path: '/learn', adminOnly: false },
-  { label: 'Preguntas', icon: BookOpen, path: '/admin/questions', adminOnly: true },
-  { label: 'Vocabulario', icon: BookMarked, path: '/admin/vocabulary', adminOnly: true },
-  { label: 'Usuarios', icon: Users, path: '/admin/users', adminOnly: true },
-  { label: 'Configuración', icon: Settings, path: '/admin/system', adminOnly: true },
-  { label: 'Mi Vocabulario', icon: Library, path: '/vocabulary', adminOnly: false },
+  { label: 'Panel de Control',    icon: BarChart2,  path: '/dashboard',        adminOnly: false },
+  { label: 'Ruta de Aprendizaje', icon: Route,      path: '/learn',            adminOnly: false },
+  { label: 'Mi Vocabulario',      icon: Library,    path: '/vocabulary',       adminOnly: false },
+  { label: 'Preguntas',           icon: BookOpen,   path: '/admin/questions',  adminOnly: true  },
+  { label: 'Vocabulario',         icon: BookMarked, path: '/admin/vocabulary', adminOnly: true  },
+  { label: 'Usuarios',            icon: Users,      path: '/admin/users',      adminOnly: true  },
+  { label: 'Configuración',       icon: Settings,   path: '/admin/system',     adminOnly: true  },
 ];
 
 export default function AppSidebar() {
@@ -19,7 +19,7 @@ export default function AppSidebar() {
   const { logout, user } = useAuth();
 
   return (
-    <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-screen shrink-0 relative z-20">
+    <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col h-full shrink-0 relative z-20">
       <div className="h-16 flex items-center px-6 border-b border-zinc-800">
         <Logo size="sm" />
       </div>

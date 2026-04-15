@@ -26,10 +26,10 @@ def _require_admin(request):
             except Exception:
                 return JsonResponse({'error': 'Authentication required'}, status=401)
 
-        if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
-        if request.user.role != 'ADMIN':
-            return JsonResponse({'error': 'Admin privileges required'}, status=403)
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    if request.user.role != 'ADMIN':
+        return JsonResponse({'error': 'Admin privileges required'}, status=403)
         
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -40,11 +40,15 @@ class SystemConfigView(View):
             return err
         cfg = SystemConfig.get()
         return JsonResponse({
-            'adaptive_threshold_up': cfg.adaptive_threshold_up,
+            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            "registration_enabled": cfg.registration_enabled,
+            'registration_enabled':   cfg.registration_enabled,
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
         })
-    
+
     def patch(self, request):
         err = _require_admin(request)
         if err:
@@ -81,15 +85,66 @@ class SystemConfigView(View):
             cfg.registration_enabled = bool(body['registration_enabled'])
             changed.append('registration_enabled')
 
+        # XP de niveles CEFR (A1–B2)
+        xp_fields = ['xp_level_a1', 'xp_level_a2', 'xp_level_b1', 'xp_level_b2']
+        xp_updated = False
+        for field in xp_fields:
+            if field in body:
+                val = int(body[field])
+                if val <= 0:
+                    return JsonResponse({'error': f'{field} debe ser mayor que 0.'}, status=400)
+                setattr(cfg, field, val)
+                changed.append(field)
+                xp_updated = True
+
+        if xp_updated:
+            levels = [cfg.xp_level_a1, cfg.xp_level_a2, cfg.xp_level_b1, cfg.xp_level_b2]
+            if levels != sorted(levels) or len(set(levels)) != len(levels):
+                return JsonResponse(
+                    {'error': 'Los XP de nivel deben ser estrictamente ascendentes: A1 < A2 < B1 < B2.'},
+                    status=400
+                )
+
         if changed:
             cfg.save()
 
         return JsonResponse({
-            'adaptive_threshold_up': cfg.adaptive_threshold_up,
+            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            'registration_enabled': cfg.registration_enabled,
+            'registration_enabled':   cfg.registration_enabled,
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
         })
-        
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublicLevelsView(View):
+    """Devuelve solo los umbrales XP de niveles. Requiere auth, no admin."""
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                try:
+                    jwt_auth = JWTAuthentication()
+                    token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
+                    request.user = jwt_auth.get_user(token)
+                except Exception:
+                    return JsonResponse({'error': 'Authentication required'}, status=401)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+
+        cfg = SystemConfig.get()
+        return JsonResponse({
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
+        })
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ErrorLogsView(View):
     SOURCE_KEYWORDS = {

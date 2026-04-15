@@ -34,11 +34,11 @@ export interface QuestionFilters {
 export const questionsService = {
   getDiagnosticQuestions(limit?: number): Promise<DiagnosticQuestion[]> {
     const params = limit ? `?limit=${limit}` : '';
-    return apiFetch<DiagnosticQuestion[]>(`/api/questions/diagnostic/${params}`);
+    return apiFetch<DiagnosticQuestion[]>(`/questions/diagnostic/${params}`);
   },
 
   submitDiagnostic(payload: DiagnosticSubmitRequest): Promise<DiagnosticSubmitResponse> {
-    return apiFetch<DiagnosticSubmitResponse>('/api/questions/diagnostic/submit/', {
+    return apiFetch<DiagnosticSubmitResponse>('/questions/diagnostic/submit/', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -55,7 +55,7 @@ export const questionsService = {
         Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '')
       ) as Record<string, string>
     ).toString();
-    return apiFetch<DiagnosticQuestion[]>(`/api/questions/level-exercises/${query ? `?${query}` : ''}`);
+    return apiFetch<DiagnosticQuestion[]>(`/questions/level-exercises/${query ? `?${query}` : ''}`);
   },
 
   getAdaptiveNextQuestion(payload: {
@@ -66,7 +66,7 @@ export const questionsService = {
     current_difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
     exclude_ids?: number[];
   }): Promise<DiagnosticQuestion> {
-    return apiFetch<DiagnosticQuestion>('/api/questions/adaptive/next/', {
+    return apiFetch<DiagnosticQuestion>('/questions/adaptive/next/', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -77,60 +77,60 @@ export const questionsService = {
         Object.entries(filters ?? {}).filter(([, v]) => v !== undefined && v !== '')
       ) as Record<string, string>
     ).toString();
-    return apiFetch<Question[]>(`/api/questions/${params ? `?${params}` : ''}`);
+    return apiFetch<Question[]>(`/questions/${params ? `?${params}` : ''}`);
   },
 
   createQuestion(data: CreateQuestionPayload): Promise<Question> {
-    return apiFetch<Question>('/api/questions/', {
+    return apiFetch<Question>('/questions/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
   updateQuestion(id: number, data: Partial<CreateQuestionPayload>): Promise<Question> {
-    return apiFetch<Question>(`/api/questions/${id}/`, {
+    return apiFetch<Question>(`/questions/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
   deleteQuestion(id: number): Promise<void> {
-    return apiFetch<void>(`/api/questions/${id}/`, { method: 'DELETE' });
+    return apiFetch<void>(`/questions/${id}/`, { method: 'DELETE' });
   },
 
   getQuestion(id: number): Promise<Question> {
-    return apiFetch<Question>(`/api/questions/${id}/`);
+    return apiFetch<Question>(`/questions/${id}/`);
   },
 
   getQuestionVocabulary(questionId: number): Promise<QuestionVocabularyItem[]> {
-    return apiFetch<QuestionVocabularyItem[]>(`/api/questions/${questionId}/vocabulary/`);
+    return apiFetch<QuestionVocabularyItem[]>(`/questions/${questionId}/vocabulary/`);
   },
 
   addVocabularyToQuestion(
     questionId: number,
     payload: { vocabulary_id: number; is_key?: boolean; order?: number },
   ): Promise<QuestionVocabularyItem> {
-    return apiFetch<QuestionVocabularyItem>(`/api/questions/${questionId}/vocabulary/`, {
+    return apiFetch<QuestionVocabularyItem>(`/questions/${questionId}/vocabulary/`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
   removeVocabularyFromQuestion(questionId: number, vocabId: number): Promise<void> {
-    return apiFetch<void>(`/api/questions/${questionId}/vocabulary/${vocabId}/`, {
+    return apiFetch<void>(`/questions/${questionId}/vocabulary/${vocabId}/`, {
       method: 'DELETE',
     });
   },
 
   evaluateWriting(questionId: number, studentText: string): Promise<WritingEvaluationResult> {
-    return apiFetch<WritingEvaluationResult>('/api/writing/evaluate/', {
+    return apiFetch<WritingEvaluationResult>('/writing/evaluate/', {
       method: 'POST',
       body: JSON.stringify({ question_id: questionId, student_text: studentText }),
     });
   },
 
   getExerciseVocabulary(questionId: number): Promise<VocabularyWord[]> {
-    return apiFetch<{ data: VocabularyWord[] }>('/api/vocabulary/exercise-words/', {
+    return apiFetch<{ data: VocabularyWord[] }>('/vocabulary/exercise-words/', {
       method: 'POST',
       body: JSON.stringify({ question_id: questionId }),
     }).then((res) => res.data);

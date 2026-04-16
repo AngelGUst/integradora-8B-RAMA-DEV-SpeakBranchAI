@@ -24,5 +24,5 @@ urlpatterns = [
     path('api/', include('questions.urls')),
     path('api/', include('exams.urls')),
     path('api/system/', include('system_config.url')),
-
+    path('api/', include('dashboard.urls')),
 ]

@@ -8,20 +8,21 @@
  * Layout: [Shared Sidebar] | [Scrollable path] | [Right stats panel]
  */
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Mic, Repeat, Headphones, PenLine,
   Star, Trophy, Lock, CheckCircle2, RefreshCw,
-  Flame, Zap, Target,
+  Flame, Zap, Target, ChevronDown, Loader2,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
 import type { SkillAverages } from '@/shared/hooks/useLearnProgress';
-import { questionsService } from '@/services/questionsService';
-import type { Question } from '@/types/question';
+import { questionsService, setOrderedQuestionIds } from '@/services/questionsService';
+import { examService } from '@/services/examService';
+import type { Question, Level } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
 import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
 import VocabularyGameDrawer from '../components/VocabularyGameDrawer';
@@ -42,6 +43,15 @@ const SKILL_CFG: Record<SkillType, {
 };
 
 const POS_X_CYCLE: PosX[] = ['center', 'right', 'center', 'left'];
+
+const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+
+function userCanAccessSection(userLevel: string, sectionLevel: string): boolean {
+  const userIdx = CEFR_ORDER.indexOf(userLevel);
+  const sectionIdx = CEFR_ORDER.indexOf(sectionLevel);
+  if (userIdx === -1) return sectionIdx === 0; // unknown level → only first section
+  return userIdx >= sectionIdx;
+}
 
 function questionToSkill(q: Question): SkillType {
   if (q.category === 'DIAGNOSTIC') return 'checkpoint';
@@ -222,33 +232,51 @@ function PathSection({
   completedIds,
   questionScores,
   totalXP,
+  userLevel,
+  collapsed,
+  loading,
+  onToggle,
   onNodeClick,
+  sectionRef,
 }: {
   section: CEFRSection;
   completedIds: string[];
   questionScores: Record<string, number>;
   totalXP: number;
+  userLevel: string;
+  collapsed: boolean;
+  loading: boolean;
+  onToggle: () => void;
   onNodeClick: (nodeId: string) => void;
+  sectionRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   const accent = ACCENT_CFG[section.accent];
   const [xpMin, xpMax] = section.xpRange;
-  const sectionLocked = totalXP < xpMin;
+  const sectionLocked = !userCanAccessSection(userLevel, section.level);
 
   const nodes = useMemo(
-    () => computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
-    [section.nodes, completedIds, questionScores, sectionLocked],
+    () => collapsed || section.nodes.length === 0
+      ? []
+      : computeNodes(section.nodes, completedIds, questionScores, sectionLocked),
+    [section.nodes, completedIds, questionScores, sectionLocked, collapsed],
   );
 
-  const totalH = START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60;
-  const fullPath = buildPath(nodes);
+  const completedCount = section.nodes.filter(n => completedIds.includes(n.id)).length;
+  const totalCount = section.nodes.length;
+
+  const totalH = nodes.length > 0 ? START_Y + (nodes.length - 1) * SPACING_Y + NODE_SIZE + 60 : 0;
+  const fullPath = nodes.length > 0 ? buildPath(nodes) : '';
   const litIdx = nodes.findIndex(n => n.state === 'current');
   const litPath = litIdx > 0 ? buildPath(nodes.slice(0, litIdx + 1)) : null;
   const xpPct = sectionLocked ? 0 : Math.min(1, (totalXP - xpMin) / (xpMax - xpMin));
 
   return (
-    <div className={sectionLocked ? 'opacity-50 pointer-events-none' : ''}>
-      {/* Section banner */}
-      <div className={`mx-6 mt-8 mb-1 rounded-xl border ${accent.border} ${accent.bg} overflow-hidden`}>
+    <div ref={sectionRef} className={sectionLocked ? 'opacity-50 pointer-events-none' : ''}>
+      {/* Section banner — always visible, clickable to collapse/expand */}
+      <div
+        className={`mx-6 mt-8 mb-1 rounded-xl border ${accent.border} ${accent.bg} overflow-hidden ${!sectionLocked ? 'cursor-pointer select-none' : ''}`}
+        onClick={sectionLocked ? undefined : onToggle}
+      >
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-4">
             <span className={`text-3xl font-black tracking-tight ${accent.text}`}>{section.level}</span>
@@ -259,14 +287,28 @@ function PathSection({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-[10px] uppercase tracking-wider text-zinc-600">XP requerido</p>
-              <p className={`text-sm font-semibold ${accent.text}`}>{xpMin.toLocaleString()} – {xpMax.toLocaleString()}</p>
-            </div>
-            {sectionLocked && <Lock size={14} className="text-zinc-600" />}
+            {collapsed && totalCount > 0 && (
+              <span className="text-[11px] text-zinc-500 tabular-nums hidden sm:block">
+                {completedCount}/{totalCount}
+              </span>
+            )}
+            {!collapsed && (
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] uppercase tracking-wider text-zinc-600">XP requerido</p>
+                {xpMax > 0 ? (
+                  <p className={`text-sm font-semibold ${accent.text}`}>{xpMin.toLocaleString()} – {xpMax.toLocaleString()}</p>
+                ) : (
+                  <div className="h-4 w-24 rounded bg-white/[0.06] animate-pulse mt-0.5" />
+                )}
+              </div>
+            )}
+            {sectionLocked
+              ? <Lock size={14} className="text-zinc-600" />
+              : <ChevronDown size={16} className={`text-zinc-400 transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`} />
+            }
           </div>
         </div>
-        {!sectionLocked && xpPct < 1 && (
+        {!sectionLocked && !collapsed && xpPct < 1 && (
           <div className="h-0.5 bg-zinc-800/60">
             <motion.div
               className={`h-full ${accent.progress}`}
@@ -278,103 +320,107 @@ function PathSection({
         )}
       </div>
 
-      {/* Node path */}
-      <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
-        <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
-          <defs>
-            <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={accent.hex} stopOpacity="0.7" />
-              <stop offset="100%" stopColor={accent.hex} stopOpacity="0.1" />
-            </linearGradient>
-          </defs>
-          <path d={fullPath} stroke="rgba(255,255,255,0.04)" strokeWidth="3" fill="none" strokeLinecap="round" />
-          {litPath && (
-            <path d={litPath} stroke={`url(#lg-${section.level})`} strokeWidth="3" fill="none" strokeLinecap="round" />
-          )}
-        </svg>
-
-        {nodes.map((node, i) => {
-          const x = POS_X[node.posX];
-          const y = START_Y + i * SPACING_Y;
-          const sCfg = SKILL_CFG[node.skill];
-          const canClick = node.state === 'current' || node.state === 'completed';
-
-          return (
-            <div key={node.id} style={{ position: 'absolute', left: x, top: y }}>
-              {/* CTA above current node */}
-              {node.state === 'current' && (
-                <motion.div
-                  className="absolute flex flex-col items-center"
-                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <button
-                    onClick={() => onNodeClick(node.id)}
-                    className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-emerald-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
-                  >
-                    ▶ COMENZAR
-                  </button>
-                  <div className="w-px h-2.5 bg-emerald-500/40 mt-0.5" />
-                </motion.div>
+      {/* Node path — only when expanded */}
+      {!collapsed && (
+        loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 size={24} className={`animate-spin ${accent.text}`} />
+          </div>
+        ) : nodes.length > 0 ? (
+          <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
+            <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
+              <defs>
+                <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={accent.hex} stopOpacity="0.7" />
+                  <stop offset="100%" stopColor={accent.hex} stopOpacity="0.1" />
+                </linearGradient>
+              </defs>
+              <path d={fullPath} stroke="rgba(255,255,255,0.04)" strokeWidth="3" fill="none" strokeLinecap="round" />
+              {litPath && (
+                <path d={litPath} stroke={`url(#lg-${section.level})`} strokeWidth="3" fill="none" strokeLinecap="round" />
               )}
+            </svg>
 
-              {/* CTA above replay node */}
-              {node.state === 'replay' && (
-                <motion.div
-                  className="absolute flex flex-col items-center"
-                  style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <button
-                      onClick={() => onNodeClick(node.id)}
-                      className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+            {nodes.map((node, i) => {
+              const x = POS_X[node.posX];
+              const y = START_Y + i * SPACING_Y;
+              const sCfg = SKILL_CFG[node.skill];
+              const canClick = node.state === 'current' || node.state === 'completed';
+
+              return (
+                <div key={node.id} style={{ position: 'absolute', left: x, top: y }}>
+                  {node.state === 'current' && (
+                    <motion.div
+                      className="absolute flex flex-col items-center"
+                      style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.3 }}
                     >
-                      <RefreshCw size={11} /> REPASAR
-                    </button>
-                    <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
-                      score bajo · gana más XP
-                    </span>
-                  </div>
-                  <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
-                </motion.div>
-              )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onNodeClick(node.id); }}
+                        className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-emerald-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                      >
+                        ▶ COMENZAR
+                      </button>
+                      <div className="w-px h-2.5 bg-emerald-500/40 mt-0.5" />
+                    </motion.div>
+                  )}
 
-              <NodeCircle
-                node={node}
-                onClick={canClick ? () => onNodeClick(node.id) : undefined}
-              />
+                  {node.state === 'replay' && (
+                    <motion.div
+                      className="absolute flex flex-col items-center"
+                      style={{ bottom: NODE_SIZE + 8, left: '50%', transform: 'translateX(-50%)' }}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: 0.3 }}
+                    >
+                      <div className="flex flex-col items-center gap-0.5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onNodeClick(node.id); }}
+                          className="bg-amber-500 hover:bg-amber-400 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg shadow-amber-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
+                        >
+                          <RefreshCw size={11} /> REPASAR
+                        </button>
+                        <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
+                          score bajo · gana más XP
+                        </span>
+                      </div>
+                      <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
+                    </motion.div>
+                  )}
 
-              {/* Label below current/replay */}
-              {(node.state === 'current' || node.state === 'replay') && (
-                <div
-                  className="absolute whitespace-nowrap text-center"
-                  style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
-                >
-                  <p className="text-[10px] text-zinc-500">{node.title}</p>
-                  <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
-                    {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
-                  </span>
+                  <NodeCircle
+                    node={node}
+                    onClick={canClick ? () => onNodeClick(node.id) : undefined}
+                  />
+
+                  {(node.state === 'current' || node.state === 'replay') && (
+                    <div
+                      className="absolute whitespace-nowrap text-center"
+                      style={{ top: NODE_SIZE + 6, left: '50%', transform: 'translateX(-50%)' }}
+                    >
+                      <p className="text-[10px] text-zinc-500">{node.title}</p>
+                      <span className={`text-[9px] ${node.state === 'replay' ? 'text-amber-500/70' : sCfg.text} uppercase tracking-wider font-semibold`}>
+                        {node.state === 'replay' ? `${Math.round(questionScores[node.id] ?? 0)}pts · mejorar` : node.skill}
+                      </span>
+                    </div>
+                  )}
+
+                  {node.state !== 'locked' && (
+                    <div
+                      className="absolute -top-2 -right-2 bg-[#07090F] border border-zinc-800 rounded-full px-1.5"
+                      style={{ fontSize: 9, fontWeight: 700, color: '#71717a', lineHeight: '18px' }}
+                    >
+                      +{node.xpMax}
+                    </div>
+                  )}
                 </div>
-              )}
-
-              {/* XP badge on non-locked nodes */}
-              {node.state !== 'locked' && (
-                <div
-                  className="absolute -top-2 -right-2 bg-[#07090F] border border-zinc-800 rounded-full px-1.5"
-                  style={{ fontSize: 9, fontWeight: 700, color: '#71717a', lineHeight: '18px' }}
-                >
-                  +{node.xpMax}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        ) : null
+      )}
     </div>
   );
 }
@@ -543,34 +589,77 @@ function RightPanel({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-// Valores por defecto si el endpoint falla
-const DEFAULT_XP_RANGES: Record<string, [number, number]> = {
-  A1: [0,    200],
-  A2: [200,  500],
-  B1: [500,  1000],
-  B2: [1000, 2000],
-};
+// ── Module-level caches (per-level, survive re-mounts) ────────────────────────
+const _cachedByLevel: Record<string, Question[]> = {};
 
 export default function LearnPathPage() {
   const { user } = useAuth();
-  const { totalXP, completedIds, questionScores, levelProgress } = useLearnProgress();
+  const { totalXP, completedIds, streakDays, questionScores, skillAverages, levelProgress } = useLearnProgress();
   const navigate = useNavigate();
-  const { user }                              = useAuth();
-  const { totalXP, completedIds, streakDays, questionScores, skillAverages } = useLearnProgress();
-  const navigate                   = useNavigate();
 
-  const [questions, setQuestions]   = useState<Question[]>([]);
-  const [loadingQ, setLoadingQ]     = useState(true);
+  const [xpRanges, setXpRanges] = useState<Record<string, [number, number]>>({});
+  const [questionsByLevel, setQuestionsByLevel] = useState<Record<string, Question[]>>({ ..._cachedByLevel });
+  const [loadingLevels, setLoadingLevels] = useState<Set<string>>(new Set());
   const [vocabDrawer, setVocabDrawer] = useState(false);
-  const [xpRanges, setXpRanges]     = useState<Record<string, [number, number]>>(DEFAULT_XP_RANGES);
+  const [examLoading, setExamLoading] = useState(false);
 
-  useEffect(() => {
-    questionsService.getQuestions()
-      .then(setQuestions)
-      .catch(() => {})
-      .finally(() => setLoadingQ(false));
+  // Current level — from the user's actual earned level (advances only after passing LEVEL_UP exam)
+  const currentLevel = user?.level ?? 'A1';
+
+  // Only current level is expanded by default
+  const [expandedLevels, setExpandedLevels] = useState<Set<string>>(
+    () => new Set([user?.level ?? 'A1']),
+  );
+
+  // Ref for auto-scroll to active section
+  const activeRef = useRef<HTMLDivElement>(null);
+
+  // ── Fetch a single level (with cache) ───────────────────────────────────────
+  const fetchLevel = useCallback(async (level: string) => {
+    if (_cachedByLevel[level]) {
+      setQuestionsByLevel(prev => ({ ...prev, [level]: _cachedByLevel[level] }));
+      return;
+    }
+    setLoadingLevels(prev => new Set([...prev, level]));
+    try {
+      const qs = await questionsService.getQuestions({ level: level as Level });
+      _cachedByLevel[level] = qs;
+      setQuestionsByLevel(prev => ({ ...prev, [level]: qs }));
+    } catch { /* keep empty */ }
+    finally {
+      setLoadingLevels(prev => { const s = new Set(prev); s.delete(level); return s; });
+    }
   }, []);
 
+  // ── Toggle expand / collapse ─────────────────────────────────────────────────
+  const toggleLevel = useCallback((level: string) => {
+    setExpandedLevels(prev => {
+      const next = new Set(prev);
+      if (next.has(level)) {
+        next.delete(level);
+      } else {
+        next.add(level);
+        fetchLevel(level);
+      }
+      return next;
+    });
+  }, [fetchLevel]);
+
+  // On mount: fetch current level; when currentLevel changes, ensure it's expanded
+  useEffect(() => {
+    fetchLevel(currentLevel);
+    setExpandedLevels(prev => new Set([...prev, currentLevel]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLevel]);
+
+  // Auto-scroll to active section once it's loaded
+  useEffect(() => {
+    if (questionsByLevel[currentLevel] && activeRef.current) {
+      activeRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentLevel, questionsByLevel]);
+
+  // XP ranges from backend — always fetch fresh on mount (lightweight call)
   useEffect(() => {
     const token = localStorage.getItem('sb_access_token');
     fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/system/levels/`, {
@@ -580,48 +669,71 @@ export default function LearnPathPage() {
       .then(data => {
         if (!data) return;
         setXpRanges({
-          A1: [0,                data.xp_level_a1],
-          A2: [data.xp_level_a1, data.xp_level_a2],
-          B1: [data.xp_level_a2, data.xp_level_b1],
-          B2: [data.xp_level_b1, data.xp_level_b2],
+          A1: [0,                data.xp_level_a1] as [number, number],
+          A2: [data.xp_level_a1, data.xp_level_a2] as [number, number],
+          B1: [data.xp_level_a2, data.xp_level_b1] as [number, number],
+          B2: [data.xp_level_b1, data.xp_level_b2] as [number, number],
         });
       })
-      .catch(() => {/* usa defaults */});
+      .catch(() => { /* usa defaults */ });
   }, []);
 
-  // Build sections from backend questions, keeping CEFR metadata from pathData
+  // Build sections — all LEARN_PATH sections, nodes only when loaded
   const dynamicPath = useMemo((): CEFRSection[] => {
-    return LEARN_PATH.map(section => {
-      const sectionQs = questions.filter(q => q.level === section.level);
-      const nodes: LessonNode[] = sectionQs.map((q, i) => ({
+    const sections = LEARN_PATH.map(section => {
+      const qs = questionsByLevel[section.level] ?? [];
+      const nodes: LessonNode[] = qs.map((q, i) => ({
         id: String(q.id),
         title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
         skill: questionToSkill(q),
         state: 'locked' as const,
         xpMax: q.xp_max,
+
         posX: POS_X_CYCLE[i % 4],
       }));
-      return { ...section, xpRange: xpRanges[section.level] ?? section.xpRange, nodes };
-    }).filter(s => s.nodes.length > 0);
-  }, [questions, xpRanges]);
+      // Use backend range if loaded; fall back to section default only for levels
+      // not covered by SystemConfig (C1, C2).
+      const range = xpRanges[section.level];
+      return { ...section, xpRange: range ?? section.xpRange, nodes };
+    });
 
-  const currentSection = useMemo(() => {
-    return dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1])
-      ?? dynamicPath[0]
-      ?? LEARN_PATH[0];
-  }, [dynamicPath, totalXP]);
+    // Publish ordered IDs so ExercisePage can find the next exercise
+    setOrderedQuestionIds(sections.flatMap(s => s.nodes.map(n => n.id)));
+
+    return sections;
+  }, [questionsByLevel, xpRanges]);
+
+  const currentSection = useMemo(
+    () => dynamicPath.find(s => totalXP >= s.xpRange[0] && totalXP < s.xpRange[1]) ?? dynamicPath[0] ?? LEARN_PATH[0],
+    [dynamicPath, totalXP],
+  );
 
   const nextSection = useMemo(() => {
     const idx = dynamicPath.indexOf(currentSection);
     return idx >= 0 && idx < dynamicPath.length - 1 ? dynamicPath[idx + 1] : null;
   }, [dynamicPath, currentSection]);
 
-  const handleNodeClick = (nodeId: string) => {
-    navigate(`/exercise/${nodeId}`);
+  const handleNodeClick = (nodeId: string) => navigate(`/exercise/${nodeId}`);
+
+  const canTakeExam = levelProgress?.can_take_level_exam === true;
+
+  const handleTakeExam = async () => {
+    setExamLoading(true);
+    try {
+      const exams = await examService.getExams();
+      const exam = exams.find(e => e.type === 'LEVEL_UP' && e.level === currentLevel);
+      if (exam) {
+        navigate(`/exam/${exam.id}`);
+      }
+    } catch {
+      // silently ignore — button stays enabled for retry
+    } finally {
+      setExamLoading(false);
+    }
   };
 
   return (
-    <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
+    <div className="bg-[#07090F] text-zinc-50 h-screen flex font-sans overflow-hidden">
       <AppSidebar />
 
       {/* Scrollable path */}
@@ -659,26 +771,59 @@ export default function LearnPathPage() {
         </header>
 
         <div className="pb-28">
-          {loadingQ ? (
-            <div className="flex items-center justify-center py-24">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
-            </div>
-          ) : dynamicPath.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 gap-3">
-              <Trophy size={32} className="text-zinc-700" />
-              <p className="text-sm text-zinc-500">No hay ejercicios disponibles todavía.</p>
-            </div>
-          ) : (
-            dynamicPath.map(section => (
+          {dynamicPath.map(section => {
+            const isActive = section.level === currentLevel;
+            return (
               <PathSection
                 key={section.level}
                 section={section}
                 completedIds={completedIds}
                 questionScores={questionScores}
                 totalXP={totalXP}
+                userLevel={currentLevel}
+                collapsed={!expandedLevels.has(section.level)}
+                loading={loadingLevels.has(section.level)}
+                onToggle={() => toggleLevel(section.level)}
                 onNodeClick={handleNodeClick}
+                sectionRef={isActive ? activeRef : undefined}
               />
-            ))
+            );
+          })}
+
+          {/* Level-up exam banner */}
+          {canTakeExam && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mx-6 mt-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/6 p-5"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 shrink-0">
+                  <Trophy size={22} className="text-yellow-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-yellow-300 leading-none">
+                    ¡Listo para subir de nivel!
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    Has completado el XP requerido en {currentLevel}. Toma el examen de nivelación para avanzar a {CEFR_ORDER[CEFR_ORDER.indexOf(currentLevel) + 1] ?? 'el siguiente nivel'}.
+                  </p>
+                </div>
+                <button
+                  onClick={handleTakeExam}
+                  disabled={examLoading}
+                  className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black text-[13px] font-bold transition-colors"
+                >
+                  {examLoading ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Trophy size={14} />
+                  )}
+                  Tomar examen
+                </button>
+              </div>
+            </motion.div>
           )}
 
           {/* End marker */}

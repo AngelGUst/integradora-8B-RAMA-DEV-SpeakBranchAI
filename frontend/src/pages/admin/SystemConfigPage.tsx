@@ -152,6 +152,7 @@ export default function SystemConfigPage() {
         xp_level_b1: vals[2], xp_level_b2: vals[3],
       });
       setConfig(updated);
+
       setXpSuccess(true);
       setTimeout(() => setXpSuccess(false), 2500);
     } catch (e: unknown) {

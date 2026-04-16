@@ -10,26 +10,30 @@ interface Props {
   form: FormState;
   set: (key: keyof FormState) => ChangeHandler;
   setValue: (key: keyof FormState, value: FormState[keyof FormState]) => void;
-  setOption: (idx: number) => (e: ChangeEvent<HTMLInputElement>) => void;
   onReadingQuestionsChange: (qs: ReadingQuestion[]) => void;
 }
 
-const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2'];
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
 const TARGET_CATEGORIES: Array<{ value: Category; title: string; description: string }> = [
   {
+    value: 'PRACTICE',
+    title: 'Solo ejercicio',
+    description: 'Ejercicio de práctica general para el learn path del estudiante.',
+  },
+  {
     value: 'DIAGNOSTIC',
-    title: 'DIAGNOSTIC',
+    title: 'Diagnóstico',
     description: 'Úsala para medir nivel inicial y detectar vacíos de aprendizaje.',
   },
   {
     value: 'LEVEL_UP',
-    title: 'LEVEL_UP',
+    title: 'Subir nivel',
     description: 'Úsala para exámenes de promoción y validación por nivel.',
   },
 ];
 
-export default function QuestionFormBody({ type, form, set, setValue, setOption, onReadingQuestionsChange }: Props) {
+export default function QuestionFormBody({ type, form, set, setValue, onReadingQuestionsChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-3">
@@ -42,7 +46,7 @@ export default function QuestionFormBody({ type, form, set, setValue, setOption,
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           {TARGET_CATEGORIES.map((category) => {
             const active = form.category === category.value;
             return (
@@ -65,7 +69,7 @@ export default function QuestionFormBody({ type, form, set, setValue, setOption,
       </div>
 
       {/* ── Shared fields ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>Level</label>
           <select value={form.level} onChange={set('level')} className={SELECT} style={{ colorScheme: 'dark' }}>
@@ -78,14 +82,6 @@ export default function QuestionFormBody({ type, form, set, setValue, setOption,
             <option value="EASY">Easy</option>
             <option value="MEDIUM">Medium</option>
             <option value="HARD">Hard</option>
-          </select>
-        </div>
-        <div>
-          <label className={LABEL}>Category</label>
-          <select value={form.category} onChange={set('category')} className={SELECT} style={{ colorScheme: 'dark' }}>
-            <option value="DIAGNOSTIC">Examen diagnóstico</option>
-            <option value="PRACTICE">Solo ejercicio</option>
-            <option value="LEVEL_UP">Examen subir nivel</option>
           </select>
         </div>
       </div>
@@ -286,35 +282,6 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function OptionsField({
-  form,
-  setOption,
-}: {
-  form: FormState;
-  setOption: (idx: number) => (e: ChangeEvent<HTMLInputElement>) => void;
-}) {
-  return (
-    <div>
-      <label className={LABEL}>
-        Options <span className="text-violet-400/50">*</span>
-      </label>
-      <div className="space-y-2">
-        {OPTION_LETTERS.map((letter, idx) => (
-          <div key={letter} className="flex items-center gap-3">
-            <span className="text-[11px] font-mono text-white/30 w-4 shrink-0">{letter}</span>
-            <input
-              type="text"
-              value={form.options[idx]}
-              onChange={setOption(idx)}
-              placeholder={`Option ${letter}`}
-              className={INPUT}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function InfoBadge({ text }: { text: string }) {
   return (

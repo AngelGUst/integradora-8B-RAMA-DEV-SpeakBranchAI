@@ -1,5 +1,3 @@
-from django.db.models import Sum
-
 from system_config.models import SystemConfig
 
 
@@ -7,14 +5,6 @@ class LevelProgressionService:
     """Servicio central para reglas de progresión por nivel."""
 
     LEVEL_SEQUENCE = ['A1', 'A2', 'B1', 'B2']
-
-    # Compatibilidad con umbrales históricos de migraciones de exámenes
-    LEGACY_DEFAULT_REQUIREMENTS = {
-        'A1': 100,
-        'A2': 200,
-        'B1': 310,
-        'B2': 450,
-    }
 
     @classmethod
     def get_next_level(cls, level):
@@ -30,72 +20,13 @@ class LevelProgressionService:
         return cls.LEVEL_SEQUENCE[idx + 1]
 
     @classmethod
-    def get_base_requirements_from_exams(cls):
-        """Obtiene XP requerido por nivel desde Exam (LEVEL_UP), creado por migraciones de exámenes."""
-        from exams.models import Exam
-
-        requirements = {}
-        rows = Exam.objects.filter(type='LEVEL_UP', is_active=True).values('level', 'xp_required')
-        for row in rows:
-            level = row['level']
-            if level in cls.LEVEL_SEQUENCE:
-                requirements[level] = max(0, int(row['xp_required'] or 0))
-
-        return requirements
-
-    @classmethod
-    def get_base_requirements_from_courses(cls):
-        """Calcula XP requerido por nivel a partir de la tabla courses."""
-        from courses.models import Course
-
-        requirements = {}
-
-        rows = (
-            Course.objects
-            .values('level')
-            .annotate(total_xp=Sum('lessons__xp_value'))
-        )
-
-        for row in rows:
-            level = row['level']
-            total_xp = int(row['total_xp'] or 0)
-            if level in cls.LEVEL_SEQUENCE:
-                requirements[level] = max(0, total_xp)
-
-        for level, legacy_value in cls.LEGACY_DEFAULT_REQUIREMENTS.items():
-            requirements.setdefault(level, legacy_value)
-
-        return requirements
-
-    @staticmethod
-    def _normalize_overrides(overrides):
-        """Normaliza overrides manuales desde SystemConfig."""
-        if not isinstance(overrides, dict):
-            return {}
-
-        normalized = {}
-        for level, value in overrides.items():
-            if not isinstance(level, str):
-                continue
-            level_key = level.upper().strip()
-            if level_key not in LevelProgressionService.LEVEL_SEQUENCE:
-                continue
-
-            try:
-                normalized[level_key] = max(0, int(value))
-            except (TypeError, ValueError):
-                continue
-
-        return normalized
-
-    @classmethod
     def _enforce_monotonic_requirements(cls, requirements):
         """Asegura que los umbrales no disminuyan entre niveles consecutivos."""
         monotonic = {}
         previous_threshold = 0
 
         for level in cls.LEVEL_SEQUENCE:
-            raw_value = int(requirements.get(level, cls.LEGACY_DEFAULT_REQUIREMENTS.get(level, 0)) or 0)
+            raw_value = int(requirements.get(level, 0) or 0)
             current_value = max(previous_threshold, raw_value)
             monotonic[level] = current_value
             previous_threshold = current_value
@@ -104,22 +35,19 @@ class LevelProgressionService:
 
     @classmethod
     def get_level_xp_requirements(cls):
-        """Retorna mapa final de XP requerido por nivel."""
+        """
+        Retorna mapa final de XP requerido por nivel.
+
+        Fuente de verdad: SystemConfig.xp_level_* (editables por el admin).
+        """
         cfg = SystemConfig.get()
-        base_requirements = cls.get_base_requirements_from_exams()
-
-        # Fallback a cursos si aún no existen exámenes seed/migrados
-        if not base_requirements:
-            base_requirements = cls.get_base_requirements_from_courses()
-
-        # Compatibilidad total con defaults históricos
-        for level, legacy in cls.LEGACY_DEFAULT_REQUIREMENTS.items():
-            base_requirements.setdefault(level, legacy)
-
-        overrides = cls._normalize_overrides(cfg.level_xp_requirements)
-
-        base_requirements.update(overrides)
-        return cls._enforce_monotonic_requirements(base_requirements)
+        requirements = {
+            'A1': cfg.xp_level_a1,
+            'A2': cfg.xp_level_a2,
+            'B1': cfg.xp_level_b1,
+            'B2': cfg.xp_level_b2,
+        }
+        return cls._enforce_monotonic_requirements(requirements)
 
     @classmethod
     def get_cumulative_level_ranges(cls):

@@ -20,6 +20,10 @@ interface ProgressResponse {
   streak_days: number;
   completed_question_ids: string[];
   question_scores: Record<string, number>;
+  average_speaking?: number;
+  average_reading?: number;
+  average_listening?: number;
+  average_writing?: number;
   level_progress?: {
     current_level: string;
     next_level: string | null;
@@ -34,21 +38,65 @@ interface ProgressResponse {
   };
 }
 
+export type SkillAverages = {
+  speaking: number;
+  reading: number;
+  listening: number;
+  writing: number;
+};
+
+// ── Module-level cache — shared across all hook instances ─────────────────────
+// Prevents duplicate /auth/progress/ fetches when navigating between pages.
+let _cachedProgress: ProgressResponse | null = null;
+let _lastFetch = 0;
+const STALE_MS = 30_000; // re-fetch only after 30 s
+
+function applyProgress(
+  data: ProgressResponse,
+  setters: {
+    setTotalXP: (v: number) => void;
+    setCompletedIds: (v: string[]) => void;
+    setStreakDays: (v: number) => void;
+    setQuestionScores: (v: Record<string, number>) => void;
+    setLevelProgress: (v: ProgressResponse['level_progress']) => void;
+    setSkillAverages: (v: SkillAverages) => void;
+  },
+) {
+  setters.setTotalXP(data.total_xp);
+  setters.setCompletedIds(data.completed_question_ids);
+  setters.setStreakDays(data.streak_days);
+  setters.setQuestionScores(data.question_scores ?? {});
+  setters.setLevelProgress(data.level_progress);
+  setters.setSkillAverages({
+    speaking:  data.average_speaking  ?? 0,
+    reading:   data.average_reading   ?? 0,
+    listening: data.average_listening ?? 0,
+    writing:   data.average_writing   ?? 0,
+  });
+}
+
 export function useLearnProgress() {
   const [totalXP, setTotalXP] = useState(0);
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
   const [levelProgress, setLevelProgress] = useState<ProgressResponse['level_progress']>(undefined);
+  const [skillAverages, setSkillAverages] = useState<SkillAverages>({ speaking: 0, reading: 0, listening: 0, writing: 0 });
+
+  const setters = { setTotalXP, setCompletedIds, setStreakDays, setQuestionScores, setLevelProgress, setSkillAverages };
 
   useEffect(() => {
+    // If we have a fresh cache, hydrate from it without a network round-trip.
+    if (_cachedProgress && Date.now() - _lastFetch < STALE_MS) {
+      applyProgress(_cachedProgress, setters);
+      return;
+    }
+
     apiFetch<ProgressResponse>('/auth/progress/')
       .then(data => {
-        setTotalXP(data.total_xp);
-        setCompletedIds(data.completed_question_ids);
-        setStreakDays(data.streak_days);
-        setQuestionScores(data.question_scores ?? {});
-        setLevelProgress(data.level_progress);
+        _cachedProgress = data;
+        _lastFetch = Date.now();
+        applyProgress(data, setters);
       })
       .catch(() => {
         setTotalXP(Number(localStorage.getItem('sb_total_xp') ?? 0));
@@ -56,6 +104,7 @@ export function useLearnProgress() {
           setCompletedIds(JSON.parse(localStorage.getItem('sb_completed_exercises') ?? '[]'));
         } catch { /* empty */ }
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const completeExercise = useCallback(
@@ -94,16 +143,9 @@ export function useLearnProgress() {
         const updatedProgress = await apiFetch<ProgressResponse>(
           '/auth/progress/'
         );
-        setTotalXP(updatedProgress.total_xp);
-        setStreakDays(updatedProgress.streak_days);
-        setCompletedIds(updatedProgress.completed_question_ids);
-        setQuestionScores(updatedProgress.question_scores ?? {});
-        setSkillAverages({
-          speaking:  updatedProgress.average_speaking  ?? 0,
-          reading:   updatedProgress.average_reading   ?? 0,
-          listening: updatedProgress.average_listening ?? 0,
-          writing:   updatedProgress.average_writing   ?? 0,
-        });
+        _cachedProgress = updatedProgress;
+        _lastFetch = Date.now();
+        applyProgress(updatedProgress, setters);
         localStorage.setItem('sb_total_xp', String(updatedProgress.total_xp));
       } catch (err) {
         console.error('Error completing exercise:', err);
@@ -113,5 +155,5 @@ export function useLearnProgress() {
     []
   );
 
-  return { totalXP, completedIds, streakDays, questionScores, skillAverages, completeExercise };
+  return { totalXP, completedIds, streakDays, questionScores, skillAverages, levelProgress, completeExercise };
 }

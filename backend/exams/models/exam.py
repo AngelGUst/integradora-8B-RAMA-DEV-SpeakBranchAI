@@ -70,9 +70,25 @@ class Exam(models.Model):
         auto_now_add=True,
         verbose_name='fecha de creación'
     )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exams_created',
+        verbose_name='creado por'
+    )
     updated_at = models.DateTimeField(
         auto_now=True,
         verbose_name='última actualización'
+    )
+    updated_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exams_updated',
+        verbose_name='actualizado por'
     )
     
     class Meta:

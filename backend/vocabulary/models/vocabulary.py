@@ -85,6 +85,14 @@ class Vocabulary(models.Model):
         auto_now=True,
         verbose_name='última actualización'
     )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='vocabulary_updated',
+        verbose_name='actualizado por'
+    )
     
     class Meta:
         db_table = 'vocabulary'

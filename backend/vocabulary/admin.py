@@ -42,9 +42,13 @@ class VocabularyAdmin(admin.ModelAdmin):
     show_image_thumbnail.short_description = 'Imagen'
     
     def save_model(self, request, obj, form, change):
-        """Auto-asignar created_by si es nuevo"""
+        """Auto-asignar created_by y updated_by"""
         if not change:
+            # Si es nuevo, asignar created_by
             obj.created_by = request.user
+        else:
+            # Si es actualización, asignar updated_by
+            obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
 @admin.register(DailyVocabulary)

@@ -114,6 +114,14 @@ class Question(models.Model):
         auto_now=True,
         verbose_name='última actualización'
     )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='questions_updated',
+        verbose_name='actualizado por'
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name='activa'

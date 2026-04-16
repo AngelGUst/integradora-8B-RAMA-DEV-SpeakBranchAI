@@ -35,8 +35,16 @@ class ExamAdmin(admin.ModelAdmin):
     )
     
     def save_model(self, request, obj, form, change):
-        """Guardar y actualizar contador de preguntas"""
+        """Auto-asignar created_by y updated_by, actualizar contador de preguntas"""
+        if not change:
+            # Si es nuevo, asignar created_by
+            obj.created_by = request.user
+        else:
+            # Si es actualización, asignar updated_by
+            obj.updated_by = request.user
+        
         super().save_model(request, obj, form, change)
+        
         # Actualizar question_count basado en las preguntas asignadas
         obj.question_count = obj.exam_questions.count()
         obj.save()

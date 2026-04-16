@@ -43,8 +43,8 @@ def _get_attempted_question_ids(user) -> Set[int]:
         return set()
 
     attempted = set()
-    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
-        ids = Model.objects.filter(user=user).values_list('question_id', flat=True)
+    for model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+        ids = model.objects.filter(user=user).values_list('question_id', flat=True)
         attempted.update(ids)
     return attempted
 
@@ -54,7 +54,7 @@ def _recent_attempt_type_counts(user, level: str) -> dict:
     Count recent attempts by question type for balancing.
     Lower count => higher priority in next sessions.
     """
-    counts = {t: 0 for t in EXERCISE_TYPES}
+    counts = dict.fromkeys(EXERCISE_TYPES, 0)
 
     try:
         from attempts.models import (
@@ -206,6 +206,32 @@ def _pick_by_difficulty(qs, count: int, distribution, selected_ids: Set[int]) ->
     return picked[:count]
 
 
+def _balance_type_targets(ordered_types: List[str], final_count: int) -> dict:
+    """
+    Distribute question count across types, prioritizing less-practiced types.
+    Returns dict mapping type -> target count.
+    """
+    targets = dict.fromkeys(ordered_types, 0)
+    
+    # Give one slot to each available type first
+    remaining = final_count
+    for t in ordered_types:
+        if remaining <= 0:
+            break
+        targets[t] += 1
+        remaining -= 1
+    
+    # Round-robin remaining slots prioritizing less-practiced types
+    idx = 0
+    while remaining > 0 and ordered_types:
+        t = ordered_types[idx % len(ordered_types)]
+        targets[t] += 1
+        remaining -= 1
+        idx += 1
+    
+    return targets
+
+
 def get_adaptive_session_questions(
     user,
     level: str,
@@ -259,25 +285,10 @@ def get_adaptive_session_questions(
     type_counts = _recent_attempt_type_counts(user, level)
     ordered_types = sorted(available_types, key=lambda t: type_counts.get(t, 0))
 
-    targets = {t: 0 for t in ordered_types}
+    # Calculate target count per type using helper function
+    targets = _balance_type_targets(ordered_types, final_count)
 
-    # 1) Give one slot to each available type first
-    remaining = final_count
-    for t in ordered_types:
-        if remaining <= 0:
-            break
-        targets[t] += 1
-        remaining -= 1
-
-    # 2) Round-robin remaining slots prioritizing less-practiced types
-    idx = 0
-    while remaining > 0 and ordered_types:
-        t = ordered_types[idx % len(ordered_types)]
-        targets[t] += 1
-        remaining -= 1
-        idx += 1
-
-    # 3) Pick questions within each type using difficulty distribution
+    # Pick questions within each type using difficulty distribution
     for t in ordered_types:
         target = targets.get(t, 0)
         if target <= 0:

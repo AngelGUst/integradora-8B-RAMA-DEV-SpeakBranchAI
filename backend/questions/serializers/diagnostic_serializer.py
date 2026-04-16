@@ -159,7 +159,9 @@ class DiagnosticQuestionPublicSerializer(serializers.ModelSerializer):
             options = list(data.get('options', []))
 
         # Shuffle so the correct answer isn't always in the same position
-        random.shuffle(options)
+        # SAFE: This is for UI randomization only, not security-sensitive
+        # Pseudorandom is sufficient for shuffling quiz answer options
+        random.shuffle(options)  # NOSONAR
         return options
 
     def get_resource_requirements(self, obj):

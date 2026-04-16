@@ -7,11 +7,11 @@ class WritingQuestionSerializer(BaseQuestionSerializer):
         fields = BaseQuestionSerializer.Meta.fields + ['correct_answer']
 
     def validate_correct_answer(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError(
-                'Este campo es requerido: debe contener las instrucciones de evaluación para GPT.'
-            )
-        return value
+        return self._validate_required_field(
+            value,
+            'correct_answer',
+            'Writing (debe contener las instrucciones de evaluación para GPT)'
+        )
 
     def create(self, validated_data):
         validated_data['type'] = 'WRITING'

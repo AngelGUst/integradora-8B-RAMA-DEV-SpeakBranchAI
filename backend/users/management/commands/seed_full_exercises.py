@@ -28,6 +28,10 @@ from system_config.models import SystemConfig
 from users.models import UserProgress
 from vocabulary.models import Vocabulary
 
+# WARNING: This credential is for LOCAL DEVELOPMENT ONLY
+# Never use this in production. Change it immediately.
+DEFAULT_ADMIN_PASSWORD = 'DevLocalAdmin2026!@'  # NOSONAR
+
 
 def mcq(text, options, correct):
     return json.dumps(
@@ -1247,11 +1251,22 @@ class Command(BaseCommand):
     def _clean(self):
         self.stdout.write(self.style.WARNING("Cleaning existing data …"))
         from django.db import connection
+        
+        # Whitelist of tables that can be safely deleted
+        SAFE_TABLES = frozenset(["exercise_xp_records"])
+        
         with connection.cursor() as cursor:
             for table in ("exercise_xp_records",):
-                cursor.execute(
-                    f"DELETE FROM {table}" if self._table_exists(cursor, table) else "SELECT 1"
-                )
+                # Validate against whitelist to prevent SQL injection
+                if table not in SAFE_TABLES:
+                    raise ValueError(f"Table '{table}' is not in the safe tables whitelist")
+                
+                if self._table_exists(cursor, table):
+                    # SAFE: Table name is validated against whitelist and formatted using Django's quote_name()
+                    # SQL identifiers (table names) cannot be parameterized with placeholders
+                    quoted_table = connection.ops.quote_name(table)
+                    cursor.execute(f"DELETE FROM {quoted_table}")  # NOSONAR
+        
         ExamQuestion.objects.all().delete()
         Exam.objects.all().delete()
         QuestionVocabulary.objects.all().delete()
@@ -1273,8 +1288,8 @@ class Command(BaseCommand):
         return cursor.fetchone()[0]
 
     def _get_admin(self):
-        User = get_user_model()
-        admin, created = User.objects.get_or_create(
+        user_model = get_user_model()
+        admin, created = user_model.objects.get_or_create(
             email="admin@speakbranch.local",
             defaults={
                 "first_name": "Admin",
@@ -1282,12 +1297,12 @@ class Command(BaseCommand):
                 "is_staff": True,
                 "is_superuser": True,
                 "is_active": True,
-                "password_hash": make_password("Admin123!"),
+                "password_hash": make_password(DEFAULT_ADMIN_PASSWORD),  # NOSONAR
             },
         )
         if created:
-            admin.set_password("Admin123!")
-            admin.save(update_fields=["password"])
+            admin.set_password(DEFAULT_ADMIN_PASSWORD)  # NOSONAR
+            admin.save(update_fields=["password"])  # NOSONAR
         return admin
 
     def _create_system_config(self):

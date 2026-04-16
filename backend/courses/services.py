@@ -161,7 +161,7 @@ class LessonCompletionService:
         if not (0 <= score <= 100):
             raise ValidationError('El score debe estar entre 0 y 100')
 
-        progress, created = LessonProgress.get_or_create_progress(user, lesson)
+        progress, _ = LessonProgress.get_or_create_progress(user, lesson)
 
         is_first_completion = not progress.completed
         progress.update_attempt(score, xp_earned)

@@ -75,44 +75,68 @@ class GoogleOAuthCallbackView(APIView):
         tags=['Auth — Google OAuth'],
     )
     def post(self, request):
-        code = request.data.get('code')
-        if not code:
+        credential = request.data.get('credential')  # Google One Tap ID token
+        code = request.data.get('code')              # OAuth authorization code (redirect flow)
+
+        if not credential and not code:
             return Response(
-                {'error': 'Authorization code is required.'},
+                {'error': 'Either credential (One Tap) or code (OAuth) is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # --- Step 1: exchange code → Google access token ---
-        token_resp = http_requests.post(GOOGLE_TOKEN_URL, data={
-            'code': code,
-            'client_id': settings.GOOGLE_CLIENT_ID,
-            'client_secret': settings.GOOGLE_CLIENT_SECRET,
-            'redirect_uri': settings.GOOGLE_REDIRECT_URI,
-            'grant_type': 'authorization_code',
-        }, timeout=10)
+        if credential:
+            # --- One Tap flow: verify ID token via Google tokeninfo endpoint ---
+            tokeninfo_resp = http_requests.get(
+                'https://oauth2.googleapis.com/tokeninfo',
+                params={'id_token': credential},
+                timeout=10,
+            )
+            if not tokeninfo_resp.ok:
+                return Response(
+                    {'error': 'Failed to verify Google ID token.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            tokeninfo = tokeninfo_resp.json()
+            # Ensure the token was issued for this application
+            if tokeninfo.get('aud') != settings.GOOGLE_CLIENT_ID:
+                return Response(
+                    {'error': 'Google token audience mismatch.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            google_user = tokeninfo
+        else:
+            # --- Redirect flow: exchange authorization code → Google access token ---
+            token_resp = http_requests.post(GOOGLE_TOKEN_URL, data={
+                'code': code,
+                'client_id': settings.GOOGLE_CLIENT_ID,
+                'client_secret': settings.GOOGLE_CLIENT_SECRET,
+                'redirect_uri': settings.GOOGLE_REDIRECT_URI,
+                'grant_type': 'authorization_code',
+            }, timeout=10)
 
-        if not token_resp.ok:
-            return Response(
-                {'error': 'Failed to exchange authorization code with Google.'},
-                status=status.HTTP_400_BAD_REQUEST,
+            if not token_resp.ok:
+                return Response(
+                    {'error': 'Failed to exchange authorization code with Google.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            google_access_token = token_resp.json().get('access_token')
+
+            # Fetch user profile from Google
+            userinfo_resp = http_requests.get(
+                GOOGLE_USERINFO_URL,
+                headers={'Authorization': f'Bearer {google_access_token}'},
+                timeout=10,
             )
 
-        google_access_token = token_resp.json().get('access_token')
+            if not userinfo_resp.ok:
+                return Response(
+                    {'error': 'Failed to retrieve user info from Google.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        # --- Step 2: fetch user profile from Google ---
-        userinfo_resp = http_requests.get(
-            GOOGLE_USERINFO_URL,
-            headers={'Authorization': f'Bearer {google_access_token}'},
-            timeout=10,
-        )
+            google_user = userinfo_resp.json()
 
-        if not userinfo_resp.ok:
-            return Response(
-                {'error': 'Failed to retrieve user info from Google.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        google_user = userinfo_resp.json()
         email = google_user.get('email', '').lower()
 
         if not email:
@@ -121,6 +145,7 @@ class GoogleOAuthCallbackView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # tokeninfo uses 'given_name'; userinfo uses 'given_name' too, but fallback to 'name'
         first_name = google_user.get('given_name') or google_user.get('name', 'User')
         avatar_url = google_user.get('picture')
 

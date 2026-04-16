@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useEffect,
   useReducer,
   type ReactNode,
@@ -114,13 +115,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     void restore();
   }, []);
 
-  const login = (access: string, refresh: string, user: User) => {
+  const login = useCallback((access: string, refresh: string, user: User) => {
     localStorage.setItem(TOKEN_KEY, access);
     localStorage.setItem(REFRESH_KEY, refresh);
     dispatch({ type: 'LOGIN_SUCCESS', payload: user });
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } finally {
@@ -129,7 +130,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem(PLACEMENT_KEY);
       dispatch({ type: 'LOGOUT' });
     }
-  };
+  }, []);
 
   const refreshUser = async () => {
     try {

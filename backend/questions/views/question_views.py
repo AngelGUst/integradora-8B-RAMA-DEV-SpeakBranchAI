@@ -1,3 +1,5 @@
+from django.db.models import Prefetch
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -15,7 +17,6 @@ from questions.serializers import (
     ReadingQuestionSerializer,
     SpeakingQuestionSerializer,
     WritingQuestionSerializer,
-    QuestionVocabularyDetailSerializer,
 )
 
 TYPE_SERIALIZER_MAP = {
@@ -37,10 +38,18 @@ class QuestionViewSet(ModelViewSet):
         return [IsAdminRole()]
 
     def get_queryset(self):
-        qs = Question.objects.select_related('created_by').prefetch_related(
+        vocab_prefetch = Prefetch(
             'vocabulary_items',
-            'vocabulary_items__vocabulary',
-        ).filter(is_active=True)
+            queryset=QuestionVocabulary.objects
+                .select_related('vocabulary')
+                .order_by('-is_key', '-order'),
+        )
+        qs = (
+            Question.objects
+            .select_related('created_by')
+            .prefetch_related(vocab_prefetch)
+            .filter(is_active=True)
+        )
         return QuestionFilter.apply(qs, self.request.query_params)
 
     def list(self, request, *args, **kwargs):
@@ -95,17 +104,7 @@ class QuestionViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        data = serializer.data
-
-        # Attach vocabulary items to detail response
-        items = (
-            QuestionVocabulary.objects
-            .select_related('vocabulary')
-            .filter(question=instance)
-        )
-        data['vocabulary_items'] = QuestionVocabularyDetailSerializer(items, many=True).data
-
-        return Response(data)
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         from exams.models import ExamQuestion

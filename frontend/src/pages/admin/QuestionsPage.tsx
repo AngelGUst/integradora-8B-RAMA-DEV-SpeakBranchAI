@@ -128,7 +128,7 @@ export default function QuestionsPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
+    <div className="flex h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
       <div className="flex-1 overflow-y-auto">
       <div className="mx-auto px-6 py-5">
@@ -142,7 +142,7 @@ export default function QuestionsPage() {
           className="mb-10"
         >
           <div className="flex items-center gap-3 mb-3">
-            <span className="font-mono text-[11px] text-white/20 tracking-widest">001</span>
+            <span className="font-mono text-[11px] text-white/20 tracking-widest">004</span>
             <span className="h-px flex-1 max-w-[32px] bg-white/[0.06]" />
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
               Question Bank

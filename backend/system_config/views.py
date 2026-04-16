@@ -59,13 +59,15 @@ class SystemConfigView(View):
             return err
         cfg = SystemConfig.get()
         return JsonResponse({
-            'adaptive_threshold_up': cfg.adaptive_threshold_up,
+            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            "registration_enabled": cfg.registration_enabled,
-            'level_xp_requirements': cfg.level_xp_requirements,
-            'level_xp_requirements_resolved': LevelProgressionService.get_level_xp_requirements(),
+            'registration_enabled':   cfg.registration_enabled,
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
         })
-    
+
     def patch(self, request):
         err = _require_admin(request)
         if err:
@@ -146,13 +148,42 @@ class SystemConfigView(View):
             cfg.save()
 
         return JsonResponse({
-            'adaptive_threshold_up': cfg.adaptive_threshold_up,
+            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
             'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            'registration_enabled': cfg.registration_enabled,
-            'level_xp_requirements': cfg.level_xp_requirements,
-            'level_xp_requirements_resolved': LevelProgressionService.get_level_xp_requirements(),
+            'registration_enabled':   cfg.registration_enabled,
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
         })
-        
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublicLevelsView(View):
+    """Devuelve solo los umbrales XP de niveles. Requiere auth, no admin."""
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            auth_header = request.headers.get('Authorization', '')
+            if auth_header.startswith('Bearer '):
+                try:
+                    jwt_auth = JWTAuthentication()
+                    token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
+                    request.user = jwt_auth.get_user(token)
+                except Exception:
+                    return JsonResponse({'error': 'Authentication required'}, status=401)
+
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'Authentication required'}, status=401)
+
+        cfg = SystemConfig.get()
+        return JsonResponse({
+            'xp_level_a1': cfg.xp_level_a1,
+            'xp_level_a2': cfg.xp_level_a2,
+            'xp_level_b1': cfg.xp_level_b1,
+            'xp_level_b2': cfg.xp_level_b2,
+        })
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ErrorLogsView(View):
     SOURCE_KEYWORDS = {

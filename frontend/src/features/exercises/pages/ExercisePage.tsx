@@ -1012,7 +1012,8 @@ function VocabularyRevealScreen({ words, onContinue }: { words: VocabularyWord[]
       <button
         onClick={async () => {
           // Re-fetch progress antes de navegar
-          await fetch('http://localhost:8000/api/auth/progress/', {
+          const _apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
+          await fetch(`${_apiBase}/auth/progress/`, {
             headers: { 'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}` }
           });
           onContinue();

@@ -143,7 +143,7 @@ function StatusToggle({
     e.stopPropagation();
     setLoading(true);
     try {
-      await apiFetch(`/api/auth/users/${userId}/`, {
+      await apiFetch(`/auth/users/${userId}/`, {
         method: 'PATCH',
         body: JSON.stringify({ is_active: !isActive }),
       });
@@ -209,7 +209,7 @@ export default function UsersPage() {
       params.set('page',      String(pg));
       params.set('page_size', String(pageSize));
 
-      const data = await apiFetch<ListResponse>(`/api/auth/users/?${params}`);
+      const data = await apiFetch<ListResponse>(`/auth/users/?${params}`);
       setUsers(data.results);
       setTotal(data.count);
       setPage(data.page);
@@ -239,7 +239,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
+    <div className="flex h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto px-6 py-5">
@@ -253,7 +253,7 @@ export default function UsersPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-3 mb-3">
-              <span className="font-mono text-[11px] text-white/20 tracking-widest">003</span>
+              <span className="font-mono text-[11px] text-white/20 tracking-widest">006</span>
               <span className="h-px flex-1 max-w-[32px] bg-white/[0.06]" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
                 User Management

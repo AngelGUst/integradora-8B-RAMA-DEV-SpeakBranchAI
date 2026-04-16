@@ -134,11 +134,11 @@ function WordFormModal({
         daily_flag: form.daily_flag,
       };
       const res = initial
-        ? await apiFetch<{ data: VocabularyWord }>(`/api/vocabulary/${initial.id}/`, {
+        ? await apiFetch<{ data: VocabularyWord }>(`/vocabulary/${initial.id}/`, {
             method: 'PATCH',
             body: JSON.stringify(payload),
           })
-        : await apiFetch<{ data: VocabularyWord }>('/api/vocabulary/', {
+        : await apiFetch<{ data: VocabularyWord }>('/vocabulary/', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
@@ -276,7 +276,7 @@ export default function VocabularyPage() {
       if (levelFilter) params.set('level', levelFilter);
       if (search.trim()) params.set('search', search.trim());
       const res = await apiFetch<{ data: VocabularyWord[] }>(
-        `/api/vocabulary/${params.toString() ? `?${params}` : ''}`
+        `/vocabulary/${params.toString() ? `?${params}` : ''}`
       );
       setWords(res.data);
     } catch {
@@ -313,7 +313,7 @@ export default function VocabularyPage() {
   const handleDelete = async (id: number) => {
     setDeleting(id);
     try {
-      await apiFetch(`/api/vocabulary/${id}/`, { method: 'DELETE' });
+      await apiFetch(`/vocabulary/${id}/`, { method: 'DELETE' });
       setWords((prev) => prev.filter((w) => w.id !== id));
     } catch {
       // silent — keep word in list
@@ -323,7 +323,7 @@ export default function VocabularyPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
+    <div className="flex h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto px-6 py-5">
@@ -337,7 +337,7 @@ export default function VocabularyPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-3 mb-3">
-              <span className="font-mono text-[11px] text-white/20 tracking-widest">002</span>
+              <span className="font-mono text-[11px] text-white/20 tracking-widest">005</span>
               <span className="h-px flex-1 max-w-[32px] bg-white/[0.06]" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
                 Vocabulary Bank

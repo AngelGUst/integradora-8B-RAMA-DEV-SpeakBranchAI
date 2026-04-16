@@ -43,7 +43,7 @@ export default function VocabularyPanel({ questionId }: Props) {
     const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
     const token = localStorage.getItem('sb_access_token');
     setLoadingBank(true);
-    fetch(`${API_BASE}/api/vocabulary/`, {
+    fetch(`${API_BASE}/vocabulary/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : Promise.reject())

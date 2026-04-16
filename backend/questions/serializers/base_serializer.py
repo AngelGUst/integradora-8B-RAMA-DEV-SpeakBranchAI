@@ -43,10 +43,11 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
 
     def get_vocabulary_items(self, obj):
         """
-        Retorna el vocabulario vinculado a la pregunta ordenado por is_key y order
-        Import lazy para evitar circular dependencies
+        Uses prefetched vocabulary_items — ordering is set in the Prefetch object
+        on the view's get_queryset(). Calling .order_by() here would bypass the
+        prefetch cache and trigger N individual queries.
         """
         from .question_vocabulary_serializer import QuestionVocabularyDetailSerializer
 
-        vocab_items = obj.vocabulary_items.all().order_by('-is_key', '-order')
+        vocab_items = obj.vocabulary_items.all()
         return QuestionVocabularyDetailSerializer(vocab_items, many=True).data

@@ -265,6 +265,13 @@ class LoginView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Google OAuth accounts have no usable password — direct them to Google Sign-in
+        if not user.has_usable_password():
+            return Response(
+                {'error': 'This account uses Google Sign-in. Please use the "Continue with Google" button.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # authenticate() uses USERNAME_FIELD='email' when passed as kwarg
         authenticated_user = authenticate(request=request, email=email, password=password)
         if not authenticated_user:

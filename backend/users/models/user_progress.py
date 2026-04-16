@@ -43,9 +43,6 @@ class UserProgress(models.Model):
     streak_days = models.IntegerField(default=0)
     streak_freeze = models.IntegerField(default=0)
     last_activity_date = models.DateField(null=True, blank=True)
-
-    # Métricas adicionales históricas
-    skill_metrics = models.JSONField(default=dict, blank=True)
     
     # Timestamps
     last_updated = models.DateTimeField(auto_now=True)

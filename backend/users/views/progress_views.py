@@ -98,8 +98,8 @@ class ProgressView(View):
 
     def post(self, request):
         """
-        Body: { "question_id": int, "question_type": str, "score": float, "xp_earned": int }
-        Crea el Attempt correspondiente, actualiza UserProgress y UserWeakCategory.
+        Body: { "question_type": str, "score": float, "xp_earned": int }
+        Actualiza UserProgress y UserWeakCategory.
         """
         auth_error = _require_auth(request)
         if auth_error:
@@ -107,7 +107,6 @@ class ProgressView(View):
 
         try:
             body = json.loads(request.body)
-            question_id = int(body.get('question_id', 0))
             score       = float(body.get('score', 0))
             xp_earned   = int(body.get('xp_earned', 0))
             q_type      = body.get('question_type', '')

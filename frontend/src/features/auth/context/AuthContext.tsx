@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useEffect,
+  useMemo,
   useReducer,
   type ReactNode,
 } from 'react';
@@ -91,7 +92,7 @@ interface AuthProviderProps {
  * On mount it attempts to restore the session from localStorage;
  * if the stored token is invalid, the session is cleared silently.
  */
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: Readonly<AuthProviderProps>) {
   const [state, dispatch] = useReducer(authReducer, INITIAL_STATE);
 
   // Restore session from localStorage on app boot
@@ -141,8 +142,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const contextValue = useMemo(
+    () => ({ ...state, login, logout, refreshUser }),
+    [state, login, logout, refreshUser],
+  );
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, refreshUser }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

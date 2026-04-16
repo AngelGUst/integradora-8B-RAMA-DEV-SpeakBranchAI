@@ -12,6 +12,18 @@ const DIFFICULTY_LABEL: Record<string, string> = {
     EASY: 'Fácil', MEDIUM: 'Medio', HARD: 'Difícil',
 };
 
+function getScoreColor(score: number): string {
+    if (score >= 80) return '#22c55e';
+    if (score >= 50) return '#f59e0b';
+    return '#ef4444';
+}
+
+function getScoreLabel(score: number): string {
+    if (score >= 80) return '¡Excelente!';
+    if (score >= 50) return 'Casi lo tienes';
+    return 'Sigue practicando';
+}
+
 export default function SpeakingExercise() {
     const [stage, setStage] = useState<SpeakingStage>('loading');
     const [question, setQuestion] = useState<SpeakingQuestion | null>(null);
@@ -88,13 +100,8 @@ export default function SpeakingExercise() {
         setStage('ready');
     };
 
-    const scoreColor = result
-        ? result.score >= 80 ? '#22c55e' : result.score >= 50 ? '#f59e0b' : '#ef4444'
-        : '#fff';
-
-    const scoreLabel = result
-        ? result.score >= 80 ? '¡Excelente!' : result.score >= 50 ? 'Casi lo tienes' : 'Sigue practicando'
-        : '';
+    const scoreColor = result ? getScoreColor(result.score) : '#fff';
+    const scoreLabel = result ? getScoreLabel(result.score) : '';
 
     const btn = (label: string, onClick: () => void, primary = false, disabled = false) => (
         <button onClick={onClick} disabled={disabled} style={{
@@ -191,9 +198,9 @@ export default function SpeakingExercise() {
                                 : transcript || 'Presiona Grabar y lee la oración...'}
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginBottom: '1rem' }}>
-                            {!isRecording
-                                ? btn('🎤 Grabar', handleStartRecording, false, stage === 'evaluating' || !isSupported)
-                                : btn('⏹ Detener', handleStopRecording, false, false)
+                            {isRecording
+                                ? btn('⏹ Detener', handleStopRecording, false, false)
+                                : btn('🎤 Grabar', handleStartRecording, false, stage === 'evaluating' || !isSupported)
                             }
                             {btn(
                                 stage === 'evaluating' ? 'Evaluando...' : '✅ Evaluar',

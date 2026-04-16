@@ -39,13 +39,13 @@ function Section({
   children,
   custom = 0,
   inView,
-}: {
+}: Readonly<{
   label: string;
   number: string;
   children: React.ReactNode;
   custom?: number;
   inView: boolean;
-}) {
+}>) {
   return (
     <motion.div
       variants={reveal}

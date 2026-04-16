@@ -46,12 +46,12 @@ function FieldInput({
   value,
   onChange,
   hint,
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (v: string) => void;
   hint?: string;
-}) {
+}>) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/30">
@@ -69,6 +69,338 @@ function FieldInput({
       />
       {hint && <span className="text-[11px] text-white/20">{hint}</span>}
     </label>
+  );
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  const responseError = error as { response?: { data?: { error?: string } } };
+  return responseError?.response?.data?.error ?? fallback;
+}
+
+function parseThresholdValues(thresholdUp: string, thresholdDown: string): { up: number; down: number } | { error: string } {
+  const up = Number.parseFloat(thresholdUp);
+  const down = Number.parseFloat(thresholdDown);
+
+  if (Number.isNaN(up) || Number.isNaN(down)) {
+    return { error: 'Los umbrales deben ser números.' };
+  }
+
+  if (down >= up) {
+    return { error: 'El umbral inferior debe ser menor que el superior.' };
+  }
+
+  return { up, down };
+}
+
+function parseXpValues(values: string[]): { values: number[] } | { error: string } {
+  const parsedValues = values.map(Number);
+
+  if (parsedValues.some(Number.isNaN) || parsedValues.some((value) => value <= 0)) {
+    return { error: 'Todos los valores deben ser enteros positivos.' };
+  }
+
+  for (let index = 0; index < parsedValues.length - 1; index += 1) {
+    if (parsedValues[index] >= parsedValues[index + 1]) {
+      return { error: 'Los XP deben ser estrictamente ascendentes: A1 < A2 < B1 < B2.' };
+    }
+  }
+
+  return { values: parsedValues };
+}
+
+interface AdaptiveEngineSectionProps {
+  inView: boolean;
+  thresholdUp: string;
+  thresholdDown: string;
+  error: string | null;
+  success: boolean;
+  saving: boolean;
+  onThresholdUpChange: (value: string) => void;
+  onThresholdDownChange: (value: string) => void;
+  onSave: () => void;
+}
+
+function AdaptiveEngineSection({
+  inView,
+  thresholdUp,
+  thresholdDown,
+  error,
+  success,
+  saving,
+  onThresholdUpChange,
+  onThresholdDownChange,
+  onSave,
+}: Readonly<AdaptiveEngineSectionProps>) {
+  return (
+    <motion.div
+      variants={reveal}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+      custom={1}
+      className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
+    >
+      <div className="flex items-center gap-2.5 mb-1">
+        <Activity className="h-4 w-4 text-violet-400" />
+        <h2 className="text-sm font-semibold text-white/80">Motor Adaptativo</h2>
+      </div>
+      <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
+        El promedio de habilidad usa EMA (α=0.2). Por encima del umbral superior → HARD.
+        Por debajo del inferior → EASY.
+      </p>
+
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        <FieldInput
+          label="Umbral superior → HARD"
+          value={thresholdUp}
+          onChange={onThresholdUpChange}
+          hint="Default: 16.0"
+        />
+        <FieldInput
+          label="Umbral inferior → EASY"
+          value={thresholdDown}
+          onChange={onThresholdDownChange}
+          hint="Default: 10.0"
+        />
+      </div>
+
+      {error && <p className="text-[12px] text-red-400 mb-3">{error}</p>}
+      {success && <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>}
+
+      <button
+        onClick={onSave}
+        disabled={saving}
+        className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
+      >
+        <Save className="h-3.5 w-3.5" />
+        {saving ? 'Guardando…' : 'Guardar umbrales'}
+      </button>
+    </motion.div>
+  );
+}
+
+interface XpLevelsSectionProps {
+  inView: boolean;
+  xpA1: string;
+  xpA2: string;
+  xpB1: string;
+  xpB2: string;
+  xpError: string | null;
+  xpSuccess: boolean;
+  savingXp: boolean;
+  onXpA1Change: (value: string) => void;
+  onXpA2Change: (value: string) => void;
+  onXpB1Change: (value: string) => void;
+  onXpB2Change: (value: string) => void;
+  onSave: () => void;
+}
+
+function XpLevelsSection({
+  inView,
+  xpA1,
+  xpA2,
+  xpB1,
+  xpB2,
+  xpError,
+  xpSuccess,
+  savingXp,
+  onXpA1Change,
+  onXpA2Change,
+  onXpB1Change,
+  onXpB2Change,
+  onSave,
+}: Readonly<XpLevelsSectionProps>) {
+  const xpFields = [
+    { label: 'A1 → A2', value: xpA1, onChange: onXpA1Change, hint: 'Default: 200' },
+    { label: 'A2 → B1', value: xpA2, onChange: onXpA2Change, hint: 'Default: 500' },
+    { label: 'B1 → B2', value: xpB1, onChange: onXpB1Change, hint: 'Default: 1000' },
+    { label: 'Techo B2', value: xpB2, onChange: onXpB2Change, hint: 'Default: 2000' },
+  ];
+
+  return (
+    <motion.div
+      variants={reveal}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+      custom={2}
+      className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
+    >
+      <div className="flex items-center gap-2.5 mb-1">
+        <TrendingUp className="h-4 w-4 text-violet-400" />
+        <h2 className="text-sm font-semibold text-white/80">XP por Nivel CEFR</h2>
+      </div>
+      <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
+        XP total necesario para completar cada nivel y desbloquear el siguiente.
+        Deben ser valores positivos estrictamente ascendentes.
+      </p>
+
+      <div className="grid grid-cols-2 gap-4 mb-5">
+        {xpFields.map((field) => (
+          <FieldInput
+            key={field.label}
+            label={field.label}
+            value={field.value}
+            onChange={field.onChange}
+            hint={field.hint}
+          />
+        ))}
+      </div>
+
+      {xpError && <p className="text-[12px] text-red-400 mb-3">{xpError}</p>}
+      {xpSuccess && <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>}
+
+      <button
+        onClick={onSave}
+        disabled={savingXp}
+        className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
+      >
+        <Save className="h-3.5 w-3.5" />
+        {savingXp ? 'Guardando…' : 'Guardar XP de niveles'}
+      </button>
+    </motion.div>
+  );
+}
+
+interface RegistrationSectionProps {
+  inView: boolean;
+  registrationEnabled: boolean;
+  toggling: boolean;
+  onToggle: () => void;
+}
+
+function RegistrationSection({ inView, registrationEnabled, toggling, onToggle }: Readonly<RegistrationSectionProps>) {
+  return (
+    <motion.div
+      variants={reveal}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+      custom={3}
+      className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
+    >
+      <div className="flex items-center gap-2.5 mb-1">
+        <Users className="h-4 w-4 text-violet-400" />
+        <h2 className="text-sm font-semibold text-white/80">Registro de Usuarios</h2>
+      </div>
+      <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
+        Controla si nuevos usuarios pueden crear cuentas en la plataforma.
+      </p>
+
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-white/70">
+            {registrationEnabled ? 'Registro activo' : 'Registro desactivado'}
+          </p>
+          <p className="text-[11px] text-white/30 mt-0.5">
+            {registrationEnabled
+              ? 'Nuevos usuarios pueden registrarse.'
+              : 'El registro está bloqueado temporalmente.'}
+          </p>
+        </div>
+        <button
+          onClick={onToggle}
+          disabled={toggling}
+          className="disabled:opacity-50 transition-opacity"
+          aria-label="Toggle registration"
+        >
+          {registrationEnabled ? (
+            <ToggleRight className="h-9 w-9 text-emerald-400" />
+          ) : (
+            <ToggleLeft className="h-9 w-9 text-white/20" />
+          )}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+interface LogsSectionProps {
+  inView: boolean;
+  logSource: LogSource;
+  logs: string[];
+  logsTotal: number;
+  logsLoading: boolean;
+  logsLoaded: boolean;
+  onLogSourceChange: (source: LogSource) => void;
+  onLoadLogs: () => void;
+}
+
+function LogsSection({
+  inView,
+  logSource,
+  logs,
+  logsTotal,
+  logsLoading,
+  logsLoaded,
+  onLogSourceChange,
+  onLoadLogs,
+}: Readonly<LogsSectionProps>) {
+  const logEntries = logs.map((line) => (
+    <p
+      key={`${logsTotal}-${line}`}
+      className="font-mono text-[11px] text-white/40 leading-relaxed break-all"
+    >
+      {line}
+    </p>
+  ));
+
+  return (
+    <motion.div
+      variants={reveal}
+      initial="hidden"
+      animate={inView ? 'visible' : 'hidden'}
+      custom={4}
+      className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
+    >
+      <div className="flex items-center gap-2.5 mb-1">
+        <ScrollText className="h-4 w-4 text-violet-400" />
+        <h2 className="text-sm font-semibold text-white/80">Error Logs</h2>
+      </div>
+      <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
+        Últimas entradas del log de errores, filtradas por servicio.
+      </p>
+
+      <div className="flex items-center gap-3 mb-4">
+        {(['all', 'whisper', 'gpt'] as LogSource[]).map((source) => (
+          <button
+            key={source}
+            onClick={() => onLogSourceChange(source)}
+            className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
+              logSource === source
+                ? 'bg-violet-600 text-white'
+                : 'bg-white/[0.03] border border-white/[0.08] text-white/40 hover:text-white/60'
+            }`}
+          >
+            {source === 'all' ? 'All' : source.charAt(0).toUpperCase() + source.slice(1)}
+          </button>
+        ))}
+        <button
+          onClick={onLoadLogs}
+          disabled={logsLoading}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/[0.08] hover:border-white/20 rounded-lg text-[12px] text-white/50 hover:text-white/70 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${logsLoading ? 'animate-spin' : ''}`} />
+          {logsLoading ? 'Cargando…' : 'Cargar'}
+        </button>
+      </div>
+
+      {logsLoaded && (
+        <div className="rounded-xl bg-black/30 border border-white/[0.05] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.05]">
+            <span className="font-mono text-[10px] text-white/20 tracking-widest">
+              {logsTotal} entries · showing last {logs.length}
+            </span>
+          </div>
+          <div className="overflow-y-auto max-h-72 p-4 space-y-1">
+            {logs.length === 0 ? (
+              <p className="text-[12px] text-white/20 text-center py-6">
+                No hay entradas para este filtro.
+              </p>
+            ) : (
+              logEntries
+            )}
+          </div>
+        </div>
+      )}
+    </motion.div>
   );
 }
 
@@ -114,50 +446,49 @@ export default function SystemConfigPage() {
   }, []);
 
   const handleSaveThresholds = async () => {
-    const up   = parseFloat(thresholdUp);
-    const down = parseFloat(thresholdDown);
-    if (isNaN(up) || isNaN(down)) return setError('Los umbrales deben ser números.');
-    if (down >= up) return setError('El umbral inferior debe ser menor que el superior.');
+    const parsedThresholds = parseThresholdValues(thresholdUp, thresholdDown);
+    if ('error' in parsedThresholds) {
+      setError(parsedThresholds.error);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
       const updated = await systemConfigService.update({
-        adaptive_threshold_up: up,
-        adaptive_threshold_down: down,
+        adaptive_threshold_up: parsedThresholds.up,
+        adaptive_threshold_down: parsedThresholds.down,
       });
       setConfig(updated);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } } };
-      setError(err?.response?.data?.error ?? 'Error al guardar.');
+      setError(getErrorMessage(e, 'Error al guardar.'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleSaveXpLevels = async () => {
-    const vals = [xpA1, xpA2, xpB1, xpB2].map(Number);
-    if (vals.some(isNaN) || vals.some(v => v <= 0))
-      return setXpError('Todos los valores deben ser enteros positivos.');
-    for (let i = 0; i < vals.length - 1; i++) {
-      if (vals[i] >= vals[i + 1])
-        return setXpError('Los XP deben ser estrictamente ascendentes: A1 < A2 < B1 < B2.');
+    const parsedXpValues = parseXpValues([xpA1, xpA2, xpB1, xpB2]);
+    if ('error' in parsedXpValues) {
+      setXpError(parsedXpValues.error);
+      return;
     }
+
     setSavingXp(true);
     setXpError(null);
     try {
       const updated = await systemConfigService.update({
-        xp_level_a1: vals[0], xp_level_a2: vals[1],
-        xp_level_b1: vals[2], xp_level_b2: vals[3],
+        xp_level_a1: parsedXpValues.values[0], xp_level_a2: parsedXpValues.values[1],
+        xp_level_b1: parsedXpValues.values[2], xp_level_b2: parsedXpValues.values[3],
       });
       setConfig(updated);
 
       setXpSuccess(true);
       setTimeout(() => setXpSuccess(false), 2500);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } } };
-      setXpError(err?.response?.data?.error ?? 'Error al guardar.');
+      setXpError(getErrorMessage(e, 'Error al guardar.'));
     } finally {
       setSavingXp(false);
     }
@@ -173,8 +504,7 @@ export default function SystemConfigPage() {
       });
       setConfig(updated);
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string } } };
-      setError(err?.response?.data?.error ?? 'Error al guardar.');
+      setError(getErrorMessage(e, 'Error al guardar.'));
     } finally {
       setToggling(false);
     }
@@ -199,7 +529,6 @@ export default function SystemConfigPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto px-6 py-5">
 
-          {/* ── Section header ── */}
           <motion.div
             ref={ref}
             variants={reveal}
@@ -219,220 +548,58 @@ export default function SystemConfigPage() {
             </h1>
           </motion.div>
 
-          {/* ── Content ── */}
-          {!config ? (
+          {config === null ? (
             <div className="space-y-4">
               <SkeletonSection />
               <SkeletonSection />
             </div>
           ) : (
             <div className="space-y-4">
+              <AdaptiveEngineSection
+                inView={inView}
+                thresholdUp={thresholdUp}
+                thresholdDown={thresholdDown}
+                error={error}
+                success={success}
+                saving={saving}
+                onThresholdUpChange={setThresholdUp}
+                onThresholdDownChange={setThresholdDown}
+                onSave={handleSaveThresholds}
+              />
 
-              {/* ── Adaptive engine ── */}
-              <motion.div
-                variants={reveal}
-                initial="hidden"
-                animate={inView ? 'visible' : 'hidden'}
-                custom={1}
-                className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
-              >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <Activity className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">Motor Adaptativo</h2>
-                </div>
-                <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  El promedio de habilidad usa EMA (α=0.2). Por encima del umbral superior → HARD.
-                  Por debajo del inferior → EASY.
-                </p>
+              <XpLevelsSection
+                inView={inView}
+                xpA1={xpA1}
+                xpA2={xpA2}
+                xpB1={xpB1}
+                xpB2={xpB2}
+                xpError={xpError}
+                xpSuccess={xpSuccess}
+                savingXp={savingXp}
+                onXpA1Change={setXpA1}
+                onXpA2Change={setXpA2}
+                onXpB1Change={setXpB1}
+                onXpB2Change={setXpB2}
+                onSave={handleSaveXpLevels}
+              />
 
-                <div className="grid grid-cols-2 gap-4 mb-5">
-                  <FieldInput
-                    label="Umbral superior → HARD"
-                    value={thresholdUp}
-                    onChange={setThresholdUp}
-                    hint="Default: 16.0"
-                  />
-                  <FieldInput
-                    label="Umbral inferior → EASY"
-                    value={thresholdDown}
-                    onChange={setThresholdDown}
-                    hint="Default: 10.0"
-                  />
-                </div>
+              <RegistrationSection
+                inView={inView}
+                registrationEnabled={config.registration_enabled}
+                toggling={toggling}
+                onToggle={handleToggleRegistration}
+              />
 
-                {error && (
-                  <p className="text-[12px] text-red-400 mb-3">{error}</p>
-                )}
-                {success && (
-                  <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>
-                )}
-
-                <button
-                  onClick={handleSaveThresholds}
-                  disabled={saving}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {saving ? 'Guardando…' : 'Guardar umbrales'}
-                </button>
-              </motion.div>
-
-              {/* ── XP por nivel ── */}
-              <motion.div
-                variants={reveal}
-                initial="hidden"
-                animate={inView ? 'visible' : 'hidden'}
-                custom={2}
-                className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
-              >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <TrendingUp className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">XP por Nivel CEFR</h2>
-                </div>
-                <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  XP total necesario para completar cada nivel y desbloquear el siguiente.
-                  Deben ser valores positivos estrictamente ascendentes.
-                </p>
-
-                <div className="grid grid-cols-2 gap-4 mb-5">
-                  {[
-                    { label: 'A1 → A2', value: xpA1, onChange: setXpA1, hint: 'Default: 200' },
-                    { label: 'A2 → B1', value: xpA2, onChange: setXpA2, hint: 'Default: 500' },
-                    { label: 'B1 → B2', value: xpB1, onChange: setXpB1, hint: 'Default: 1000' },
-                    { label: 'Techo B2', value: xpB2, onChange: setXpB2, hint: 'Default: 2000' },
-                  ].map(f => (
-                    <FieldInput
-                      key={f.label}
-                      label={f.label}
-                      value={f.value}
-                      onChange={f.onChange}
-                      hint={f.hint}
-                    />
-                  ))}
-                </div>
-
-                {xpError && <p className="text-[12px] text-red-400 mb-3">{xpError}</p>}
-                {xpSuccess && <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>}
-
-                <button
-                  onClick={handleSaveXpLevels}
-                  disabled={savingXp}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {savingXp ? 'Guardando…' : 'Guardar XP de niveles'}
-                </button>
-              </motion.div>
-
-              {/* ── Registration toggle ── */}
-              <motion.div
-                variants={reveal}
-                initial="hidden"
-                animate={inView ? 'visible' : 'hidden'}
-                custom={3}
-                className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
-              >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <Users className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">Registro de Usuarios</h2>
-                </div>
-                <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  Controla si nuevos usuarios pueden crear cuentas en la plataforma.
-                </p>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-white/70">
-                      {config.registration_enabled ? 'Registro activo' : 'Registro desactivado'}
-                    </p>
-                    <p className="text-[11px] text-white/30 mt-0.5">
-                      {config.registration_enabled
-                        ? 'Nuevos usuarios pueden registrarse.'
-                        : 'El registro está bloqueado temporalmente.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleToggleRegistration}
-                    disabled={toggling}
-                    className="disabled:opacity-50 transition-opacity"
-                    aria-label="Toggle registration"
-                  >
-                    {config.registration_enabled ? (
-                      <ToggleRight className="h-9 w-9 text-emerald-400" />
-                    ) : (
-                      <ToggleLeft className="h-9 w-9 text-white/20" />
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-
-              {/* ── Error logs ── */}
-              <motion.div
-                variants={reveal}
-                initial="hidden"
-                animate={inView ? 'visible' : 'hidden'}
-                custom={4}
-                className="border border-white/[0.05] rounded-2xl p-6 bg-white/[0.01]"
-              >
-                <div className="flex items-center gap-2.5 mb-1">
-                  <ScrollText className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">Error Logs</h2>
-                </div>
-                <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  Últimas entradas del log de errores, filtradas por servicio.
-                </p>
-
-                <div className="flex items-center gap-3 mb-4">
-                  {(['all', 'whisper', 'gpt'] as LogSource[]).map((src) => (
-                    <button
-                      key={src}
-                      onClick={() => setLogSource(src)}
-                      className={`px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors ${
-                        logSource === src
-                          ? 'bg-violet-600 text-white'
-                          : 'bg-white/[0.03] border border-white/[0.08] text-white/40 hover:text-white/60'
-                      }`}
-                    >
-                      {src === 'all' ? 'All' : src.charAt(0).toUpperCase() + src.slice(1)}
-                    </button>
-                  ))}
-                  <button
-                    onClick={handleLoadLogs}
-                    disabled={logsLoading}
-                    className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-white/[0.08] hover:border-white/20 rounded-lg text-[12px] text-white/50 hover:text-white/70 transition-colors disabled:opacity-50"
-                  >
-                    <RefreshCw className={`h-3 w-3 ${logsLoading ? 'animate-spin' : ''}`} />
-                    {logsLoading ? 'Cargando…' : 'Cargar'}
-                  </button>
-                </div>
-
-                {logsLoaded && (
-                  <div className="rounded-xl bg-black/30 border border-white/[0.05] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.05]">
-                      <span className="font-mono text-[10px] text-white/20 tracking-widest">
-                        {logsTotal} entries · showing last {logs.length}
-                      </span>
-                    </div>
-                    <div className="overflow-y-auto max-h-72 p-4 space-y-1">
-                      {logs.length === 0 ? (
-                        <p className="text-[12px] text-white/20 text-center py-6">
-                          No hay entradas para este filtro.
-                        </p>
-                      ) : (
-                        logs.map((line, i) => (
-                          <p
-                            key={i}
-                            className="font-mono text-[11px] text-white/40 leading-relaxed break-all"
-                          >
-                            {line}
-                          </p>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-
+              <LogsSection
+                inView={inView}
+                logSource={logSource}
+                logs={logs}
+                logsTotal={logsTotal}
+                logsLoading={logsLoading}
+                logsLoaded={logsLoaded}
+                onLogSourceChange={setLogSource}
+                onLoadLogs={handleLoadLogs}
+              />
             </div>
           )}
         </div>

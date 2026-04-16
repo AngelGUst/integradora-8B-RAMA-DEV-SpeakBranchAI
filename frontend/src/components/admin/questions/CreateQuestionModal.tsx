@@ -12,7 +12,7 @@ interface Props {
   onCreate: (q: Question) => void;
 }
 
-export default function CreateQuestionModal({ onClose, onCreate }: Props) {
+export default function CreateQuestionModal({ onClose, onCreate }: Readonly<Props>) {
   const [step, setStep]               = useState<1 | 2 | 3>(1);
   const [selectedType, setSelectedType] = useState<QuestionType | null>(null);
   const [form, setForm]               = useState<FormState>(INITIAL_FORM);

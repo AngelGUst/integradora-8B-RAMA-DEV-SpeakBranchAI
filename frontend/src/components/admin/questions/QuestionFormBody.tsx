@@ -33,7 +33,7 @@ const TARGET_CATEGORIES: Array<{ value: Category; title: string; description: st
   },
 ];
 
-export default function QuestionFormBody({ type, form, set, setValue, onReadingQuestionsChange }: Props) {
+export default function QuestionFormBody({ type, form, set, setValue, onReadingQuestionsChange }: Readonly<Props>) {
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-3">
@@ -71,14 +71,14 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
       {/* ── Shared fields ── */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={LABEL}>Level</label>
-          <select value={form.level} onChange={set('level')} className={SELECT} style={{ colorScheme: 'dark' }}>
+          <label htmlFor="question-level" className={LABEL}>Level</label>
+          <select id="question-level" value={form.level} onChange={set('level')} className={SELECT} style={{ colorScheme: 'dark' }}>
             {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label className={LABEL}>Difficulty</label>
-          <select value={form.difficulty} onChange={set('difficulty')} className={SELECT} style={{ colorScheme: 'dark' }}>
+          <label htmlFor="question-difficulty" className={LABEL}>Difficulty</label>
+          <select id="question-difficulty" value={form.difficulty} onChange={set('difficulty')} className={SELECT} style={{ colorScheme: 'dark' }}>
             <option value="EASY">Easy</option>
             <option value="MEDIUM">Medium</option>
             <option value="HARD">Hard</option>
@@ -129,9 +129,9 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
           {/* Dynamic questions */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className={LABEL}>
+              <p className={LABEL}>
                 Preguntas <span className="text-violet-400/50">*</span>
-              </label>
+              </p>
               <button
                 type="button"
                 onClick={() =>
@@ -150,7 +150,7 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
             <div className="space-y-4">
               {form.reading_questions.map((rq, qi) => (
                 <ReadingQuestionBlock
-                  key={qi}
+                  key={`rq-${qi}-${rq.text.substring(0,20)}`}
                   index={qi}
                   rq={rq}
                   canRemove={form.reading_questions.length > 1}
@@ -205,9 +205,9 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
           {/* Dynamic questions */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className={LABEL}>
+              <p className={LABEL}>
                 Preguntas <span className="text-violet-400/50">*</span>
-              </label>
+              </p>
               <button
                 type="button"
                 onClick={() =>
@@ -226,7 +226,7 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
             <div className="space-y-4">
               {form.reading_questions.map((rq, qi) => (
                 <ReadingQuestionBlock
-                  key={qi}
+                  key={`lc-${qi}-${rq.text.substring(0,20)}`}
                   index={qi}
                   rq={rq}
                   canRemove={form.reading_questions.length > 1}
@@ -270,7 +270,7 @@ export default function QuestionFormBody({ type, form, set, setValue, onReadingQ
 
 // ── Internal helpers ──────────────────────────────────────────
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
+function Field({ label, required, children }: Readonly<{ label: string; required?: boolean; children: ReactNode }>) {
   return (
     <div>
       <label className={LABEL}>
@@ -283,7 +283,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 }
 
 
-function InfoBadge({ text }: { text: string }) {
+function InfoBadge({ text }: Readonly<{ text: string }>) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/[0.05]">
       <Info className="h-4 w-4 text-white/30 shrink-0" />
@@ -298,13 +298,13 @@ function ReadingQuestionBlock({
   canRemove,
   onChange,
   onRemove,
-}: {
+}: Readonly<{
   index: number;
   rq: ReadingQuestion;
   canRemove: boolean;
   onChange: (updated: ReadingQuestion) => void;
   onRemove: () => void;
-}) {
+}>) {
   const setField = (field: 'text' | 'correct_option', value: string) =>
     onChange({ ...rq, [field]: value });
 
@@ -355,8 +355,9 @@ function ReadingQuestionBlock({
       </div>
 
       <div>
-        <label className={LABEL}>Opción correcta</label>
+        <label htmlFor={`correct-option-${index}`} className={LABEL}>Opción correcta</label>
         <select
+          id={`correct-option-${index}`}
           value={rq.correct_option}
           onChange={(e) => setField('correct_option', e.target.value)}
           className={SELECT}

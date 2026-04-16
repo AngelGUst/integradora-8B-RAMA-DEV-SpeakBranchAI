@@ -11,10 +11,12 @@ export const LABEL =
 
 export const SELECT = INPUT + ' appearance-none cursor-pointer';
 
+export type OptionLetter = 'A' | 'B' | 'C' | 'D';
+
 export interface ReadingQuestion {
   text: string;
   options: [string, string, string, string];
-  correct_option: 'A' | 'B' | 'C' | 'D';
+  correct_option: OptionLetter;
 }
 
 const EMPTY_READING_QUESTION: ReadingQuestion = {
@@ -32,7 +34,7 @@ export interface FormState {
   phonetic_text: string;
   audio_url: string;
   options: [string, string, string, string];
-  correct_option: 'A' | 'B' | 'C' | 'D';
+  correct_option: OptionLetter;
   evaluation_instructions: string;
   reading_questions: ReadingQuestion[];
 }
@@ -120,7 +122,7 @@ export function initFormFromQuestion(
     phonetic_text: q.phonetic_text ?? '',
   };
 
-  if (type === 'READING') {
+  if (type === 'READING' || type === 'LISTENING_COMPREHENSION') {
     try {
       const parsed = JSON.parse(q.correct_answer) as {
         questions?: Array<{ text: string; options: string[]; correct: string }>;
@@ -133,7 +135,7 @@ export function initFormFromQuestion(
           return {
             text: rq.text,
             options: rq.options as [string, string, string, string],
-            correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+            correct_option: (LETTERS[idx] ?? 'A') as OptionLetter,
           };
         });
       } else if (Array.isArray(parsed.options)) {
@@ -142,33 +144,7 @@ export function initFormFromQuestion(
         base.reading_questions = [{
           text: '',
           options: parsed.options as [string, string, string, string],
-          correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
-        }];
-      }
-    } catch { /* keep defaults */ }
-  } else if (type === 'LISTENING_COMPREHENSION') {
-    try {
-      const parsed = JSON.parse(q.correct_answer) as {
-        questions?: Array<{ text: string; options: string[]; correct: string }>;
-        options?: string[];
-        correct?: string;
-      };
-      if (Array.isArray(parsed.questions)) {
-        base.reading_questions = parsed.questions.map((rq) => {
-          const idx = rq.options.indexOf(rq.correct);
-          return {
-            text: rq.text,
-            options: rq.options as [string, string, string, string],
-            correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
-          };
-        });
-      } else if (Array.isArray(parsed.options)) {
-        // old format — backwards compat
-        const idx = parsed.options.indexOf(parsed.correct ?? '');
-        base.reading_questions = [{
-          text: '',
-          options: parsed.options as [string, string, string, string],
-          correct_option: (LETTERS[idx] ?? 'A') as 'A' | 'B' | 'C' | 'D',
+          correct_option: (LETTERS[idx] ?? 'A') as OptionLetter,
         }];
       }
     } catch { /* keep defaults */ }

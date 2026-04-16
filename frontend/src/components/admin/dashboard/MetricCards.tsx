@@ -20,7 +20,7 @@ interface CardProps {
   format?: (n: number) => string;
 }
 
-function MetricCard({ label, value, trend, icon }: CardProps) {
+function MetricCard({ label, value, trend, icon }: Readonly<CardProps>) {
   const up = trend >= 0;
   return (
     <div className="bg-white/[0.03] border border-white/[0.05] rounded-2xl p-5 relative overflow-hidden">

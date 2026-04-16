@@ -43,14 +43,18 @@ export default function TopStudentsTable() {
         <span className="w-16 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/30 text-right">Streak</span>
       </div>
 
-      {loading ? (
-        Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
-      ) : error || data.length === 0 ? (
-        <div className="flex items-center justify-center py-12">
-          <p className="text-[13px] text-white/20">No data yet</p>
-        </div>
-      ) : (
-        data.map((s) => (
+      {(() => {
+        if (loading) {
+          return ['s1', 's2', 's3', 's4', 's5'].map((id) => <SkeletonRow key={id} />);
+        }
+        if (error || data.length === 0) {
+          return (
+            <div className="flex items-center justify-center py-12">
+              <p className="text-[13px] text-white/20">No data yet</p>
+            </div>
+          );
+        }
+        return data.map((s) => (
           <div
             key={s.rank}
             className="flex items-center gap-4 px-5 py-3.5 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.015] transition-colors"
@@ -79,8 +83,8 @@ export default function TopStudentsTable() {
               <span className="text-[13px] text-white/40">{s.streak_days}d</span>
             </div>
           </div>
-        ))
-      )}
+        ));
+      })()}
     </div>
   );
 }

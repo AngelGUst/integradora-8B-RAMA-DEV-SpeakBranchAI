@@ -8,7 +8,6 @@ import { useAuth } from '../hooks/useAuth';
 import { authApi } from '../api/authApi';
 import LoginForm from '../components/LoginForm';
 import Logo from '@/shared/components/ui/Logo';
-import Button from '@/shared/components/ui/Button';
 import type { LoginFormData } from '../schemas/authSchemas';
 import type { ApiError } from '@/shared/types/api.types';
 

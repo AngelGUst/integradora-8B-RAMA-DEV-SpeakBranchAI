@@ -12,19 +12,20 @@ function getPasswordStrength(password: string): {
   score: number;
   label: string;
   color: string;
+  textColor: string;
 } {
-  if (!password) return { score: 0, label: '', color: '' };
+  if (!password) return { score: 0, label: '', color: '', textColor: '' };
   let score = 0;
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
   if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
+  if (/\d/.test(password)) score++;
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
-  if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500' };
-  if (score === 3) return { score, label: 'Fair', color: 'bg-amber-500' };
-  if (score === 4) return { score, label: 'Good', color: 'bg-teal-500' };
-  return { score, label: 'Strong', color: 'bg-violet-500' };
+  if (score <= 2) return { score, label: 'Weak', color: 'bg-red-500', textColor: 'text-red-400' };
+  if (score === 3) return { score, label: 'Fair', color: 'bg-amber-500', textColor: 'text-amber-400' };
+  if (score === 4) return { score, label: 'Good', color: 'bg-teal-500', textColor: 'text-teal-400' };
+  return { score, label: 'Strong', color: 'bg-violet-500', textColor: 'text-violet-400' };
 }
 
 // ── Props ────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ interface RegisterFormProps {
 
 // ── Component ────────────────────────────────────────────────
 
-export default function RegisterForm({ onSubmit, serverError, serverSuccess }: RegisterFormProps) {
+export default function RegisterForm({ onSubmit, serverError, serverSuccess }: Readonly<RegisterFormProps>) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -57,12 +58,12 @@ export default function RegisterForm({ onSubmit, serverError, serverSuccess }: R
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {/* Server success banner */}
       {serverSuccess && (
-        <div
-          role="status"
+        <output
+          aria-live="polite"
           className="flex items-start gap-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3"
         >
-          <p className="text-sm text-emerald-200">{serverSuccess}</p>
-        </div>
+          <span className="text-sm text-emerald-200">{serverSuccess}</span>
+        </output>
       )}
 
       {/* Server error banner */}
@@ -139,15 +140,7 @@ export default function RegisterForm({ onSubmit, serverError, serverSuccess }: R
             </div>
             <p className="text-xs text-slate-500">
               Strength:{' '}
-              <span
-                className={
-                  strength.score <= 2
-                    ? 'text-red-400'
-                    : strength.score === 3
-                      ? 'text-amber-400'
-                      : 'text-violet-400'
-                }
-              >
+              <span className={strength.textColor}>
                 {strength.label}
               </span>
             </p>
@@ -200,10 +193,8 @@ export default function RegisterForm({ onSubmit, serverError, serverSuccess }: R
             htmlFor="gender"
             className="text-sm font-medium text-slate-400 select-none"
           >
-            Gender
-            <span className="ml-1.5 text-xs font-normal text-slate-500">
-              (optional)
-            </span>
+            Gender{' '}
+            <span className="text-xs font-normal text-slate-500">(optional)</span>
           </label>
           <select
             id="gender"

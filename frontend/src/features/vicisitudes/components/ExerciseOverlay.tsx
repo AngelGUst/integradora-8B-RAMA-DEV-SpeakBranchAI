@@ -109,8 +109,8 @@ export function ExerciseOverlay() {
                 <motion.button
                   key={opt.id}
                   onClick={() => handleSelect(opt.id)}
-                  whileHover={!revealed ? { scale: 1.015 } : {}}
-                  whileTap={!revealed ? { scale: 0.985 } : {}}
+                  whileHover={revealed ? {} : { scale: 1.015 }}
+                  whileTap={revealed ? {} : { scale: 0.985 }}
                   className="w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition-colors"
                   style={{ background: bg, border: `1.5px solid ${border}`, color: textCol }}
                 >

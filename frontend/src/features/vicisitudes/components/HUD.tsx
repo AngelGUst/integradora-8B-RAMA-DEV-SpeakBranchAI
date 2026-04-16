@@ -63,12 +63,12 @@ export function HUD() {
 
         {/* Lives */}
         <div className="flex gap-1">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {[0, 1, 2].map(n => (
             <Heart
-              key={i}
+              key={`life-${n}`}
               size={16}
-              fill={i < lives ? '#F87171' : 'transparent'}
-              stroke={i < lives ? '#F87171' : '#374151'}
+              fill={n < lives ? '#F87171' : 'transparent'}
+              stroke={n < lives ? '#F87171' : '#374151'}
             />
           ))}
         </div>

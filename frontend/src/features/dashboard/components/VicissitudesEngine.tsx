@@ -83,12 +83,12 @@ function catmull(pts: [number, number][]): string {
 
 function trailFill(pts: [number, number][]): string {
   const line = catmull(pts);
-  const last = pts[pts.length - 1], first = pts[0];
+  const last = pts.at(-1)!, first = pts[0];
   return `${line} L${last[0]},${Y_BOT} L${first[0]},${Y_BOT} Z`;
 }
 
 // ─── SVG Definitions (defs only, no visible elements) ────────────────────────────
-function Defs({ uid }: { uid: string }) {
+function Defs({ uid }: Readonly<{ uid: string }>) {
   return (
     <defs>
       {/* Atmospheric zone radials */}
@@ -145,7 +145,7 @@ function Defs({ uid }: { uid: string }) {
 }
 
 // ─── Zone Atmosphere ─────────────────────────────────────────────────────────────
-function Atmosphere({ uid }: { uid: string }) {
+function Atmosphere({ uid }: Readonly<{ uid: string }>) {
   return (
     <g>
       {/* Zone fogs — full width bleed */}
@@ -196,9 +196,9 @@ function Atmosphere({ uid }: { uid: string }) {
 }
 
 // ─── Trajectory Line ─────────────────────────────────────────────────────────────
-function Trayectoria({ pts, attempts, uid }: {
+function Trayectoria({ pts, attempts, uid }: Readonly<{
   pts: [number, number][]; attempts: Attempt[]; uid: string
-}) {
+}>) {
   if (!pts.length || pts.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) {
     return null;
   }
@@ -225,10 +225,10 @@ function Trayectoria({ pts, attempts, uid }: {
 
       {/* Checkpoint nodes — only past points */}
       {pts.slice(0, -1).map(([cx, cy], i) => {
-        const ok = attempts[i].correct !== false;
+        const ok = attempts[i].correct === true;
         const color = ok ? ZONE_COLOR[attempts[i].difficulty] : '#F87171';
         return (
-          <motion.circle key={i} cx={cx} cy={cy} r={3.5}
+          <motion.circle key={`cp-${attempts[i].xp}-${attempts[i].score}-${i}`} cx={cx} cy={cy} r={3.5}
             fill={color} opacity={0.55}
             stroke={color} strokeWidth="1" strokeOpacity={0.25}
             initial={{ scale: 0 }}
@@ -241,20 +241,25 @@ function Trayectoria({ pts, attempts, uid }: {
 }
 
 // ─── AlienPilot — posicionado EXACTAMENTE en el endpoint de la línea ─────────────
-function AlienPilot({ cx, cy, color, mood }: {
+function AlienPilot({ cx, cy, color, mood }: Readonly<{
   cx: number; cy: number; color: string; mood: 'neutral' | 'up' | 'down'
-}) {
+}>) {
   if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
   // La nave mide 28 × 50 unidades SVG.
   // `cy` es el punto donde el nozzle de la nave toca la línea.
   // Desplazamos el grupo para que el fondo del cuerpo quede en cy.
 
-  const tilt = mood === 'up' ? -5 : mood === 'down' ? 6 : 0;
+  const tilt = (() => {
+    if (mood === 'up') { return -5; }
+    if (mood === 'down') { return 6; }
+    return 0;
+  })();
 
-  const flame = {
-    ry: mood === 'up' ? [5, 10, 5] : mood === 'down' ? [2, 3.5, 2] : [3.5, 7, 3.5],
-    dur: mood === 'up' ? 0.2 : mood === 'down' ? 0.55 : 0.36,
-  };
+  const flame = (() => {
+    if (mood === 'up') { return { ry: [5, 10, 5], dur: 0.2 }; }
+    if (mood === 'down') { return { ry: [2, 3.5, 2], dur: 0.55 }; }
+    return { ry: [3.5, 7, 3.5], dur: 0.36 };
+  })();
 
   return (
     <motion.g
@@ -299,10 +304,18 @@ function AlienPilot({ cx, cy, color, mood }: {
         <ellipse cx={16.5} cy={15.5} rx={1.9} ry={2.2} fill="white" />
         {/* Pupils */}
         <motion.circle cx={11.5} cy={16} r={1.1} fill="#030812"
-          animate={{ cx: mood === 'up' ? 12 : mood === 'down' ? 11 : 11.5 }}
+          animate={{ cx: (() => {
+            if (mood === 'up') { return 12; }
+            if (mood === 'down') { return 11; }
+            return 11.5;
+          })() }}
           transition={{ type: 'spring', stiffness: 200, damping: 18 }} />
         <motion.circle cx={16.5} cy={16} r={1.1} fill="#030812"
-          animate={{ cx: mood === 'up' ? 17 : mood === 'down' ? 16 : 16.5 }}
+          animate={{ cx: (() => {
+            if (mood === 'up') { return 17; }
+            if (mood === 'down') { return 16; }
+            return 16.5;
+          })() }}
           transition={{ type: 'spring', stiffness: 200, damping: 18 }} />
         {/* Glints */}
         <circle cx={12.2} cy={15} r={0.5} fill="white" opacity="0.88" />
@@ -338,17 +351,16 @@ function AlienPilot({ cx, cy, color, mood }: {
 }
 
 // ─── Floating stats — posicionados sobre el canvas SVG como texto ─────────────────
-// Todo en el mismo layer: nada por encima, nada por debajo.
 
-function FloatingStats({ attempts, uid: _uid }: {
+function FloatingStats({ attempts, uid: _uid }: Readonly<{
   attempts: Attempt[]; uid: string
-}) {
+}>) {
   const totalXP = attempts.reduce((s, a) => s + a.xp, 0);
   const lastDiff = attempts.at(-1)?.difficulty ?? 'MEDIUM';
   const lastColor = ZONE_COLOR[lastDiff];
   const streak = (() => {
     let s = 0;
-    for (let i = attempts.length - 1; i >= 0; i--) { if (attempts[i].correct !== false) s++; else break; }
+    for (let i = attempts.length - 1; i >= 0; i--) { if (attempts[i].correct === true) s++; else break; }
     return s;
   })();
   const bestScore = Math.max(...attempts.map(a => a.score));
@@ -403,8 +415,8 @@ function FloatingStats({ attempts, uid: _uid }: {
       <text x={barX + 62} y={barY - 12} textAnchor="middle"
         fontSize="7.5" fontWeight="700" fill="rgba(255,255,255,0.2)"
         letterSpacing="2">HACIA B2</text>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <rect key={i}
+      {['b2-0', 'b2-1', 'b2-2', 'b2-3', 'b2-4'].map((id, i) => (
+        <rect key={id}
           x={barX + i * 25} y={barY - 7}
           width={22} height={4} rx={2}
           fill={i < barSegs ? '#34D399' : 'rgba(255,255,255,0.07)'} />
@@ -427,11 +439,11 @@ function FloatingStats({ attempts, uid: _uid }: {
 }
 
 // ─── ExerciseSheet ─────────────────────────────────────────────────────────────
-function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
+function ExerciseSheet({ exercise, index, onAnswer, onClose }: Readonly<{
   exercise: Exercise; index: number;
   onAnswer: (c: boolean, s: number) => void;
   onClose: () => void
-}) {
+}>) {
   const [sel, setSel] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const { color, label, Icon } = SKILL_CFG[exercise.skill];
@@ -439,7 +451,8 @@ function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
   function confirm() {
     if (sel === null || revealed) return;
     const ok = sel === exercise.correct;
-    const score = ok ? Math.round(65 + Math.random() * 30) : Math.round(30 + Math.random() * 30);
+    const rand = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000;
+    const score = ok ? Math.round(65 + rand() * 30) : Math.round(30 + rand() * 30);
     setRevealed(true);
     setTimeout(() => { onAnswer(ok, score); setSel(null); setRevealed(false); }, 700);
   }
@@ -480,13 +493,16 @@ function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
               else if (i === sel) { bg = 'rgba(239,68,68,0.08)'; bc = '#EF4444'; tc = '#FCA5A5'; }
             } else if (i === sel) { bg = `${color}10`; bc = `${color}55`; tc = '#F1F5F9'; }
             return (
-              <motion.button key={i}
-                onClick={() => { if (!revealed) setSel(i); }}
-                whileHover={!revealed ? { x: 2 } : {}}
+              <motion.button key={opt}
+                onClick={() => {
+                  if (revealed) { return; }
+                  setSel(i);
+                }}
+                whileHover={revealed ? {} : { x: 2 }}
                 className="rounded-xl px-3 py-2 text-left text-xs font-medium transition-all"
                 style={{ background: bg, border: `1px solid ${bc}`, color: tc }}>
                 <span style={{ fontFamily: 'monospace', fontSize: 8, opacity: 0.25, marginRight: 4 }}>
-                  {String.fromCharCode(65 + i)}.
+                  {String.fromCodePoint(65 + i)}.
                 </span>
                 {opt}
               </motion.button>
@@ -521,7 +537,7 @@ function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
 
 // ─── Main ────────────────────────────────────────────────────────────────────────
 export default function VicissitudesEngine() {
-  const uid = useId().replace(/:/g, '');
+  const uid = useId().replaceAll(':', '');
   const [attempts, setAttempts] = useState<Attempt[]>(SEED);
   const [practicing, setPracticing] = useState(false);
   const [exIdx, setExIdx] = useState(0);
@@ -529,12 +545,20 @@ export default function VicissitudesEngine() {
 
   const n = attempts.length;
   const pts = attempts.map<[number, number]>((a, i) => [toX(i, n), toY(a.score)]);
-  const last = pts[pts.length - 1];
+  const last = pts.at(-1)!;
   const lastD = attempts.at(-1)?.difficulty ?? 'MEDIUM';
 
   function handleAnswer(ok: boolean, score: number) {
-    const diff = score >= HARD_S ? 'HARD' : score >= EASY_S ? 'MEDIUM' : 'EASY';
-    const xp = diff === 'HARD' ? 23 : diff === 'MEDIUM' ? 15 : 8;
+    const diff = (() => {
+      if (score >= HARD_S) { return 'HARD' as const; }
+      if (score >= EASY_S) { return 'MEDIUM' as const; }
+      return 'EASY' as const;
+    })();
+    const xp = (() => {
+      if (diff === 'HARD') { return 23; }
+      if (diff === 'MEDIUM') { return 15; }
+      return 8;
+    })();
     setAttempts(prev => [...prev, { xp, difficulty: diff, score, correct: ok }]);
     setMood(ok ? 'up' : 'down');
     setTimeout(() => setMood('neutral'), 1500);

@@ -98,7 +98,7 @@ const FEATURES = [
   { icon: <Trophy size={14} />, label: 'Resultado CEFR' },
 ];
 
-function WelcomeScreen({ onStart }: { onStart: () => void }) {
+function WelcomeScreen({ onStart }: Readonly<{ onStart: () => void }>) {
   return (
     <motion.div
       className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center"
@@ -202,7 +202,7 @@ function QuizScreen({
   onSelect,
   onNext,
   isLast,
-}: QuizScreenProps) {
+}: Readonly<QuizScreenProps>) {
   const progress = ((current + 1) / total) * 100;
   const canContinue = selected !== null;
   const resources = question.resource_requirements;
@@ -215,14 +215,14 @@ function QuizScreen({
     }
 
     const ttsText = question.phonetic_text || question.text;
-    if (!ttsText || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+    if (!ttsText || globalThis.window === undefined || !('speechSynthesis' in globalThis)) {
       return;
     }
 
     const utterance = new SpeechSynthesisUtterance(ttsText);
     utterance.lang = 'en-US';
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    globalThis.speechSynthesis.cancel();
+    globalThis.speechSynthesis.speak(utterance);
   };
 
   return (
@@ -312,7 +312,7 @@ function QuizScreen({
                 const isSelected = selected === i;
                 return (
                   <motion.button
-                    key={i}
+                    key={`${i}-${opt}`}
                     onClick={() => onSelect(i)}
                     className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
                     style={{
@@ -429,7 +429,7 @@ interface ResultScreenProps {
 
 const CEFR_ORDER: CefrLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScreenProps) {
+function ResultScreen({ level, correct, total, accuracy, onFinish }: Readonly<ResultScreenProps>) {
   const meta = CEFR_META[level];
   const levelIndex = CEFR_ORDER.indexOf(level);
   const percentage = Math.round(accuracy * 100);
@@ -534,7 +534,11 @@ function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScree
                   <span
                     className="text-[10px] font-bold transition-all"
                     style={{
-                      color: isCurrent ? m.color : isActive ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+                      color: (() => {
+                        if (isCurrent) { return m.color; }
+                        if (isActive) { return 'rgba(255,255,255,0.4)'; }
+                        return 'rgba(255,255,255,0.15)';
+                      })(),
                     }}
                   >
                     {lvl}

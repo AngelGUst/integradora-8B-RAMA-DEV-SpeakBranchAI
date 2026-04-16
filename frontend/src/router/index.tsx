@@ -42,7 +42,7 @@ function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string
  * Public-only route: redirects authenticated users.
  * After auth, sends to /onboarding if placement not done, else /dashboard.
  */
-function PublicRoute({ children }: { children: React.ReactNode }) {
+function PublicRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (isAuthenticated) {
@@ -59,11 +59,11 @@ function PrivateRoute({
   children,
   requiresPlacement = false,
   allowedRoles,
-}: {
+}: Readonly<{
   children: React.ReactNode;
   requiresPlacement?: boolean;
   allowedRoles?: UserRole[];
-}) {
+}>) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -79,7 +79,7 @@ function PrivateRoute({
 /**
  * Admin-only route: requires auth and ADMIN role.
  */
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -90,7 +90,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 /**
  * Onboarding route: requires auth, but redirects if placement already done.
  */
-function OnboardingRoute({ children }: { children: React.ReactNode }) {
+function OnboardingRoute({ children }: Readonly<{ children: React.ReactNode }>) {
   const { isAuthenticated, isInitializing, user } = useAuth();
   if (isInitializing) return <AppLoader />;
   if (!isAuthenticated) return <Navigate to="/login" replace />;

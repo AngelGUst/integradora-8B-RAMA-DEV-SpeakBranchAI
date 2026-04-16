@@ -4,7 +4,7 @@ interface DiagnosticQuestionsListProps {
   limit?: number;
 }
 
-export function DiagnosticQuestionsList({ limit }: DiagnosticQuestionsListProps) {
+export function DiagnosticQuestionsList({ limit }: Readonly<DiagnosticQuestionsListProps>) {
   const { data, isLoading, error, refetch } = useDiagnosticQuestions({ limit });
 
   if (isLoading) {

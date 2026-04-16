@@ -2,7 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { motion, useInView, type Variants } from 'framer-motion';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { questionsService, type QuestionFilters } from '../../services/questionsService';
-import type { Question, QuestionType, Level, Difficulty, Category } from '../../types/question';
+import type { Question } from '../../types/question';
 import QuestionRow from '../../components/admin/questions/QuestionRow';
 import QuestionFilter, { type FilterState } from '../../components/admin/questions/QuestionFilters';
 import CreateQuestionModal from '../../components/admin/questions/CreateQuestionModal';
@@ -68,8 +68,8 @@ export default function QuestionsPage() {
   const [pageSizeInput, setPageSizeInput] = useState('10');
 
   function applyPageSize() {
-    const n = parseInt(pageSizeInput, 10);
-    if (!isNaN(n) && n >= 1) {
+    const n = Number.parseInt(pageSizeInput, 10);
+    if (!Number.isNaN(n) && n >= 1) {
       setPageSize(n);
       setPage(1);
     } else {
@@ -81,10 +81,10 @@ export default function QuestionsPage() {
     setLoading(true);
     try {
       const apiFilters: QuestionFilters = {
-        ...(filters.type       ? { type:       filters.type       as QuestionType } : {}),
-        ...(filters.level      ? { level:      filters.level      as Level }       : {}),
-        ...(filters.difficulty ? { difficulty: filters.difficulty as Difficulty }  : {}),
-        ...(filters.category   ? { category:   filters.category   as Category }    : {}),
+        ...(filters.type       ? { type:       filters.type       } : {}),
+        ...(filters.level      ? { level:      filters.level      } : {}),
+        ...(filters.difficulty ? { difficulty: filters.difficulty } : {}),
+        ...(filters.category   ? { category:   filters.category   } : {}),
       };
       setQuestions(await questionsService.getQuestions(apiFilters));
     } catch {
@@ -193,15 +193,17 @@ export default function QuestionsPage() {
           custom={1}
           className="border border-white/[0.05] rounded-2xl overflow-hidden bg-white/[0.01]"
         >
-          {loading ? (
-            Array.from({ length: pageSize }).map((_, i) => <SkeletonRow key={i} />)
-          ) : visible.length === 0 ? (
+          {loading && (
+            Array.from({ length: pageSize }, (_, n) => `skeleton-${n}`).map(key => <SkeletonRow key={key} />)
+          )}
+          {!loading && visible.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24">
               <p className="text-[14px] text-white/25 leading-relaxed">
                 No questions yet. Create your first one.
               </p>
             </div>
-          ) : (
+          )}
+          {!loading && visible.length > 0 && (
             paginated.map((q, i) => (
               <QuestionRow
                 key={q.id}
@@ -225,7 +227,7 @@ export default function QuestionsPage() {
             className="mt-4 flex items-center justify-between"
           >
             <p className="text-[12px] text-white/20">
-              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, visible.length)} de {visible.length} pregunta{visible.length !== 1 ? 's' : ''}
+              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, visible.length)} de {visible.length} pregunta{visible.length === 1 ? '' : 's'}
             </p>
 
             <div className="flex items-center gap-1">
@@ -240,17 +242,17 @@ export default function QuestionsPage() {
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                 .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                  if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('…');
                   acc.push(p);
                   return acc;
                 }, [])
-                .map((p, i) =>
+                .map((p) =>
                   p === '…' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                    <span key={`ellipsis-${p}`} className="px-1 text-[12px] text-white/20">…</span>
                   ) : (
                     <button
                       key={p}
-                      onClick={() => setPage(p as number)}
+                      onClick={() => setPage(p)}
                       className={`min-w-[28px] h-7 rounded-lg text-[12px] font-medium transition-colors ${
                         page === p
                           ? 'bg-violet-600 text-white'

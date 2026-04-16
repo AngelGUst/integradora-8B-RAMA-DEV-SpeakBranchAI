@@ -104,15 +104,17 @@ function SkeletonCard() {
 
 // ── Word Card ─────────────────────────────────────────────────
 
+interface WordCardProps {
+  readonly entry: UserVocabEntry;
+  readonly onMarkSeen: (id: number) => void;
+  readonly onPractice: (id: number, success: boolean) => void;
+}
+
 function WordCard({
   entry,
   onMarkSeen,
   onPractice,
-}: {
-  entry: UserVocabEntry;
-  onMarkSeen: (id: number) => void;
-  onPractice: (id: number, success: boolean) => void;
-}) {
+}: WordCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const w = entry.vocabulary;
@@ -120,14 +122,14 @@ function WordCard({
 
   const playAudio = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(w.word);
     u.lang = 'en-US';
     u.rate = 0.82;
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    window.speechSynthesis.speak(u);
+    globalThis.speechSynthesis.speak(u);
   };
 
   const handleExpand = () => {
@@ -138,8 +140,11 @@ function WordCard({
   return (
     <motion.div
       layout
+      role="button"
+      tabIndex={0}
       className="border border-white/[0.05] rounded-2xl bg-white/[0.01] overflow-hidden cursor-pointer hover:border-white/[0.1] transition-colors"
       onClick={handleExpand}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleExpand(); }}
     >
       {/* Header row */}
       <div className="flex items-start justify-between gap-3 px-5 py-4">
@@ -170,6 +175,7 @@ function WordCard({
           {expanded
             ? <ChevronUp size={13} className="text-white/20" />
             : <ChevronDown size={13} className="text-white/20" />}
+
         </div>
       </div>
 
@@ -205,16 +211,16 @@ function WordCard({
                 </div>
               )}
               {/* Practice buttons */}
-              <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+              <div className="flex gap-2 pt-1">
                 <button
-                  onClick={() => onPractice(entry.id, true)}
+                  onClick={(e) => { e.stopPropagation(); onPractice(entry.id, true); }}
                   disabled={entry.mastery_level >= 4}
                   className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-emerald-900/40 text-emerald-300 border border-emerald-700/30 hover:bg-emerald-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
                   ✓ Lo sé
                 </button>
                 <button
-                  onClick={() => onPractice(entry.id, false)}
+                  onClick={(e) => { e.stopPropagation(); onPractice(entry.id, false); }}
                   disabled={entry.mastery_level <= 0}
                   className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-amber-900/40 text-amber-300 border border-amber-700/30 hover:bg-amber-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
@@ -224,7 +230,7 @@ function WordCard({
 
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/20">
-                  Repasado {entry.times_reviewed} vez{entry.times_reviewed !== 1 ? 'es' : ''}
+                  Repasado {entry.times_reviewed} vez{entry.times_reviewed === 1 ? '' : 'es'}
                 </span>
                 <span className="text-[11px] text-white/20">
                   Añadida {new Date(entry.date_assigned).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
@@ -235,6 +241,26 @@ function WordCard({
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+// ── Empty State ───────────────────────────────────────────────
+
+function EmptyState({ hasFilters }: { readonly hasFilters: boolean }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <p className="text-[32px] mb-3">📚</p>
+      <p className="text-[15px] font-semibold text-white/40 mb-1">
+        {hasFilters
+          ? 'No hay palabras con esos filtros.'
+          : 'Tu colección está vacía.'}
+      </p>
+      <p className="text-[13px] text-white/20">
+        {hasFilters
+          ? null
+          : 'Completa ejercicios para acumular vocabulario.'}
+      </p>
+    </div>
   );
 }
 
@@ -249,10 +275,11 @@ export default function VocabularyCollectionPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState('');
-  const [levelFilter, setLevel]     = useState('');
-  const [masteryFilter, setMastery] = useState('');
+  const [levelFilter, setLevelFilter]     = useState('');
+  const [masteryFilter, setMasteryFilter] = useState('');
   const [pageSize, setPageSize]     = useState(4);
   const [rawPageSize, setRawPageSize] = useState('4');
+
   const [page, setPage]             = useState(1);
 
   const load = useCallback(async () => {
@@ -263,9 +290,9 @@ export default function VocabularyCollectionPage() {
       if (levelFilter)  params.set('level', levelFilter);
       if (masteryFilter !== '') params.set('mastery', masteryFilter);
       if (search.trim()) params.set('search', search.trim());
-      const res = await apiFetch<{ data: UserVocabEntry[]; total: number }>(
-        `/vocabulary/my/${params.toString() ? `?${params}` : ''}`
-      );
+      const qs = params.toString();
+      const url = qs ? `/vocabulary/my/?${qs}` : '/vocabulary/my/';
+      const res = await apiFetch<{ data: UserVocabEntry[]; total: number }>(url);
       setEntries(res.data);
     } catch {
       setError('No se pudo cargar el vocabulario.');
@@ -287,8 +314,8 @@ export default function VocabularyCollectionPage() {
   };
 
   const handlePageSizeBlur = () => {
-    const parsed = parseInt(rawPageSize, 10);
-    const even = isNaN(parsed) || parsed < 1 ? 4 : toEven(parsed);
+    const parsed = Number.parseInt(rawPageSize, 10);
+    const even = Number.isNaN(parsed) || parsed < 1 ? 4 : toEven(parsed);
     setPageSize(even);
     setRawPageSize(String(even));
     setPage(1);
@@ -400,7 +427,7 @@ export default function VocabularyCollectionPage() {
               {/* Level */}
               <select
                 value={levelFilter}
-                onChange={e => setLevel(e.target.value)}
+                onChange={e => setLevelFilter(e.target.value)}
                 className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
               >
                 <option value="">Todos los niveles</option>
@@ -410,7 +437,7 @@ export default function VocabularyCollectionPage() {
               {/* Mastery */}
               <select
                 value={masteryFilter}
-                onChange={e => setMastery(e.target.value)}
+                onChange={e => setMasteryFilter(e.target.value)}
                 className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
               >
                 <option value="">Todos los estados</option>
@@ -421,8 +448,9 @@ export default function VocabularyCollectionPage() {
 
               {/* Page size */}
               <div className="flex items-center gap-2">
-                <label className="text-[11px] text-white/30 whitespace-nowrap">Por página</label>
+                <label htmlFor="page-size-input" className="text-[11px] text-white/30 whitespace-nowrap">Por página</label>
                 <input
+                  id="page-size-input"
                   type="number"
                   value={rawPageSize}
                   onChange={handlePageSizeChange}
@@ -441,26 +469,18 @@ export default function VocabularyCollectionPage() {
             animate={inView ? 'visible' : 'hidden'}
             custom={1}
           >
-            {loading ? (
+            {loading && (
               <div className="grid sm:grid-cols-2 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+                {Array.from({ length: 6 }, (_, n) => `skeleton-${n}`).map(key => <SkeletonCard key={key} />)}
               </div>
-            ) : error ? (
+            )}
+            {!loading && error && (
               <p className="text-center py-16 text-[13px] text-red-400/70">{error}</p>
-            ) : entries.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <p className="text-[32px] mb-3">📚</p>
-                <p className="text-[15px] font-semibold text-white/40 mb-1">
-                  {search || levelFilter || masteryFilter
-                    ? 'No hay palabras con esos filtros.'
-                    : 'Tu colección está vacía.'}
-                </p>
-                <p className="text-[13px] text-white/20">
-                  {!(search || levelFilter || masteryFilter) &&
-                    'Completa ejercicios para acumular vocabulario.'}
-                </p>
-              </div>
-            ) : (
+            )}
+            {!loading && !error && entries.length === 0 && (
+              <EmptyState hasFilters={!!(search || levelFilter || masteryFilter)} />
+            )}
+            {!loading && !error && entries.length > 0 && (
               <div className="grid sm:grid-cols-2 gap-3">
                 {paginatedEntries.map(entry => (
                   <WordCard
@@ -516,7 +536,7 @@ export default function VocabularyCollectionPage() {
               className="mt-3 text-center text-[12px] text-white/20"
             >
               Mostrando {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, entries.length)} de{' '}
-              {entries.length} palabra{entries.length !== 1 ? 's' : ''}
+              {entries.length} palabra{entries.length === 1 ? '' : 's'}
             </motion.p>
           )}
         </div>

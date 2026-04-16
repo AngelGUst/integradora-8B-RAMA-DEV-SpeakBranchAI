@@ -8,7 +8,7 @@ interface Props {
   questionId: number;
 }
 
-export default function VocabularyPanel({ questionId }: Props) {
+export default function VocabularyPanel({ questionId }: Readonly<Props>) {
   const [linked, setLinked]               = useState<QuestionVocabularyItem[]>([]);
   const [loadingLinked, setLoadingLinked] = useState(true);
 
@@ -46,7 +46,12 @@ export default function VocabularyPanel({ questionId }: Props) {
     fetch(`${API_BASE}/vocabulary/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.ok ? r.json() : Promise.reject())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('No se pudo cargar el banco de vocabulario.');
+        }
+        return response.json();
+      })
       .then(json => setAllWords(json.data ?? []))
       .catch(() => { /* silent */ })
       .finally(() => setLoadingBank(false));
@@ -66,6 +71,72 @@ export default function VocabularyPanel({ questionId }: Props) {
 
   const totalPages  = Math.max(1, Math.ceil(searchResults.length / PAGE_SIZE));
   const paginated   = searchResults.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  let linkedContent = (
+    <div className="space-y-2">
+      {linked
+        .slice()
+        .sort((a, b) => Number(b.is_key) - Number(a.is_key))
+        .map((item) => (
+          <div
+            key={item.id}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]"
+          >
+            <button
+              type="button"
+              onClick={() => handleToggleKey(item)}
+              title={item.is_key ? 'Quitar clave' : 'Marcar como clave'}
+              className={`shrink-0 transition-colors ${
+                item.is_key
+                  ? 'text-amber-400 hover:text-amber-300'
+                  : 'text-white/20 hover:text-white/50'
+              }`}
+            >
+              {item.is_key ? <Star className="h-3.5 w-3.5 fill-current" /> : <StarOff className="h-3.5 w-3.5" />}
+            </button>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-white/80 truncate">
+                {item.vocabulary.word}
+                {item.is_key && (
+                  <span className="ml-2 text-[9px] font-bold uppercase tracking-wider text-amber-400/70">
+                    clave
+                  </span>
+                )}
+              </p>
+              <p className="text-[11px] text-white/30 truncate">{item.vocabulary.meaning}</p>
+            </div>
+
+            <span className="text-[10px] font-mono text-white/20 shrink-0">{item.vocabulary.level}</span>
+
+            <button
+              type="button"
+              onClick={() => handleRemove(item)}
+              disabled={removing === item.id}
+              className="shrink-0 p-1 rounded-lg text-white/20 hover:text-red-400/70 hover:bg-red-500/[0.06] transition-colors disabled:opacity-30"
+            >
+              {removing === item.id
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <X className="h-3.5 w-3.5" />}
+            </button>
+          </div>
+        ))}
+    </div>
+  );
+
+  if (loadingLinked) {
+    linkedContent = (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-5 w-5 animate-spin text-white/20" />
+      </div>
+    );
+  } else if (linked.length === 0) {
+    linkedContent = (
+      <p className="text-[12px] text-white/20 py-4 text-center">
+        Ninguna palabra vinculada todavía.
+      </p>
+    );
+  }
 
   const handleAdd = async (vocab: VocabularyWord) => {
     setAdding(vocab.id);
@@ -115,79 +186,18 @@ export default function VocabularyPanel({ questionId }: Props) {
     <div className="space-y-5">
       {/* Linked vocabulary */}
       <div>
-        <label className={LABEL}>Palabras vinculadas</label>
+        <p className={LABEL}>Palabras vinculadas</p>
 
-        {loadingLinked ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-white/20" />
-          </div>
-        ) : linked.length === 0 ? (
-          <p className="text-[12px] text-white/20 py-4 text-center">
-            Ninguna palabra vinculada todavía.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {linked
-              .slice()
-              .sort((a, b) => Number(b.is_key) - Number(a.is_key))
-              .map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06]"
-                >
-                  {/* Key toggle */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleKey(item)}
-                    title={item.is_key ? 'Quitar clave' : 'Marcar como clave'}
-                    className={`shrink-0 transition-colors ${
-                      item.is_key
-                        ? 'text-amber-400 hover:text-amber-300'
-                        : 'text-white/20 hover:text-white/50'
-                    }`}
-                  >
-                    {item.is_key ? <Star className="h-3.5 w-3.5 fill-current" /> : <StarOff className="h-3.5 w-3.5" />}
-                  </button>
-
-                  {/* Word info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-white/80 truncate">
-                      {item.vocabulary.word}
-                      {item.is_key && (
-                        <span className="ml-2 text-[9px] font-bold uppercase tracking-wider text-amber-400/70">
-                          clave
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-[11px] text-white/30 truncate">{item.vocabulary.meaning}</p>
-                  </div>
-
-                  {/* Level badge */}
-                  <span className="text-[10px] font-mono text-white/20 shrink-0">{item.vocabulary.level}</span>
-
-                  {/* Remove */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(item)}
-                    disabled={removing === item.id}
-                    className="shrink-0 p-1 rounded-lg text-white/20 hover:text-red-400/70 hover:bg-red-500/[0.06] transition-colors disabled:opacity-30"
-                  >
-                    {removing === item.id
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <X className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              ))}
-          </div>
-        )}
+        {linkedContent}
       </div>
 
       {/* Search to add */}
       <div>
-        <label className={LABEL}>Agregar del banco de vocabulario</label>
+        <label htmlFor="vocabulary-search" className={LABEL}>Agregar del banco de vocabulario</label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
           <input
+            id="vocabulary-search"
             type="text"
             value={searchQuery}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}

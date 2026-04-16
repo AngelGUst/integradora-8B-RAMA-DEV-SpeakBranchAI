@@ -46,7 +46,7 @@ async function fetchMyVocabulary(): Promise<UserVocabEntry[]> {
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor((globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -61,7 +61,7 @@ function weightedSort(entries: UserVocabEntry[]): UserVocabEntry[] {
     .map(e => ({
       entry: e,
       score: 1 / (1 + (now - new Date(e.date_assigned).getTime()) / 86_400_000)
-             + Math.random() * 0.4,
+             + (globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * 0.4,
     }))
     .sort((a, b) => b.score - a.score)
     .map(x => x.entry);
@@ -69,11 +69,12 @@ function weightedSort(entries: UserVocabEntry[]): UserVocabEntry[] {
 
 // ── Countdown bar ──────────────────────────────────────────────
 
-function CountdownBar({ seconds, total }: { seconds: number; total: number }) {
+function CountdownBar({ seconds, total }: Readonly<{ seconds: number; total: number }>) {
   const pct = seconds / total;
-  const color =
-    pct > 0.5 ? 'bg-violet-500' :
-    pct > 0.25 ? 'bg-amber-400' : 'bg-red-500';
+  const lowColor = pct > 0.25 ? 'bg-amber-400' : 'bg-red-500';
+  const color = pct > 0.5 ? 'bg-violet-500' : lowColor;
+  const lowTextColor = pct > 0.25 ? '#fbbf24' : '#f87171';
+  const textColor = pct > 0.5 ? '#a78bfa' : lowTextColor;
 
   return (
     <div className="flex items-center gap-3">
@@ -86,7 +87,7 @@ function CountdownBar({ seconds, total }: { seconds: number; total: number }) {
       </div>
       <span
         className="text-[13px] font-black tabular-nums w-5 text-right"
-        style={{ color: pct > 0.5 ? '#a78bfa' : pct > 0.25 ? '#fbbf24' : '#f87171' }}
+        style={{ color: textColor }}
       >
         {seconds}
       </span>
@@ -96,18 +97,18 @@ function CountdownBar({ seconds, total }: { seconds: number; total: number }) {
 
 // ── TTS button ─────────────────────────────────────────────────
 
-function TTSButton({ word }: { word: string }) {
+function TTSButton({ word }: Readonly<{ word: string }>) {
   const [speaking, setSpeaking] = useState(false);
 
   const speak = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
     u.lang = 'en-US'; u.rate = 0.82;
     u.onend = () => setSpeaking(false);
     u.onerror = () => setSpeaking(false);
     setSpeaking(true);
-    window.speechSynthesis.speak(u);
+    globalThis.speechSynthesis.speak(u);
   };
 
   return (
@@ -129,10 +130,10 @@ function TTSButton({ word }: { word: string }) {
 export default function VocabularyGameDrawer({
   open,
   onClose,
-}: {
+}: Readonly<{
   open: boolean;
   onClose: () => void;
-}) {
+}>) {
   const [entries, setEntries]     = useState<UserVocabEntry[]>([]);
   const [phase, setPhase]         = useState<GamePhase>('loading');
   const [current, setCurrent]     = useState(0);
@@ -233,19 +234,19 @@ export default function VocabularyGameDrawer({
   // Pronounce word when the answer is revealed (correct or wrong)
   useEffect(() => {
     if ((phase !== 'correct' && phase !== 'wrong') || !word) return;
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word.word);
     u.lang = 'en-US';
     u.rate = 0.82;
-    window.speechSynthesis.speak(u);
+    globalThis.speechSynthesis.speak(u);
   }, [phase, word]);
 
   // Any keypress on 'wrong' → next word
   useEffect(() => {
     if (phase !== 'wrong') return;
     const handler = () => goNext(current, entries);
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    globalThis.addEventListener('keydown', handler);
+    return () => globalThis.removeEventListener('keydown', handler);
   }, [phase, current, entries, goNext]);
 
   const handleChange = useCallback((val: string) => {
@@ -279,13 +280,18 @@ export default function VocabularyGameDrawer({
   // ── Render ─────────────────────────────────────────────────────
 
   const safeExample = word?.example_sentence
-    ? word.example_sentence.replace(new RegExp(`\\b${word.word}\\b`, 'gi'), '___')
+    ? word.example_sentence.replaceAll(new RegExp(String.raw`\b${word.word}\b`, 'gi'), '___')
     : '';
 
+  const wrongOrDefault =
+    phase === 'wrong' ? 'border-red-500/50 bg-red-500/[0.04]' : 'border-white/[0.1] bg-white/[0.04] focus-within:border-violet-500/60';
   const inputBorder =
-    phase === 'correct' ? 'border-emerald-500/60 bg-emerald-500/[0.04]' :
-    phase === 'wrong'   ? 'border-red-500/50 bg-red-500/[0.04]' :
-    'border-white/[0.1] bg-white/[0.04] focus-within:border-violet-500/60';
+    phase === 'correct' ? 'border-emerald-500/60 bg-emerald-500/[0.04]' : wrongOrDefault;
+
+  const feedbackSeconds = phase === 'correct' ? SECONDS : 0;
+  const doneIcon = accuracyPct >= 60 ? '🎯' : '📖';
+  const partialPctClass = accuracyPct >= 60 ? 'bg-amber-500/10  border-amber-500/20  text-amber-400' : 'bg-red-500/10    border-red-500/20    text-red-400';
+  const accuracyPctClass = accuracyPct === 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : partialPctClass;
 
   return (
     <AnimatePresence>
@@ -383,7 +389,7 @@ export default function VocabularyGameDrawer({
                   >
                     {/* Countdown bar — hidden on feedback */}
                     <CountdownBar
-                      seconds={phase === 'playing' ? countdown : (phase === 'correct' ? SECONDS : 0)}
+                      seconds={phase === 'playing' ? countdown : feedbackSeconds}
                       total={SECONDS}
                     />
 
@@ -493,7 +499,7 @@ export default function VocabularyGameDrawer({
                     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   >
                     <span className="text-5xl">
-                      {accuracyPct === 100 ? '🏆' : accuracyPct >= 60 ? '🎯' : '📖'}
+                      {accuracyPct === 100 ? '🏆' : doneIcon}
                     </span>
                     <div>
                       <p className="text-[22px] font-black text-white/90 mb-1">Session Complete</p>
@@ -506,11 +512,7 @@ export default function VocabularyGameDrawer({
                       </p>
                     </div>
 
-                    <div className={`px-10 py-5 rounded-2xl border ${
-                      accuracyPct === 100 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                      accuracyPct >= 60   ? 'bg-amber-500/10  border-amber-500/20  text-amber-400'   :
-                                            'bg-red-500/10    border-red-500/20    text-red-400'
-                    }`}>
+                    <div className={`px-10 py-5 rounded-2xl border ${accuracyPctClass}`}>
                       <p className="text-[36px] font-black">{accuracyPct}%</p>
                     </div>
 

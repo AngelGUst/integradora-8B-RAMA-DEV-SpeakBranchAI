@@ -29,8 +29,42 @@ import { questionsService, getNextQuestionId } from '@/services/questionsService
 import type { WritingEvaluationResult, VocabularyWord } from '@/services/questionsService';
 import type { Question } from '@/types/question';
 
+type CorrectIndex = 0 | 1 | 2 | 3;
+
 // ─── Backend → Exercise transform ─────────────────────────────────────────────
 
+function parseMCQQuestions(jsonStr: string, fallbackText = ''): MCQQuestion[] {
+  try {
+    const parsed = JSON.parse(jsonStr) as {
+      questions?: Array<{ text: string; options: string[]; correct: string }>;
+      options?: string[];
+      correct?: string;
+    };
+    if (Array.isArray(parsed.questions)) {
+      return parsed.questions.map((rq, i) => {
+        const idx = rq.options.indexOf(rq.correct);
+        return {
+          id: `q${i + 1}`,
+          text: rq.text,
+          options: rq.options as [string, string, string, string],
+          correctIndex: Math.max(idx, 0) as CorrectIndex,
+          explanation: `La respuesta correcta es: "${rq.correct}".`,
+        };
+      });
+    }
+    if (Array.isArray(parsed.options)) {
+      const idx = parsed.options.indexOf(parsed.correct ?? '');
+      return [{
+        id: 'q1',
+        text: fallbackText,
+        options: parsed.options as [string, string, string, string],
+        correctIndex: Math.max(idx, 0) as CorrectIndex,
+        explanation: `La respuesta correcta es: "${parsed.correct}".`,
+      }];
+    }
+  } catch { /* leave empty */ }
+  return [];
+}
 
 function backendToExercise(q: Question): AnyExercise {
   const base = { id: String(q.id), level: q.level, maxXP: q.xp_max };
@@ -62,77 +96,17 @@ function backendToExercise(q: Question): AnyExercise {
   }
 
   if (q.type === 'READING') {
-    let questions: MCQQuestion[] = [];
-    try {
-      const parsed = JSON.parse(q.correct_answer) as {
-        questions?: Array<{ text: string; options: string[]; correct: string }>;
-        options?: string[];
-        correct?: string;
-      };
-      if (Array.isArray(parsed.questions)) {
-        questions = parsed.questions.map((rq, i) => {
-          const idx = rq.options.indexOf(rq.correct);
-          return {
-            id: `q${i + 1}`,
-            text: rq.text,
-            options: rq.options as [string, string, string, string],
-            correctIndex: (idx >= 0 ? idx : 0) as 0 | 1 | 2 | 3,
-            explanation: `La respuesta correcta es: "${rq.correct}".`,
-          };
-        });
-      } else if (Array.isArray(parsed.options)) {
-        // old format — backwards compat
-        const idx = parsed.options.indexOf(parsed.correct ?? '');
-        questions = [{
-          id: 'q1',
-          text: '',
-          options: parsed.options as [string, string, string, string],
-          correctIndex: (idx >= 0 ? idx : 0) as 0 | 1 | 2 | 3,
-          explanation: `La respuesta correcta es: "${parsed.correct}".`,
-        }];
-      }
-    } catch { /* leave empty */ }
     return {
       ...base,
       type: 'reading' as const,
       skill: 'reading' as const,
       title: q.text.slice(0, 60),
       passage: q.text,
-      questions,
+      questions: parseMCQQuestions(q.correct_answer),
     };
   }
 
   if (q.type === 'LISTENING_COMPREHENSION') {
-    let questions: MCQQuestion[] = [];
-    try {
-      const parsed = JSON.parse(q.correct_answer) as {
-        questions?: Array<{ text: string; options: string[]; correct: string }>;
-        options?: string[];
-        correct?: string;
-      };
-      if (Array.isArray(parsed.questions)) {
-        questions = parsed.questions.map((rq, i) => {
-          const idx = rq.options.indexOf(rq.correct);
-          return {
-            id: `q${i + 1}`,
-            text: rq.text,
-            options: rq.options as [string, string, string, string],
-            correctIndex: (idx >= 0 ? idx : 0) as 0 | 1 | 2 | 3,
-            explanation: `La respuesta correcta es: "${rq.correct}".`,
-          };
-        });
-      } else if (Array.isArray(parsed.options)) {
-        // old format — backwards compat
-        const idx = parsed.options.indexOf(parsed.correct ?? '');
-        questions = [{
-          id: 'q1',
-          text: q.text,
-          options: parsed.options as [string, string, string, string],
-          correctIndex: (idx >= 0 ? idx : 0) as 0 | 1 | 2 | 3,
-          explanation: `La respuesta correcta es: "${parsed.correct}".`,
-        }];
-      }
-    } catch { /* leave empty */ }
     return {
       ...base,
       type: 'comprehension' as const,
@@ -141,7 +115,7 @@ function backendToExercise(q: Question): AnyExercise {
       audioText: q.phonetic_text ?? '',
       audioUrl: q.audio_url ?? undefined,
       maxReplays: q.max_replays ?? 3,
-      questions,
+      questions: parseMCQQuestions(q.correct_answer, q.text),
     };
   }
 
@@ -171,7 +145,7 @@ function calcXP(maxXP: number, score: number): number {
 /** Approximates RapidFuzz word-ratio for demo without backend */
 function wordSimilarity(expected: string, actual: string): number {
   const norm = (s: string) =>
-    s.toLowerCase().replace(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
+    s.toLowerCase().replaceAll(/[^a-z\s]/g, '').split(/\s+/).filter(Boolean);
   const exp = norm(expected);
   const actS = new Set(norm(actual));
   if (!exp.length) return 0;
@@ -207,7 +181,7 @@ function ResultScreen({
   expectedPhrase,
   onBack,
   onNext,
-}: {
+}: Readonly<{
   score: number;
   xp: number;
   feedback?: QFeedback[];
@@ -215,12 +189,14 @@ function ResultScreen({
   expectedPhrase?: string;
   onBack: () => void;
   onNext?: () => void;
-}) {
+}>) {
   const safeScoreVal = safeInt(score);
-  const accent =
-    score >= 80 ? { ring: 'border-emerald-500/40', text: 'text-emerald-400' } :
-      score >= 50 ? { ring: 'border-sky-500/40', text: 'text-sky-400' } :
-        { ring: 'border-amber-500/40', text: 'text-amber-400' };
+  let accent = { ring: 'border-amber-500/40', text: 'text-amber-400' };
+  if (score >= 80) accent = { ring: 'border-emerald-500/40', text: 'text-emerald-400' };
+  else if (score >= 50) accent = { ring: 'border-sky-500/40', text: 'text-sky-400' };
+  let scoreMessage = 'Sigue practicando para subir tu score.';
+  if (score >= 80) scoreMessage = '¡Excelente! Sigue así.';
+  else if (score >= 60) scoreMessage = 'Buen trabajo. Practica para mejorar.';
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -244,9 +220,7 @@ function ResultScreen({
           </p>
           {xp > 0 && (
             <p className="text-xs text-zinc-500 mt-1">
-              {score >= 80 ? '¡Excelente! Sigue así.' :
-                score >= 60 ? 'Buen trabajo. Practica para mejorar.' :
-                  'Sigue practicando para subir tu score.'}
+              {scoreMessage}
             </p>
           )}
 
@@ -262,9 +236,9 @@ function ResultScreen({
       {feedback && (
         <div className="space-y-2.5">
           <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Revisión de respuestas</p>
-          {feedback.map((f, i) => (
+          {feedback.map((f) => (
             <div
-              key={i}
+              key={f.question}
               className={`rounded-xl border p-4 ${f.correct ? 'border-emerald-500/20 bg-emerald-500/[0.04]' : 'border-red-500/20 bg-red-500/[0.04]'
                 }`}
             >
@@ -334,11 +308,11 @@ function ResultScreen({
 
 function MCQOption({
   index, text, selected, accent = 'emerald', onClick,
-}: {
+}: Readonly<{
   index: number; text: string; selected: boolean;
   accent?: 'emerald' | 'amber';
   onClick: () => void;
-}) {
+}>) {
   const colors = {
     emerald: {
       active: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300',
@@ -370,9 +344,9 @@ function MCQOption({
 
 // ─── Reading Player ───────────────────────────────────────────────────────────
 
-function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
+function ReadingPlayer({ ex, onComplete, onCompleteNext }: Readonly<{ ex: ReadingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }>) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [submitted, setSubmit] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [feedback, setFeedback] = useState<QFeedback[]>([]);
   const [result, setResult] = useState({ score: 0, xp: 0 });
   const [loading, setLoading] = useState(false);
@@ -393,13 +367,13 @@ function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise
       const response = await exerciseEvaluationService.evaluateReading(Number(ex.id), selectedAnswer);
       setFeedback(fb);
       setResult({ score, xp: response.xp_earned });
-      setSubmit(true);
+      setSubmitted(true);
     } catch (err) {
       console.error('Error:', err);
       const xp = calcXP(ex.maxXP, score);
       setFeedback(fb);
       setResult({ score, xp });
-      setSubmit(true);
+      setSubmitted(true);
     } finally {
       setLoading(false);
     }
@@ -417,6 +391,9 @@ function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise
   }
 
   const answered = Object.keys(answers).length;
+  const handleSelectAnswer = (qi: number, oi: number) => {
+    setAnswers(prev => ({ ...prev, [qi]: oi }));
+  };
 
   return (
     <div className="space-y-4">
@@ -433,9 +410,9 @@ function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise
           <div className="grid sm:grid-cols-2 gap-2">
             {q.options.map((opt, oi) => (
               <MCQOption
-                key={oi} index={oi} text={opt}
+                key={opt} index={oi} text={opt}
                 selected={answers[qi] === oi}
-                onClick={() => setAnswers(prev => ({ ...prev, [qi]: oi }))}
+                onClick={() => handleSelectAnswer(qi, oi)}
               />
             ))}
           </div>
@@ -457,35 +434,35 @@ function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise
 
 type RecPhase = 'idle' | 'recording' | 'processing' | 'done';
 
-function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
+function SpeakingPlayer({ ex, onComplete, onCompleteNext }: Readonly<{ ex: SpeakingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }>) {
   const [recPhase, setRecPhase] = useState<RecPhase>('idle');
   const [transcript, setTranscript] = useState('');
   const [showResult, setShowResult] = useState(false);
-  const [audioPlayed, setAudioReady] = useState(ex.skill !== 'shadowing');
+  const [audioPlayed, setAudioPlayed] = useState(ex.skill !== 'shadowing');
   const [loading, setLoading] = useState(false);
   const [evalResult, setEvalResult] = useState<{ score: number; xp: number } | null>(null);
   const recRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const SpeechAPI =
-    (window as unknown as Record<string, unknown>).SpeechRecognition as typeof SpeechRecognition | undefined ??
-    (window as unknown as Record<string, unknown>).webkitSpeechRecognition as typeof SpeechRecognition | undefined;
+    (globalThis as unknown as Record<string, unknown>).SpeechRecognition as typeof SpeechRecognition | undefined ??
+    (globalThis as unknown as Record<string, unknown>).webkitSpeechRecognition as typeof SpeechRecognition | undefined;
 
   const playAudio = () => {
     if (ex.audioUrl) {
       audioRef.current?.pause();
       const audio = new Audio(ex.audioUrl);
       audioRef.current = audio;
-      audio.onplay = () => setAudioReady(true);
-      audio.onerror = () => setAudioReady(false);
+      audio.onplay = () => setAudioPlayed(true);
+      audio.onerror = () => setAudioPlayed(false);
       void audio.play();
       return;
     }
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(ex.phrase);
     u.lang = 'en-US'; u.rate = 0.82;
-    u.onend = () => setAudioReady(true);
-    u.onerror = () => setAudioReady(false);
+    u.onend = () => setAudioPlayed(true);
+    u.onerror = () => setAudioPlayed(false);
     speechSynthesis.speak(u);
   };
 
@@ -558,10 +535,10 @@ function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExerci
           </button>
           {audioPlayed && (
             <p className="text-xs text-zinc-600 mt-2">
-              Audio listo. Ahora graba tu voz.
+              Audio listo. Ahora graba tu voz.{' '}
               <span className="ml-2 text-zinc-500 cursor-pointer underline underline-offset-2" title="Pasa el cursor para revelar">
                 (ver texto)
-              </span>
+              </span>{' '}
               <span className="ml-1 blur-sm hover:blur-none transition-all select-none">
                 {ex.phrase}
               </span>
@@ -592,18 +569,7 @@ function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExerci
           </p>
         )}
 
-        {!SpeechAPI ? (
-          <div className="text-center py-3">
-            <p className="text-amber-400 text-sm mb-1">⚠ API de voz no disponible</p>
-            <p className="text-zinc-500 text-xs mb-3">Usa Google Chrome o Microsoft Edge para grabar.</p>
-            <button
-              onClick={handleViewResult}
-              className="text-xs text-zinc-400 underline"
-            >
-              Continuar sin grabación
-            </button>
-          </div>
-        ) : (
+        {SpeechAPI ? (
           <div className="flex flex-col items-center gap-3">
             <AnimatePresence mode="wait">
               {recPhase === 'idle' && (
@@ -647,12 +613,28 @@ function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExerci
               {recPhase === 'idle' && (ex.skill === 'shadowing' && !audioPlayed ? 'Reproduce el audio primero' : 'Pulsa para grabar')}
               {recPhase === 'recording' && <span className="text-red-400 animate-pulse">● Grabando… pulsa para detener</span>}
               {recPhase === 'processing' && 'Procesando audio…'}
-              {recPhase === 'done' && (
-                <span className="text-emerald-400">
-                  Grabación lista{transcript ? `: "${transcript.slice(0, 40)}${transcript.length > 40 ? '…' : ''}"` : ''}
-                </span>
-              )}
+              {recPhase === 'done' && (() => {
+                const truncated = transcript ? transcript.slice(0, 40) : '';
+                const suffix = transcript && transcript.length > 40 ? '…' : '';
+                const preview = transcript ? `: "${truncated}${suffix}"` : '';
+                return (
+                  <span className="text-emerald-400">
+                    Grabación lista{preview}
+                  </span>
+                );
+              })()}
             </p>
+          </div>
+        ) : (
+          <div className="text-center py-3">
+            <p className="text-amber-400 text-sm mb-1">⚠ API de voz no disponible</p>
+            <p className="text-zinc-500 text-xs mb-3">Usa Google Chrome o Microsoft Edge para grabar.</p>
+            <button
+              onClick={handleViewResult}
+              className="text-xs text-zinc-400 underline"
+            >
+              Continuar sin grabación
+            </button>
           </div>
         )}
       </div>
@@ -670,12 +652,12 @@ function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExerci
 
 // ─── Comprehension Player ─────────────────────────────────────────────────────
 
-function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: ComprehensionExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
-  const [replaysLeft, setReplays] = useState(ex.maxReplays);
-  const [audioPlayed, setPlayed] = useState(false);
-  const [quizMode, setQuiz] = useState(false);
+function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: Readonly<{ ex: ComprehensionExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }>) {
+  const [replaysLeft, setReplaysLeft] = useState(ex.maxReplays);
+  const [audioPlayed, setAudioPlayed] = useState(false);
+  const [quizMode, setQuizMode] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [submitted, setSubmit] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [feedback, setFeedback] = useState<QFeedback[]>([]);
   const [result, setResult] = useState({ score: 0, xp: 0 });
   const [loading, setLoading] = useState(false);
@@ -688,24 +670,24 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
       audioRef.current?.pause();
       const audio = new Audio(ex.audioUrl);
       audioRef.current = audio;
-      audio.onplay = () => setPlayed(true);
-      audio.onerror = () => setPlayed(false);
+      audio.onplay = () => setAudioPlayed(true);
+      audio.onerror = () => setAudioPlayed(false);
       void audio.play();
-      setReplays(p => p - 1);
+      setReplaysLeft(p => p - 1);
       return;
     }
     if (!ex.audioText?.trim()) return;
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(ex.audioText);
     u.lang = 'en-US'; u.rate = 0.82;
-    u.onend = () => setPlayed(true);
-    u.onerror = () => setPlayed(false);
+    u.onend = () => setAudioPlayed(true);
+    u.onerror = () => setAudioPlayed(false);
     speechSynthesis.speak(u);
-    setReplays(p => p - 1);
+    setReplaysLeft(p => p - 1);
   };
 
   const submit = async () => {
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const fb: QFeedback[] = ex.questions.map((q, i) => ({
       question: q.text,
       yourAnswer: q.options[answers[i]] ?? '—',
@@ -721,13 +703,13 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
       const response = await exerciseEvaluationService.evaluateComprehension(Number(ex.id), selectedAnswer);
       setFeedback(fb);
       setResult({ score, xp: response.xp_earned });
-      setSubmit(true);
+      setSubmitted(true);
     } catch (err) {
       console.error('Error:', err);
       const xp = calcXP(ex.maxXP, score);
       setFeedback(fb);
       setResult({ score, xp });
-      setSubmit(true);
+      setSubmitted(true);
     } finally {
       setLoading(false);
     }
@@ -765,13 +747,13 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
               <Volume2 size={15} /> Reproducir audio
             </button>
             <span className="text-xs text-zinc-500 font-mono tabular-nums">
-              {replaysLeft} / {ex.maxReplays} restante{replaysLeft !== 1 ? 's' : ''}
+              {replaysLeft} / {ex.maxReplays} restante{replaysLeft === 1 ? '' : 's'}
             </span>
           </div>
         </div>
 
         <button
-          onClick={() => { window.speechSynthesis.cancel(); setQuiz(true); }}
+          onClick={() => { globalThis.speechSynthesis.cancel(); setQuizMode(true); }}
           disabled={hasAudio && !audioPlayed}
           className="w-full py-3 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
@@ -782,6 +764,9 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
   }
 
   const answered = Object.keys(answers).length;
+  const handleSelectComprehension = (qi: number, oi: number) => {
+    setAnswers(prev => ({ ...prev, [qi]: oi }));
+  };
   return (
     <div className="space-y-4">
       <p className="text-xs text-zinc-600">Responde con lo que recuerdas.</p>
@@ -793,10 +778,10 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
           <div className="grid sm:grid-cols-2 gap-2">
             {q.options.map((opt, oi) => (
               <MCQOption
-                key={oi} index={oi} text={opt}
+                key={opt} index={oi} text={opt}
                 selected={answers[qi] === oi}
                 accent="amber"
-                onClick={() => setAnswers(prev => ({ ...prev, [qi]: oi }))}
+                onClick={() => handleSelectComprehension(qi, oi)}
               />
             ))}
           </div>
@@ -815,7 +800,7 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
 
 // ─── Writing Player ───────────────────────────────────────────────────────────
 
-function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
+function WritingPlayer({ ex, onComplete, onCompleteNext }: Readonly<{ ex: WritingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }>) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -836,10 +821,14 @@ function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise
   };
 
   if (result) {
-    const accent =
-      result.score >= 80 ? { ring: 'border-emerald-500/40', text: 'text-emerald-400' } :
-        result.score >= 50 ? { ring: 'border-sky-500/40', text: 'text-sky-400' } :
-          { ring: 'border-amber-500/40', text: 'text-amber-400' };
+    let writingAccent = { ring: 'border-amber-500/40', text: 'text-amber-400' };
+    if (result.score >= 80) writingAccent = { ring: 'border-emerald-500/40', text: 'text-emerald-400' };
+    else if (result.score >= 50) writingAccent = { ring: 'border-sky-500/40', text: 'text-sky-400' };
+
+    let writingMessage = 'Sigue practicando para subir tu score.';
+    if (result.xp_earned > 0 && result.score >= 80) writingMessage = '¡Excelente! Sigue así.';
+    else if (result.xp_earned > 0 && result.score >= 60) writingMessage = 'Buen trabajo. Practica para mejorar.';
+    else if (result.xp_earned === 0) writingMessage = 'Ya completaste este nivel. ¡Sigue practicando!';
 
     const criteria = [
       { label: 'Gramática', value: result.score_grammar, weight: '35%' },
@@ -851,9 +840,9 @@ function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise
     return (
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
         {/* Score card */}
-        <div className={`border ${accent.ring} bg-zinc-900/50 rounded-2xl p-5 flex items-center gap-5`}>
-          <div className={`w-20 h-20 rounded-full border-4 ${accent.ring} flex flex-col items-center justify-center shrink-0`}>
-            <span className={`text-2xl font-black ${accent.text}`}>{safeInt(result.score)}</span>
+        <div className={`border ${writingAccent.ring} bg-zinc-900/50 rounded-2xl p-5 flex items-center gap-5`}>
+          <div className={`w-20 h-20 rounded-full border-4 ${writingAccent.ring} flex flex-col items-center justify-center shrink-0`}>
+            <span className={`text-2xl font-black ${writingAccent.text}`}>{safeInt(result.score)}</span>
             <span className="text-[10px] text-zinc-600">/100</span>
           </div>
           <div>
@@ -866,10 +855,7 @@ function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise
               )}
             </p>
             <p className="text-xs text-zinc-500 mt-1">
-              {result.xp_earned > 0 && result.score >= 80 ? '¡Excelente! Sigue así.' :
-                result.xp_earned > 0 && result.score >= 60 ? 'Buen trabajo. Practica para mejorar.' :
-                  result.xp_earned === 0 ? 'Ya completaste este nivel. ¡Sigue practicando!' :
-                    'Sigue practicando para subir tu score.'}
+              {writingMessage}
             </p>
           </div>
         </div>
@@ -935,10 +921,11 @@ function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise
       </div>
 
       <div>
-        <label className="block text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-2">
+        <label htmlFor="writing-response" className="block text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-2">
           Tu respuesta
         </label>
         <textarea
+          id="writing-response"
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={8}
@@ -972,18 +959,18 @@ function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise
 
 // ─── Vocabulary Panel (shown during exercise) ─────────────────────────────────
 
-function VocabPanel({ words }: { words: VocabularyWord[] }) {
+function VocabPanel({ words }: Readonly<{ words: VocabularyWord[] }>) {
   const [open, setOpen] = useState(false);
   const [speaking, setSpeaking] = useState<number | null>(null);
 
   const playWord = (wordId: number, word: string) => {
-    window.speechSynthesis.cancel();
+    globalThis.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
     u.lang = 'en-US'; u.rate = 0.82;
     u.onend = () => setSpeaking(null);
     u.onerror = () => setSpeaking(null);
     setSpeaking(wordId);
-    window.speechSynthesis.speak(u);
+    globalThis.speechSynthesis.speak(u);
   };
 
   return (
@@ -1080,7 +1067,7 @@ export default function ExercisePage() {
   const currentExercise = exercise;
   if (!currentExercise) return <Navigate to="/learn" replace />;
 
-  const meta = SKILL_META[currentExercise.skill as keyof typeof SKILL_META];
+  const meta = SKILL_META[currentExercise.skill];
   const { Icon } = meta;
 
   // Map exercise skill → backend question type
@@ -1142,7 +1129,7 @@ export default function ExercisePage() {
         <h1 className="text-xl font-semibold text-zinc-100 mb-1">{currentExercise.title}</h1>
         <p className="text-sm text-zinc-500 mb-6">
           {currentExercise.type === 'reading' && 'Lee el texto y responde las preguntas de opción múltiple.'}
-          {currentExercise.type === 'speaking' && (currentExercise as SpeakingExercise).instruction}
+          {currentExercise.type === 'speaking' && currentExercise.instruction}
           {currentExercise.type === 'comprehension' && 'Escucha el audio y responde las preguntas sin ver el texto.'}
           {currentExercise.type === 'writing' && 'Lee la instrucción y escribe tu respuesta. La IA evaluará tu texto.'}
         </p>
@@ -1162,7 +1149,7 @@ export default function ExercisePage() {
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-zinc-600">Preguntas</p>
                     <p className="text-lg font-bold text-zinc-200">
-                      {(currentExercise as ReadingExercise | ComprehensionExercise).questions.length}
+                      {currentExercise.questions.length}
                     </p>
                   </div>
                 )}
@@ -1173,7 +1160,7 @@ export default function ExercisePage() {
                 {currentExercise.type === 'comprehension' && (
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-zinc-600">Reproducciones</p>
-                    <p className="text-lg font-bold text-zinc-200">{(currentExercise as ComprehensionExercise).maxReplays}</p>
+                    <p className="text-lg font-bold text-zinc-200">{currentExercise.maxReplays}</p>
                   </div>
                 )}
               </div>
@@ -1193,28 +1180,28 @@ export default function ExercisePage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {currentExercise.type === 'reading' && (
               <ReadingPlayer
-                ex={currentExercise as ReadingExercise}
+                ex={currentExercise}
                 onComplete={afterCompleteGoLearn}
                 onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'speaking' && (
               <SpeakingPlayer
-                ex={currentExercise as SpeakingExercise}
+                ex={currentExercise}
                 onComplete={afterCompleteGoLearn}
                 onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'comprehension' && (
               <ComprehensionPlayer
-                ex={currentExercise as ComprehensionExercise}
+                ex={currentExercise}
                 onComplete={afterCompleteGoLearn}
                 onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'writing' && (
               <WritingPlayer
-                ex={currentExercise as WritingExercise}
+                ex={currentExercise}
                 onComplete={afterCompleteGoLearn}
                 onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />

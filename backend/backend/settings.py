@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'system_config.apps.SystemConfigConfig',
     'dashboard.apps.DashboardConfig',
+    'auditlog',  # Auditoría automática de modelos
 ]
 
 # ---------------------------------------------------------------------------
@@ -63,6 +64,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'backend.middleware.CurrentUserMiddleware',         # Capturar usuario para auditoría
+    'auditlog.middleware.AuditlogMiddleware',           # Middleware de auditlog
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -357,3 +359,47 @@ LOGGING = {
         },
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Django Auditlog - Auditoría automática de modelos
+# ---------------------------------------------------------------------------
+# Registra automáticamente todos los cambios (create, update, delete) en los modelos
+# Cada registro de auditoría incluye:
+# - timestamp (created_at automático)
+# - actor (usuario que realizó la acción)
+# - action (0=create, 1=update, 2=delete)
+# - changes (JSON con los cambios)
+# - object_repr (representación del objeto)
+
+# Auditar automáticamente todos los modelos del proyecto
+AUDITLOG_INCLUDE_ALL_MODELS = True
+
+# Excluir modelos específicos de la auditoría (opcional)
+# AUDITLOG_EXCLUDE_TRACKING_MODELS = (
+#     'sessions.Session',
+#     'admin.LogEntry',
+# )
+
+# Incluir campos de tracking de tiempo en modelos auditados
+AUDITLOG_INCLUDE_TRACKING_MODELS = (
+    'users.User',
+    'questions.Question',
+    'attempts.ListeningAttempt',
+    'attempts.ReadingAttempt',
+    'attempts.SpeakingAttempt',
+    'attempts.WritingAttempt',
+    'exams.Exam',
+    'vocabulary.Vocabulary',
+    'courses.Course',
+    'courses.Lesson',
+)
+
+# Deshabilitar el registro de cambios en campos específicos (opcional)
+# AUDITLOG_EXCLUDE_TRACKING_FIELDS = ['password', 'last_login']
+
+# Formato de fecha para los registros de auditoría
+AUDITLOG_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+
+# Registrar cambios incluso cuando no hay usuario autenticado
+AUDITLOG_DISABLE_REMOTE_ADDR = False

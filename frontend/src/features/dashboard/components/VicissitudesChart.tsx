@@ -80,7 +80,7 @@ function buildAreaPath(pts: Pt[]): string {
   }
   const line = buildLinePath(pts);
   const bottomY = (C.y + C.h).toFixed(2);
-  return `${line} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
+  return `${line} L ${pts.at(-1)?.x.toFixed(2) ?? pts[0].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
 }
 
 // ── Tooltip ───────────────────────────────────────────────────
@@ -106,7 +106,7 @@ export default function VicissitudesChart({
   data = DEFAULT_DATA,
   title = 'Tu travesía de aprendizaje',
   subtitle = 'Rendimiento por sesión',
-}: VicissitudesChartProps) {
+}: Readonly<VicissitudesChartProps>) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
   const [animated, setAnimated] = useState(false);
@@ -125,8 +125,8 @@ export default function VicissitudesChart({
   const linePath = buildLinePath(pts);
   const areaPath = buildAreaPath(pts);
 
-  const lastPt = pts.length ? pts[pts.length - 1] : null;
-  const lastScore = data.length ? data[data.length - 1].score : 0;
+  const lastPt = pts.at(-1) ?? null;
+  const lastScore = data.at(-1)?.score ?? 0;
   const lastZone = getZoneLabel(lastScore);
 
   // Zone Y coordinates
@@ -319,7 +319,7 @@ export default function VicissitudesChart({
             const isHovered = tooltip?.session === data[i].session;
             return (
               <motion.circle
-                key={i}
+                key={data[i].session}
                 cx={p.x} cy={p.y} r={isHovered ? 5 : 3}
                 fill={isHovered ? '#10b981' : 'rgba(255,255,255,0.3)'}
                 stroke={isHovered ? 'rgba(16,185,129,0.4)' : 'none'}
@@ -384,7 +384,7 @@ export default function VicissitudesChart({
             const x = indexToX(i, data.length);
             const showLabel = i === 0 || i === data.length - 1 || i % 3 === 0;
             return showLabel ? (
-              <g key={i}>
+              <g key={d.session}>
                 <line
                   x1={x} y1={C.y + C.h}
                   x2={x} y2={C.y + C.h + 4}

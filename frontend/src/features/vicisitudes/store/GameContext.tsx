@@ -3,6 +3,7 @@ import {
   useContext,
   useReducer,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import type { GameState, GameAction, Checkpoint } from '../types/game.types';
@@ -29,95 +30,89 @@ const FUEL_DRAIN    = 0.006;   // fuel % per ms while thrusting
 const DESCENT_STEP  = 8;       // altitude lost on wrong answer
 const ASCEND_BONUS  = 4;       // altitude gained on correct answer
 
+function handleTick(state: GameState, delta: number): GameState {
+  if (state.phase !== 'flying') return state;
+
+  const newFuel   = Math.max(0, Math.min(100, state.fuel - FUEL_DRAIN * delta));
+  const ascending = newFuel > 0;
+  const newAlt    = Math.min(100, state.altitude + (ascending ? ASCEND_SPEED * delta : 0));
+  const tilt      = ascending ? -4 : 4;
+
+  if (newAlt >= 100) return { ...state, phase: 'victory', altitude: 100 };
+
+  if (newFuel <= 0 && state.altitude <= 0)
+    return { ...state, phase: 'gameover', fuel: 0 };
+
+  const hit = state.checkpoints.find(
+    c => !c.cleared && Math.abs(c.altitudePct - newAlt) < 1.2
+  );
+  if (hit) {
+    return {
+      ...state,
+      phase: 'checkpoint',
+      altitude: newAlt,
+      fuel: newFuel,
+      worldOffsetPct: newAlt,
+      thrusterOn: false,
+      shipTilt: 0,
+      activeCheckpoint: hit,
+    };
+  }
+
+  return {
+    ...state,
+    altitude: newAlt,
+    fuel: newFuel,
+    worldOffsetPct: newAlt,
+    shipTilt: tilt,
+    thrusterOn: ascending,
+  };
+}
+
+function handleAnswer(state: GameState, correct: boolean): GameState {
+  const streak    = correct ? state.streak + 1 : 0;
+  const scoreGain = correct ? 100 + streak * 20 : 0;
+  const fuelBonus = correct ? 15 : 0;
+  const newAlt    = correct
+    ? Math.min(100, state.altitude + ASCEND_BONUS)
+    : Math.max(0, state.altitude - DESCENT_STEP);
+  const newFuel   = Math.min(100, state.fuel + fuelBonus);
+  const lives     = correct ? state.lives : state.lives - 1;
+
+  const checkpoints = state.checkpoints.map(c =>
+    c.id === state.activeCheckpoint?.id ? { ...c, cleared: true } : c
+  );
+
+  if (lives <= 0) return { ...state, phase: 'gameover', lives: 0, checkpoints };
+
+  return {
+    ...state,
+    phase: correct ? 'result_correct' : 'result_wrong',
+    altitude: newAlt,
+    fuel: newFuel,
+    score: state.score + scoreGain,
+    streak,
+    lives,
+    checkpoints,
+    activeCheckpoint: null,
+    worldOffsetPct: newAlt,
+  };
+}
+
 function reducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
-
     case 'START_GAME':
       return { ...INITIAL_STATE, phase: 'flying', checkpoints: CHECKPOINTS.map(c => ({ ...c, cleared: false })) };
-
-    case 'TICK': {
-      if (state.phase !== 'flying') return state;
-
-      const { delta } = action;
-      const newFuel    = Math.max(0, Math.min(100, state.fuel - FUEL_DRAIN * delta));
-      const ascending  = newFuel > 0;
-      const newAlt     = Math.min(100, state.altitude + (ascending ? ASCEND_SPEED * delta : 0));
-      const tilt       = ascending ? -4 : 4;
-
-      // Check for victory
-      if (newAlt >= 100) return { ...state, phase: 'victory', altitude: 100 };
-
-      // Fuel empty → game over
-      if (newFuel <= 0 && state.altitude <= 0)
-        return { ...state, phase: 'gameover', fuel: 0 };
-
-      // Check checkpoint collision
-      const hit = state.checkpoints.find(
-        c => !c.cleared && Math.abs(c.altitudePct - newAlt) < 1.2
-      );
-      if (hit) {
-        return {
-          ...state,
-          phase:            'checkpoint',
-          altitude:         newAlt,
-          fuel:             newFuel,
-          worldOffsetPct:   newAlt,
-          thrusterOn:       false,
-          shipTilt:         0,
-          activeCheckpoint: hit,
-        };
-      }
-
-      return {
-        ...state,
-        altitude:       newAlt,
-        fuel:           newFuel,
-        worldOffsetPct: newAlt,
-        shipTilt:       tilt,
-        thrusterOn:     ascending,
-      };
-    }
-
+    case 'TICK':
+      return handleTick(state, action.delta);
     case 'OPEN_CHECKPOINT':
       return { ...state, phase: 'checkpoint', activeCheckpoint: action.checkpoint };
-
-    case 'ANSWER': {
-      const { correct } = action;
-      const streak      = correct ? state.streak + 1 : 0;
-      const scoreGain   = correct ? 100 + streak * 20 : 0;
-      const fuelBonus   = correct ? 15 : 0;
-      const newAlt      = correct
-        ? Math.min(100, state.altitude + ASCEND_BONUS)
-        : Math.max(0,   state.altitude - DESCENT_STEP);
-      const newFuel     = Math.min(100, state.fuel + fuelBonus);
-      const lives       = correct ? state.lives : state.lives - 1;
-
-      const checkpoints = state.checkpoints.map(c =>
-        c.id === state.activeCheckpoint?.id ? { ...c, cleared: true } : c
-      );
-
-      if (lives <= 0) return { ...state, phase: 'gameover', lives: 0, checkpoints };
-
-      return {
-        ...state,
-        phase:            correct ? 'result_correct' : 'result_wrong',
-        altitude:         newAlt,
-        fuel:             newFuel,
-        score:            state.score + scoreGain,
-        streak,
-        lives,
-        checkpoints,
-        activeCheckpoint: null,
-        worldOffsetPct:   newAlt,
-      };
-    }
-
+    case 'ANSWER':
+      return handleAnswer(state, action.correct);
     case 'DISMISS_RESULT':
       return { ...state, phase: state.altitude >= 100 ? 'victory' : 'flying' };
-
     case 'RESET':
       return INITIAL_STATE;
-
     default:
       return state;
   }
@@ -138,7 +133,7 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-export function GameProvider({ children }: { children: ReactNode }) {
+export function GameProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const startGame       = useCallback(() => dispatch({ type: 'START_GAME' }),    []);
@@ -148,8 +143,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const dismissResult   = useCallback(() => dispatch({ type: 'DISMISS_RESULT' }), []);
   const reset           = useCallback(() => dispatch({ type: 'RESET' }),          []);
 
+  const value = useMemo(() => ({ state, dispatch, startGame, tick, openCheckpoint, submitAnswer, dismissResult, reset }), [state, dispatch, startGame, tick, openCheckpoint, submitAnswer, dismissResult, reset]);
+
   return (
-    <GameContext.Provider value={{ state, dispatch, startGame, tick, openCheckpoint, submitAnswer, dismissResult, reset }}>
+    <GameContext.Provider value={value}>
       {children}
     </GameContext.Provider>
   );

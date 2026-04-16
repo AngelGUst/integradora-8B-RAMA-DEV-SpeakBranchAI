@@ -26,7 +26,8 @@ export const speakingService = {
                 Object.entries(params ?? {}).filter(([, v]) => v !== undefined)
             ) as Record<string, string>
         ).toString();
-        return apiFetch<SpeakingQuestion>(`/speaking/question/${query ? `?${query}` : ''}`);
+        const suffix = query ? `?${query}` : '';
+        return apiFetch<SpeakingQuestion>(`/speaking/question/${suffix}`);
     },
 
     evaluate(payload: EvaluatePayload): Promise<SpeakingResult> {

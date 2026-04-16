@@ -18,7 +18,7 @@ const SELECT =
   'bg-white/[0.03] border border-white/[0.08] rounded-xl text-white/70 text-[13px] ' +
   'px-3 py-2 focus:border-violet-500/50 focus:outline-none transition-colors appearance-none cursor-pointer';
 
-export default function QuestionFilters({ filters, onChange }: Props) {
+export default function QuestionFilters({ filters, onChange }: Readonly<Props>) {
   const set =
     (key: keyof FilterState) =>
     (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) =>

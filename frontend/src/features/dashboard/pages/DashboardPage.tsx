@@ -30,8 +30,8 @@ import type { Exam } from '@/types/exam';
 // ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
 
 const WINDOW_SIZE = 3;
-const THRESHOLD_UP = 16.0;
-const THRESHOLD_DOWN = 10.0;
+const THRESHOLD_UP = 16;
+const THRESHOLD_DOWN = 10;
 
 // ─── CEFR path data ───────────────────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ const BADGE_STYLES: Record<BadgeVariant, string> = {
   easy: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20',
 };
 
-function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: BadgeVariant }) {
+function Badge({ children, variant = 'default' }: Readonly<{ children: React.ReactNode; variant?: BadgeVariant }>) {
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${BADGE_STYLES[variant]}`}>
       {children}
@@ -121,6 +121,53 @@ const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
   checkpoint: { text: 'text-yellow-400', Icon: Trophy },
   exam: { text: 'text-rose-400', Icon: Trophy },
 };
+
+function parsePlacementLevel(): string | null {
+  const level = sessionStorage.getItem(PLACEMENT_RESULT_LEVEL_KEY);
+  if (!level) return null;
+  const clean = String(level).toUpperCase();
+  if (!/^(A1|A2|B1|B2|C1|C2)$/.test(clean)) {
+    sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+    return null;
+  }
+  const label = CEFR_LEVEL_LABEL[clean] ?? 'Nivel asignado';
+  sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+  return `Diagnóstico completado. Tu nivel asignado es ${clean} (${label}).`;
+}
+
+// ─── Derived-state helpers ────────────────────────────────────────────────────
+
+function deriveActiveLvl(userLevel?: string) {
+  const valid = userLevel && ['A1', 'A2', 'B1', 'B2'].includes(userLevel);
+  return valid ? userLevel : 'A1';
+}
+
+function deriveNextLvl(activeLvlIdx: number) {
+  if (activeLvlIdx >= 0 && activeLvlIdx < CEFR_ORDER.length - 1) {
+    return CEFR_ORDER[activeLvlIdx + 1];
+  }
+  return null;
+}
+
+function deriveAdaptiveWindow(questionScores: Record<string, number>) {
+  const recentScores = Object.values(questionScores).slice(-WINDOW_SIZE);
+  const recentXP = recentScores.length > 0 ? recentScores : [0];
+  const recentXPItems = recentXP.map((xp, idx) => ({ key: `w${idx}`, xp }));
+  const avg = recentXP.reduce((a, b) => a + b, 0) / recentXP.length;
+  const baseDiff = avg < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+  const nextDiff = avg >= THRESHOLD_UP ? 'HARD' : baseDiff;
+  return { recentXPItems, avg, nextDiff };
+}
+
+function deriveExamInfo(availableExams: Exam[], activeLvl: string, levelProgress: { current_level_xp?: number } | undefined) {
+  const currentExam = availableExams.find(e => e.level === activeLvl);
+  const canTakeExam = currentExam && (currentExam.can_unlock || currentExam.is_unlocked);
+  const examPassedAlready = currentExam?.last_attempt?.passed === true;
+  const requiredLevelXp = currentExam?.required_xp_for_level ?? currentExam?.xp_required ?? 0;
+  const currentLevelXp = levelProgress?.current_level_xp ?? 0;
+  const remainingForExam = Math.max(0, requiredLevelXp - currentLevelXp);
+  return { currentExam, canTakeExam, examPassedAlready, requiredLevelXp, currentLevelXp, remainingForExam };
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
@@ -139,50 +186,30 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    const level = sessionStorage.getItem(PLACEMENT_RESULT_LEVEL_KEY);
-    if (!level) return;
-    const clean = String(level).toUpperCase();
-    if (!/^(A1|A2|B1|B2|C1|C2)$/.test(clean)) {
-      sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
-      return;
-    }
-    const label = CEFR_LEVEL_LABEL[clean] ?? 'Nivel asignado';
-    setPlacementLevelMessage(`Diagnóstico completado. Tu nivel asignado es ${clean} (${label}).`);
-    sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+    const message = parsePlacementLevel();
+    if (message) setPlacementLevelMessage(message);
   }, []);
 
   const currentNode = findCurrentNode(completedIds, totalXP);
   const currentMeta = currentNode ? SKILL_META[currentNode.skill] : null;
   const CurrentIcon = currentMeta?.Icon;
 
-  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2'].includes(user.level))
-    ? user.level : 'A1';
+  const activeLvl = deriveActiveLvl(user?.level);
   const activeLvlIdx = CEFR_STEPS.findIndex(s => s.level === activeLvl);
-  const nextLvl = activeLvlIdx >= 0 && activeLvlIdx < CEFR_ORDER.length - 1
-    ? CEFR_ORDER[activeLvlIdx + 1]
-    : null;
+  const nextLvl = deriveNextLvl(activeLvlIdx);
 
-  // Find exam for current level (the one to level up from current)
-  const currentExam = availableExams.find(e => e.level === activeLvl);
-  const canTakeExam = currentExam && (currentExam.can_unlock || currentExam.is_unlocked);
-  const examPassedAlready = currentExam?.last_attempt?.passed === true;
-  const requiredLevelXp = currentExam?.required_xp_for_level ?? currentExam?.xp_required ?? 0;
-  const currentLevelXp = levelProgress?.current_level_xp ?? 0;
-  const remainingForExam = Math.max(0, requiredLevelXp - currentLevelXp);
+  const { currentExam, canTakeExam, examPassedAlready, requiredLevelXp, currentLevelXp, remainingForExam } =
+    deriveExamInfo(availableExams, activeLvl, levelProgress);
 
-  // Derive recent scores from questionScores for adaptive window
-  const recentScores = Object.values(questionScores).slice(-WINDOW_SIZE);
-  const recentXP = recentScores.length > 0 ? recentScores : [0];
-  const avg = recentXP.reduce((a, b) => a + b, 0) / recentXP.length;
-  const nextDiff = avg >= THRESHOLD_UP ? 'HARD' : avg < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+  const { recentXPItems, avg, nextDiff } = deriveAdaptiveWindow(questionScores);
 
   // Average score across all completed exercises
   const allScores = Object.values(questionScores);
   const avgScore = allScores.length > 0
     ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
     : 0;
-  const lowestSkill = SKILLS.reduce((lowest, skill) => {
-    return skill.key === 'shadowing' ? skill.key : lowest; // Default lowest to shadowing if no real data
+  const lowestSkill = SKILLS.reduce<string>((lowest, skill) => {
+    return skill.key === 'shadowing' ? skill.key : lowest;
   }, SKILLS[0].key);
 
   return (
@@ -355,11 +382,12 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-end gap-2 h-20 mb-5">
-                  {recentXP.map((xp, i) => {
+                  {recentXPItems.map(({ key, xp }) => {
                     const pct = (xp / 100) * 100;
-                    const color = xp >= THRESHOLD_UP ? 'bg-purple-500' : xp < THRESHOLD_DOWN ? 'bg-emerald-500' : 'bg-sky-500';
+                    const baseBarColor = xp < THRESHOLD_DOWN ? 'bg-emerald-500' : 'bg-sky-500';
+                    const color = xp >= THRESHOLD_UP ? 'bg-purple-500' : baseBarColor;
                     return (
-                      <div key={i} className="flex-1 flex flex-col justify-end gap-1">
+                      <div key={key} className="flex-1 flex flex-col justify-end gap-1">
                         <div className="relative bg-zinc-950 border border-zinc-800 rounded-t-sm overflow-hidden" style={{ height: `${Math.max(10, pct)}%` }}>
                           <div className={`absolute bottom-0 w-full h-1 ${color}`} />
                         </div>
@@ -390,15 +418,19 @@ export default function DashboardPage() {
                     {CEFR_STEPS.map((step, idx) => {
                       const isCurrent = step.level === activeLvl;
                       const isPast = idx < activeLvlIdx;
+                      const pastOrDefaultCircle = isPast ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-800';
+                      const circleClass = isCurrent ? 'bg-emerald-500 border-emerald-500' : pastOrDefaultCircle;
+                      const pastOrDefaultText = isPast ? 'text-zinc-400' : 'text-zinc-700';
+                      const textClass = isCurrent ? 'text-emerald-400' : pastOrDefaultText;
                       return (
                         <div key={step.level} className="flex gap-4 relative z-10">
                           <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors
-                            ${isCurrent ? 'bg-emerald-500 border-emerald-500' : isPast ? 'bg-zinc-800 border-zinc-700' : 'bg-zinc-950 border-zinc-800'}`}>
+                            ${circleClass}`}>
                             {isPast && <CheckCircle2 size={11} className="text-zinc-400" />}
                             {isCurrent && <div className="w-2 h-2 bg-white rounded-full" />}
                           </div>
                           <div>
-                            <p className={`text-sm font-medium ${isCurrent ? 'text-emerald-400' : isPast ? 'text-zinc-400' : 'text-zinc-700'}`}>
+                            <p className={`text-sm font-medium ${textClass}`}>
                               {step.level}
                             </p>
                             <p className="text-xs text-zinc-600">{step.label}</p>

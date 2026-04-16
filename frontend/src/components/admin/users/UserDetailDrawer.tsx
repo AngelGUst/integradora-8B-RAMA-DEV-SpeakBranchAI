@@ -60,7 +60,7 @@ const BTN_DANGER =
 
 // ── Skill bar ──────────────────────────────────────────────────────────────
 
-function SkillBar({ label, icon: Icon, value, color }: { label: string; icon: React.ElementType; value: number; color: string }) {
+function SkillBar({ label, icon: Icon, value, color }: Readonly<{ label: string; icon: React.ElementType; value: number; color: string }>) {
   const pct = Math.min(100, Math.max(0, value));
   return (
     <div>
@@ -83,17 +83,20 @@ function SkillBar({ label, icon: Icon, value, color }: { label: string; icon: Re
 
 // ── Score badge ────────────────────────────────────────────────────────────
 
-function ScoreBadge({ score }: { score: number | null }) {
+function ScoreBadge({ score }: Readonly<{ score: number | null }>) {
   if (score === null) return <span className="text-white/20">—</span>;
-  const color =
-    score >= 80 ? 'text-emerald-400' :
-    score >= 50 ? 'text-amber-400'   : 'text-red-400';
+  let color = 'text-red-400';
+  if (score >= 80) {
+    color = 'text-emerald-400';
+  } else if (score >= 50) {
+    color = 'text-amber-400';
+  }
   return <span className={`font-semibold tabular-nums ${color}`}>{score.toFixed(0)}</span>;
 }
 
 // ── Attempts tabs ──────────────────────────────────────────────────────────
 
-function AttemptsPanel({ userId }: { userId: number }) {
+function AttemptsPanel({ userId }: Readonly<{ userId: number }>) {
   const [activeTab, setActiveTab] = useState<AttemptTab>('speaking');
   const [data, setData]           = useState<unknown[]>([]);
   const [loading, setLoading]     = useState(false);
@@ -114,6 +117,25 @@ function AttemptsPanel({ userId }: { userId: number }) {
     { key: 'writing',   label: 'Writing',   icon: PenLine },
   ];
 
+  let content = (
+    <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scroll">
+      {activeTab === 'speaking' && (data as SpeakingRow[]).map((row) => <SpeakingRow key={row.id} r={row} />)}
+      {activeTab === 'reading' && (data as ReadingRow[]).map((row) => <ReadingRow key={row.id} r={row} />)}
+      {activeTab === 'listening' && (data as ListeningRow[]).map((row) => <ListeningRow key={row.id} r={row} />)}
+      {activeTab === 'writing' && (data as WritingRow[]).map((row) => <WritingRow key={row.id} r={row} />)}
+    </div>
+  );
+
+  if (loading) {
+    content = (
+      <div className="flex items-center justify-center py-10">
+        <Loader2 size={18} className="animate-spin text-white/20" />
+      </div>
+    );
+  } else if (data.length === 0) {
+    content = <p className="text-center text-[12px] text-white/20 py-10">Sin intentos registrados</p>;
+  }
+
   return (
     <div>
       {/* Tab bar */}
@@ -133,25 +155,12 @@ function AttemptsPanel({ userId }: { userId: number }) {
         ))}
       </div>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-10">
-          <Loader2 size={18} className="animate-spin text-white/20" />
-        </div>
-      ) : data.length === 0 ? (
-        <p className="text-center text-[12px] text-white/20 py-10">Sin intentos registrados</p>
-      ) : (
-        <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scroll">
-          {activeTab === 'speaking'  && (data as SpeakingRow[]).map(r  => <SpeakingRow  key={r.id} r={r} />)}
-          {activeTab === 'reading'   && (data as ReadingRow[]).map(r   => <ReadingRow   key={r.id} r={r} />)}
-          {activeTab === 'listening' && (data as ListeningRow[]).map(r => <ListeningRow key={r.id} r={r} />)}
-          {activeTab === 'writing'   && (data as WritingRow[]).map(r   => <WritingRow   key={r.id} r={r} />)}
-        </div>
-      )}
+      {content}
     </div>
   );
 }
 
-function AttemptCard({ children, date, score, xp }: { children: React.ReactNode; date: string; score: number | null; xp: number }) {
+function AttemptCard({ children, date, score, xp }: Readonly<{ children: React.ReactNode; date: string; score: number | null; xp: number }>) {
   return (
     <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-3 text-[12px]">
       <div className="flex items-start justify-between gap-2">
@@ -166,7 +175,7 @@ function AttemptCard({ children, date, score, xp }: { children: React.ReactNode;
   );
 }
 
-function SpeakingRow({ r }: { r: SpeakingRow }) {
+function SpeakingRow({ r }: Readonly<{ r: SpeakingRow }>) {
   return (
     <AttemptCard date={r.created_at} score={r.score} xp={r.xp_earned}>
       <p className="text-white/60 truncate">{r.question}</p>
@@ -176,7 +185,7 @@ function SpeakingRow({ r }: { r: SpeakingRow }) {
   );
 }
 
-function ReadingRow({ r }: { r: ReadingRow }) {
+function ReadingRow({ r }: Readonly<{ r: ReadingRow }>) {
   return (
     <AttemptCard date={r.created_at} score={r.score} xp={r.xp_earned}>
       <p className="text-white/60 truncate">{r.question}</p>
@@ -190,7 +199,9 @@ function ReadingRow({ r }: { r: ReadingRow }) {
   );
 }
 
-function ListeningRow({ r }: { r: ListeningRow }) {
+function ListeningRow({ r }: Readonly<{ r: ListeningRow }>) {
+  const replayLabel = r.replays_used === 1 ? 'replay' : 'replays';
+
   return (
     <AttemptCard date={r.created_at} score={r.score} xp={r.xp_earned}>
       <p className="text-white/60 truncate">{r.question}</p>
@@ -200,14 +211,14 @@ function ListeningRow({ r }: { r: ListeningRow }) {
         </span>
         <span className="text-[10px] bg-white/[0.05] rounded px-1.5 py-0.5 text-white/30">{r.difficulty}</span>
         {r.replays_used > 0 && (
-          <span className="text-[10px] text-white/20">{r.replays_used} replay{r.replays_used !== 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-white/20">{r.replays_used} {replayLabel}</span>
         )}
       </div>
     </AttemptCard>
   );
 }
 
-function WritingRow({ r }: { r: WritingRow }) {
+function WritingRow({ r }: Readonly<{ r: WritingRow }>) {
   return (
     <AttemptCard date={r.created_at} score={r.score} xp={r.xp_earned}>
       <p className="text-white/60 truncate">{r.question}</p>
@@ -232,11 +243,11 @@ function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
-}: {
+}: Readonly<{
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
-}) {
+}>) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-zinc-900 border border-white/[0.08] rounded-2xl p-6 w-80 shadow-2xl">
@@ -255,6 +266,140 @@ function ConfirmDialog({
   );
 }
 
+interface ProfileSectionProps {
+  detail: UserDetail | null;
+  user: UserRow;
+  level: string;
+  role: UserRow['role'];
+  saving: boolean;
+  saved: boolean;
+  saveError: string;
+  newPassword: string;
+  savingPassword: boolean;
+  passwordError: string;
+  passwordSuccess: boolean;
+  deleting: boolean;
+  onLevelChange: (value: string) => void;
+  onRoleChange: (value: UserRow['role']) => void;
+  onSave: () => void;
+  onPasswordChange: (value: string) => void;
+  onPasswordReset: () => void;
+  onDeleteRequest: () => void;
+}
+
+function ProfileSection({
+  detail,
+  user,
+  level,
+  role,
+  saving,
+  saved,
+  saveError,
+  newPassword,
+  savingPassword,
+  passwordError,
+  passwordSuccess,
+  deleting,
+  onLevelChange,
+  onRoleChange,
+  onSave,
+  onPasswordChange,
+  onPasswordReset,
+  onDeleteRequest,
+}: Readonly<ProfileSectionProps>) {
+  let saveIcon: React.ReactNode = null;
+  if (saving) {
+    saveIcon = <Loader2 size={12} className="animate-spin" />;
+  } else if (saved) {
+    saveIcon = <Check size={12} />;
+  }
+
+  const saveLabel = saved ? 'Guardado' : 'Guardar cambios';
+  const roleInfo = user.role === 'ADMIN'
+    ? <><ShieldCheck size={12} className="text-amber-400/60" /> Cuenta de administrador</>
+    : <><GraduationCap size={12} /> Creado el {user.created_at ?? '—'}</>;
+
+  return (
+    <>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Ajustes de cuenta</p>
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="user-detail-level" className={LABEL}>Nivel CEFR</label>
+            <select id="user-detail-level" value={level} onChange={(event) => onLevelChange(event.target.value)} className={SELECT}>
+              {LEVELS.map((levelOption) => <option key={levelOption} value={levelOption}>{levelOption}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="user-detail-role" className={LABEL}>Rol</label>
+            <select id="user-detail-role" value={role} onChange={(event) => onRoleChange(event.target.value as UserRow['role'])} className={SELECT}>
+              <option value="STUDENT">Estudiante</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+        </div>
+
+        {saveError && <p className="mt-2 text-[11px] text-red-400">{saveError}</p>}
+
+        <button onClick={onSave} disabled={saving} className={`${BTN_PRIMARY} mt-3`}>
+          {saveIcon}
+          {saveLabel}
+        </button>
+      </div>
+
+      {detail && (
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Promedios por habilidad</p>
+          <div className="space-y-3">
+            <SkillBar label="Speaking" icon={Mic} value={detail.average_speaking} color="text-emerald-400" />
+            <SkillBar label="Reading" icon={BookOpen} value={detail.average_reading} color="text-blue-400" />
+            <SkillBar label="Listening" icon={Headphones} value={detail.average_listening} color="text-violet-400" />
+            <SkillBar label="Writing" icon={PenLine} value={detail.average_writing} color="text-rose-400" />
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Nueva contraseña</p>
+        <div className="flex gap-2">
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(event) => onPasswordChange(event.target.value)}
+            placeholder="Mín. 8 caracteres"
+            className={INPUT}
+          />
+          <button onClick={onPasswordReset} disabled={savingPassword} className={BTN_GHOST}>
+            {savingPassword ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
+            <span className="whitespace-nowrap">Cambiar</span>
+          </button>
+        </div>
+        {passwordError && <p className="mt-1.5 text-[11px] text-red-400">{passwordError}</p>}
+        {passwordSuccess && <p className="mt-1.5 text-[11px] text-emerald-400 flex items-center gap-1"><Check size={11} /> Contraseña actualizada</p>}
+      </div>
+
+      <div className="border border-red-900/30 rounded-xl p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-red-500/60 mb-2">Zona de peligro</p>
+        <p className="text-[12px] text-white/30 mb-3">
+          Eliminar la cuenta borra permanentemente todos los intentos, progreso y vocabulario diario del usuario.
+        </p>
+        <button
+          onClick={onDeleteRequest}
+          disabled={deleting}
+          className={BTN_DANGER}
+        >
+          {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+          Eliminar cuenta
+        </button>
+      </div>
+
+      <div className="flex items-center gap-2 text-[11px] text-white/20">
+        {roleInfo}
+      </div>
+    </>
+  );
+}
+
 // ── Main drawer ────────────────────────────────────────────────────────────
 
 export default function UserDetailDrawer({
@@ -262,21 +407,21 @@ export default function UserDetailDrawer({
   onClose,
   onUpdated,
   onDeleted,
-}: {
+}: Readonly<{
   user: UserRow;
   onClose: () => void;
   onUpdated: (u: UserRow) => void;
   onDeleted: (id: number) => void;
-}) {
+}>) {
   const [detail, setDetail]         = useState<UserDetail | null>(null);
-  const [loadingDetail, setLD]      = useState(true);
+  const [loadingDetail, setLoadingDetail] = useState(true);
 
   // Edit fields
   const [level, setLevel]           = useState(initialUser.level);
   const [role, setRole]             = useState(initialUser.role);
 
   // Password reset
-  const [newPassword, setNewPwd]    = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [pwdError, setPwdError]     = useState('');
   const [pwdSuccess, setPwdSuccess] = useState(false);
   const [savingPwd, setSavingPwd]   = useState(false);
@@ -294,7 +439,7 @@ export default function UserDetailDrawer({
   const [section, setSection]       = useState<'profile' | 'history'>('profile');
 
   useEffect(() => {
-    setLD(true);
+    setLoadingDetail(true);
     apiFetch<UserDetail>(`/auth/users/${initialUser.id}/`)
       .then(d => {
         setDetail(d);
@@ -302,7 +447,7 @@ export default function UserDetailDrawer({
         setRole(d.role);
       })
       .catch(() => {})
-      .finally(() => setLD(false));
+      .finally(() => setLoadingDetail(false));
   }, [initialUser.id]);
 
   async function handleSave() {
@@ -341,7 +486,7 @@ export default function UserDetailDrawer({
         method: 'POST',
         body: JSON.stringify({ new_password: newPassword }),
       });
-      setNewPwd('');
+      setNewPassword('');
       setPwdSuccess(true);
       setTimeout(() => setPwdSuccess(false), 3000);
     } catch (e: unknown) {
@@ -363,6 +508,38 @@ export default function UserDetailDrawer({
   }
 
   const user = detail ?? initialUser;
+  let drawerContent: React.ReactNode = <AttemptsPanel userId={initialUser.id} />;
+
+  if (loadingDetail) {
+    drawerContent = (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 size={20} className="animate-spin text-white/20" />
+      </div>
+    );
+  } else if (section === 'profile') {
+    drawerContent = (
+      <ProfileSection
+        detail={detail}
+        user={user}
+        level={level}
+        role={role}
+        saving={saving}
+        saved={saved}
+        saveError={saveError}
+        newPassword={newPassword}
+        savingPassword={savingPwd}
+        passwordError={pwdError}
+        passwordSuccess={pwdSuccess}
+        deleting={deleting}
+        onLevelChange={setLevel}
+        onRoleChange={setRole}
+        onSave={handleSave}
+        onPasswordChange={setNewPassword}
+        onPasswordReset={handlePasswordReset}
+        onDeleteRequest={() => setConfirmDelete(true)}
+      />
+    );
+  }
 
   return (
     <>
@@ -375,7 +552,7 @@ export default function UserDetailDrawer({
       )}
 
       {/* Overlay */}
-      <div className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
+      <button type="button" aria-label="Cerrar detalles del usuario" className="fixed inset-0 z-30 bg-black/40" onClick={onClose} />
 
       {/* Drawer */}
       <aside className="fixed right-0 top-0 bottom-0 z-40 w-[420px] bg-zinc-950 border-l border-white/[0.07] flex flex-col shadow-2xl overflow-hidden">
@@ -431,101 +608,7 @@ export default function UserDetailDrawer({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-          {loadingDetail ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 size={20} className="animate-spin text-white/20" />
-            </div>
-          ) : section === 'profile' ? (
-            <>
-              {/* ── Profile edit ── */}
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Ajustes de cuenta</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className={LABEL}>Nivel CEFR</label>
-                    <select value={level} onChange={e => setLevel(e.target.value)} className={SELECT}>
-                      {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={LABEL}>Rol</label>
-                    <select value={role} onChange={e => setRole(e.target.value as 'ADMIN' | 'STUDENT')} className={SELECT}>
-                      <option value="STUDENT">Estudiante</option>
-                      <option value="ADMIN">Administrador</option>
-                    </select>
-                  </div>
-                </div>
-
-                {saveError && <p className="mt-2 text-[11px] text-red-400">{saveError}</p>}
-
-                <button onClick={handleSave} disabled={saving} className={`${BTN_PRIMARY} mt-3`}>
-                  {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? <Check size={12} /> : null}
-                  {saved ? 'Guardado' : 'Guardar cambios'}
-                </button>
-              </div>
-
-              {/* ── Skill averages ── */}
-              {detail && (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Promedios por habilidad</p>
-                  <div className="space-y-3">
-                    <SkillBar label="Speaking"  icon={Mic}        value={detail.average_speaking}  color="text-emerald-400" />
-                    <SkillBar label="Reading"   icon={BookOpen}   value={detail.average_reading}   color="text-blue-400" />
-                    <SkillBar label="Listening" icon={Headphones} value={detail.average_listening} color="text-violet-400" />
-                    <SkillBar label="Writing"   icon={PenLine}    value={detail.average_writing}   color="text-rose-400" />
-                  </div>
-                </div>
-              )}
-
-              {/* ── Password reset ── */}
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Nueva contraseña</p>
-                <div className="flex gap-2">
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={e => setNewPwd(e.target.value)}
-                    placeholder="Mín. 8 caracteres"
-                    className={INPUT}
-                  />
-                  <button onClick={handlePasswordReset} disabled={savingPwd} className={BTN_GHOST}>
-                    {savingPwd ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
-                    <span className="whitespace-nowrap">Cambiar</span>
-                  </button>
-                </div>
-                {pwdError   && <p className="mt-1.5 text-[11px] text-red-400">{pwdError}</p>}
-                {pwdSuccess && <p className="mt-1.5 text-[11px] text-emerald-400 flex items-center gap-1"><Check size={11} /> Contraseña actualizada</p>}
-              </div>
-
-              {/* ── Danger zone ── */}
-              <div className="border border-red-900/30 rounded-xl p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-red-500/60 mb-2">Zona de peligro</p>
-                <p className="text-[12px] text-white/30 mb-3">
-                  Eliminar la cuenta borra permanentemente todos los intentos, progreso y vocabulario diario del usuario.
-                </p>
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  disabled={deleting}
-                  className={BTN_DANGER}
-                >
-                  {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                  Eliminar cuenta
-                </button>
-              </div>
-
-              {/* Role badge info */}
-              <div className="flex items-center gap-2 text-[11px] text-white/20">
-                {user.role === 'ADMIN' ? (
-                  <><ShieldCheck size={12} className="text-amber-400/60" /> Cuenta de administrador</>
-                ) : (
-                  <><GraduationCap size={12} /> Creado el {user.created_at ?? '—'}</>
-                )}
-              </div>
-            </>
-          ) : (
-            /* ── History ── */
-            <AttemptsPanel userId={initialUser.id} />
-          )}
+          {drawerContent}
         </div>
       </aside>
     </>

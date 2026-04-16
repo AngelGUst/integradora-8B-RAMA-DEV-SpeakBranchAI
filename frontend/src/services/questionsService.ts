@@ -70,7 +70,8 @@ export const questionsService = {
         Object.entries(merged).filter(([, v]) => v !== undefined && v !== '')
       ) as Record<string, string>
     ).toString();
-    return apiFetch<DiagnosticQuestion[]>(`/questions/level-exercises/${query ? `?${query}` : ''}`);
+    const suffix = query ? `?${query}` : '';
+    return apiFetch<DiagnosticQuestion[]>(`/questions/level-exercises/${suffix}`);
   },
 
   getAdaptiveSessionExercises(params?: {

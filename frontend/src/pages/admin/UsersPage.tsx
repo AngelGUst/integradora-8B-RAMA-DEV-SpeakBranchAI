@@ -109,7 +109,7 @@ const SELECT =
 
 // ── Avatar ────────────────────────────────────────────────────
 
-function Avatar({ user }: { user: UserRow }) {
+function Avatar({ user }: Readonly<{ user: UserRow }>) {
   if (user.avatar_url) {
     return (
       <img
@@ -132,11 +132,11 @@ function StatusToggle({
   userId,
   isActive,
   onChange,
-}: {
+}: Readonly<{
   userId: number;
   isActive: boolean;
   onChange: (newVal: boolean) => void;
-}) {
+}>) {
   const [loading, setLoading] = useState(false);
 
   async function toggle(e: React.MouseEvent) {
@@ -184,16 +184,16 @@ export default function UsersPage() {
 
   const [search, setSearch]         = useState('');
   const [roleFilter, setRoleFilter] = useState('');
-  const [levelFilter, setLevel]     = useState('');
-  const [statusFilter, setStatus]   = useState('');
+  const [levelFilter, setLevelFilter]     = useState('');
+  const [statusFilter, setStatusFilter]   = useState('');
 
   const [pageSize, setPageSize]     = useState(5);
-  const [pageSizeInput, setPSInput] = useState('20');
+  const [pageSizeInput, setPageSizeInput] = useState('20');
 
   function applyPageSize() {
-    const n = parseInt(pageSizeInput, 10);
-    if (!isNaN(n) && n >= 1) setPageSize(n);
-    else setPSInput(String(pageSize));
+    const n = Number.parseInt(pageSizeInput, 10);
+    if (!Number.isNaN(n) && n >= 1) setPageSize(n);
+    else setPageSizeInput(String(pageSize));
   }
 
   const [selected, setSelected]     = useState<UserRow | null>(null);
@@ -282,12 +282,12 @@ export default function UsersPage() {
                 <option value="ADMIN">Admin</option>
               </select>
 
-              <select value={levelFilter} onChange={e => setLevel(e.target.value)} className={SELECT}>
+              <select value={levelFilter} onChange={e => setLevelFilter(e.target.value)} className={SELECT}>
                 <option value="">Todos los niveles</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
 
-              <select value={statusFilter} onChange={e => setStatus(e.target.value)} className={SELECT}>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className={SELECT}>
                 <option value="">Todos los estados</option>
                 <option value="true">Activos</option>
                 <option value="false">Inactivos</option>
@@ -300,7 +300,7 @@ export default function UsersPage() {
                   type="number"
                   min={1}
                   value={pageSizeInput}
-                  onChange={e => setPSInput(e.target.value)}
+                  onChange={e => setPageSizeInput(e.target.value)}
                   onBlur={applyPageSize}
                   onKeyDown={e => e.key === 'Enter' && applyPageSize()}
                   className="w-14 bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 text-center focus:outline-none focus:border-violet-500/50 transition-colors"
@@ -319,7 +319,7 @@ export default function UsersPage() {
             custom={1}
             className="border border-white/[0.05] rounded-2xl overflow-hidden bg-white/[0.01]"
           >
-            {loading ? (
+            {loading && (
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
@@ -333,15 +333,11 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)}
+                  {Array.from({ length: 5 }, (_, n) => `skeleton-${n}`).map(key => <SkeletonRow key={key} />)}
                 </tbody>
               </table>
-            ) : users.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 gap-3">
-                <Users className="h-9 w-9 text-white/10" />
-                <p className="text-[14px] text-white/25 leading-relaxed">No se encontraron usuarios.</p>
-              </div>
-            ) : (
+            )}
+            {!loading && users.length > 0 && (
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
@@ -420,6 +416,12 @@ export default function UsersPage() {
                 </tbody>
               </table>
             )}
+            {!loading && users.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-24 gap-3">
+                <Users className="h-9 w-9 text-white/10" />
+                <p className="text-[14px] text-white/25 leading-relaxed">No se encontraron usuarios.</p>
+              </div>
+            )}
           </motion.div>
 
           {/* Pagination */}
@@ -432,7 +434,7 @@ export default function UsersPage() {
               className="mt-4 flex items-center justify-between"
             >
               <p className="text-[12px] text-white/20">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total} usuario{total !== 1 ? 's' : ''}
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total} usuario{total === 1 ? '' : 's'}
               </p>
 
               <div className="flex items-center gap-1">
@@ -447,17 +449,18 @@ export default function UsersPage() {
                 {Array.from({ length: pages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === pages || Math.abs(p - page) <= 1)
                   .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                    if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('…');
                     acc.push(p);
                     return acc;
                   }, [])
-                  .map((p, i) =>
-                    p === '…' ? (
-                      <span key={`el-${i}`} className="px-1 text-[12px] text-white/20">…</span>
-                    ) : (
+                  .map((p) => {
+                    if (p === '…') {
+                      return <span key={`el-${p}`} className="px-1 text-[12px] text-white/20">…</span>;
+                    }
+                    return (
                       <button
-                        key={p}
-                        onClick={() => fetchUsers(p as number)}
+                        key={`page-${p}`}
+                        onClick={() => fetchUsers(p)}
                         className={`min-w-[28px] h-7 rounded-lg text-[12px] font-medium transition-colors ${
                           page === p
                             ? 'bg-violet-600 text-white'
@@ -466,8 +469,8 @@ export default function UsersPage() {
                       >
                         {p}
                       </button>
-                    )
-                  )}
+                    );
+                  })}
 
                 <button
                   onClick={() => fetchUsers(page + 1)}

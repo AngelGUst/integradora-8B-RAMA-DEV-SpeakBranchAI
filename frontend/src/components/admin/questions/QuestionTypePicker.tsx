@@ -14,7 +14,7 @@ interface Props {
   onSelect: (type: QuestionType) => void;
 }
 
-export default function QuestionTypePicker({ selected, onSelect }: Props) {
+export default function QuestionTypePicker({ selected, onSelect }: Readonly<Props>) {
   return (
     <div>
       <div className="grid grid-cols-2 gap-3">
@@ -40,7 +40,7 @@ interface TypeCardProps {
   onSelect: (type: QuestionType) => void;
 }
 
-function TypeCard({ type, Icon, label, desc, active, onSelect }: TypeCardProps) {
+function TypeCard({ type, Icon, label, desc, active, onSelect }: Readonly<TypeCardProps>) {
   return (
     <button
       type="button"

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion, useInView, type Variants } from 'framer-motion';
 import {
   Mic, BookOpen, Headphones, PenLine,
-  ArrowRight, ArrowUpRight, ChevronRight,
+  ArrowRight, ArrowUpRight,
 } from 'lucide-react';
 
 // ── Shared constants ──────────────────────────────────────────
@@ -37,7 +37,7 @@ function MarqueeStrip() {
     <div className="relative overflow-hidden border-y border-white/[0.05] py-3.5 select-none">
       <div className="flex animate-marquee whitespace-nowrap">
         {items.map((w, i) => (
-          <span key={i} className="flex items-center gap-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/20">
+          <span key={`${w}-${i}`} className="flex items-center gap-7 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/20">
             {w}
             <span className="text-violet-600/50">×</span>
           </span>
@@ -259,10 +259,10 @@ const SKILLS = [
 function SkillRow({
   skill,
   i,
-}: {
+}: Readonly<{
   skill: typeof SKILLS[number];
   i: number;
-}) {
+}>) {
   const { ref, inView } = useReveal();
   const Icon = skill.icon;
 
@@ -540,13 +540,13 @@ function Footer() {
         </p>
         <div className="flex gap-6">
           {['Privacy', 'Terms', 'Contact'].map((item) => (
-            <a
+            <button
               key={item}
-              href="#"
+              type="button"
               className="text-[12px] text-white/15 hover:text-white/40 transition-colors tracking-wide"
             >
               {item}
-            </a>
+            </button>
           ))}
         </div>
       </div>
@@ -573,6 +573,3 @@ export default function LandingPage() {
     </div>
   );
 }
-
-// Silence unused import warnings
-void ChevronRight;

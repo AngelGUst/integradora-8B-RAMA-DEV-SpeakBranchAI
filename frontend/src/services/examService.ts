@@ -1,7 +1,6 @@
 import type {
   Exam,
   ExamAttempt,
-  ExamQuestion,
   ExamStartResponse,
   ExamSubmitResponse,
 } from '../types/exam';

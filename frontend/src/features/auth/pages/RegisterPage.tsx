@@ -9,6 +9,28 @@ import Logo from '@/shared/components/ui/Logo';
 import type { RegisterFormData } from '../schemas/authSchemas';
 import type { ApiError } from '@/shared/types/api.types';
 
+function extractServerError(err: unknown): string {
+  if (!isAxiosError(err)) {
+    return 'An unexpected error occurred. Please try again.';
+  }
+  const body = err.response?.data as ApiError | Record<string, string[] | string> | undefined;
+  const fieldErrors = body && typeof body === 'object' && 'errors' in body
+    ? (body as ApiError).errors
+    : undefined;
+  const directField = body && typeof body === 'object'
+    ? Object.values(body).flat?.()?.[0]
+    : undefined;
+  const directString = typeof directField === 'string' ? directField : undefined;
+  const firstField = fieldErrors
+    ? Object.values(fieldErrors).flat()[0]
+    : directString;
+  return firstField
+    ?? (body as ApiError | undefined)?.detail
+    ?? (body as ApiError | undefined)?.non_field_errors?.[0]
+    ?? (body as ApiError | undefined)?.message
+    ?? 'Registration failed.';
+}
+
 // ── CEFR step tracker ─────────────────────────────────────────
 
 const CEFR_STEPS = [
@@ -145,23 +167,7 @@ export default function RegisterPage() {
       setServerSuccess(res.message);
       setTimeout(() => navigate('/login', { replace: true }), 1200);
     } catch (err: unknown) {
-      if (isAxiosError(err)) {
-        const body = err.response?.data as ApiError | Record<string, string[] | string> | undefined;
-        const fieldErrors = body && typeof body === 'object' && 'errors' in body
-          ? (body as ApiError).errors
-          : undefined;
-        const directField = body && typeof body === 'object'
-          ? Object.values(body).flat?.()?.[0]
-          : undefined;
-        const firstField = fieldErrors
-          ? Object.values(fieldErrors).flat()[0]
-          : (typeof directField === 'string' ? directField : undefined);
-        setServerError(
-          firstField ?? (body as ApiError | undefined)?.detail ?? (body as ApiError | undefined)?.non_field_errors?.[0] ?? (body as ApiError | undefined)?.message ?? 'Registration failed.',
-        );
-      } else {
-        setServerError('An unexpected error occurred. Please try again.');
-      }
+      setServerError(extractServerError(err));
     }
   };
 

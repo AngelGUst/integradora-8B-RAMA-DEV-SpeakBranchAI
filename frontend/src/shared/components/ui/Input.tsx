@@ -35,7 +35,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
     ref,
   ) => {
     // Derive a stable id from the label when none is provided
-    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
+    const inputId = id ?? label?.toLowerCase().replaceAll(/\s+/g, '-');
+    const hintDescribedBy = hint ? `${inputId}-hint` : undefined;
+    const describedById = error ? `${inputId}-error` : hintDescribedBy;
 
     const baseInput = [
       'w-full h-[52px] rounded-xl text-sm text-slate-100',
@@ -82,13 +84,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             aria-invalid={!!error}
-            aria-describedby={
-              error
-                ? `${inputId}-error`
-                : hint
-                  ? `${inputId}-hint`
-                  : undefined
-            }
+            aria-describedby={describedById}
             className={baseInput}
             {...rest}
           />

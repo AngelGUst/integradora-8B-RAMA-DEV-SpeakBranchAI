@@ -148,10 +148,10 @@ function buildPath(nodes: (LessonNode & { state: NodeState })[]): string {
 function NodeCircle({
   node,
   onClick,
-}: {
+}: Readonly<{
   node: LessonNode & { state: NodeState };
   onClick?: () => void;
-}) {
+}>) {
   const cfg = SKILL_CFG[node.skill];
   const { Icon } = cfg;
   const clickable = node.state === 'current' || node.state === 'completed' || node.state === 'replay';
@@ -169,7 +169,8 @@ function NodeCircle({
 
   if (node.state === 'completed') {
     return (
-      <div
+      <button
+        type="button"
         className={`${base} ${cfg.border} ${cfg.bg} hover:opacity-90 relative`}
         style={{ width: NODE_SIZE, height: NODE_SIZE }}
         onClick={onClick}
@@ -179,7 +180,7 @@ function NodeCircle({
         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#07090F] border border-zinc-800 flex items-center justify-center">
           <Icon size={9} className={cfg.text} />
         </div>
-      </div>
+      </button>
     );
   }
 
@@ -239,7 +240,7 @@ function PathSection({
   onToggle,
   onNodeClick,
   sectionRef,
-}: {
+}: Readonly<{
   section: CEFRSection;
   completedIds: string[];
   questionScores: Record<string, number>;
@@ -250,7 +251,7 @@ function PathSection({
   onToggle: () => void;
   onNodeClick: (nodeId: string) => void;
   sectionRef?: React.RefObject<HTMLDivElement | null>;
-}) {
+}>) {
   const accent = ACCENT_CFG[section.accent];
   const [xpMin, xpMax] = section.xpRange;
   const sectionLocked = !userCanAccessSection(userLevel, section.level);
@@ -275,8 +276,13 @@ function PathSection({
     <div ref={sectionRef} className={sectionLocked ? 'opacity-50 pointer-events-none' : ''}>
       {/* Section banner — always visible, clickable to collapse/expand */}
       <div
-        className={`mx-6 mt-8 mb-1 rounded-xl border ${accent.border} ${accent.bg} overflow-hidden ${!sectionLocked ? 'cursor-pointer select-none' : ''}`}
-        onClick={sectionLocked ? undefined : onToggle}
+        className={`mx-6 mt-8 mb-1 rounded-xl border ${accent.border} ${accent.bg} overflow-hidden ${sectionLocked ? '' : 'cursor-pointer select-none'}`}
+        {...(!sectionLocked && {
+          role: 'button',
+          tabIndex: 0,
+          onClick: onToggle,
+          onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') onToggle(); },
+        })}
       >
         <div className="flex items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-4">
@@ -323,12 +329,14 @@ function PathSection({
 
       {/* Node path — only when expanded */}
       {!collapsed && (
-        loading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 size={24} className={`animate-spin ${accent.text}`} />
-          </div>
-        ) : nodes.length > 0 ? (
-          <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
+        (() => {
+          if (loading) return (
+            <div className="flex justify-center py-10">
+              <Loader2 size={24} className={`animate-spin ${accent.text}`} />
+            </div>
+          );
+          if (nodes.length > 0) return (
+            <div className="relative mx-auto" style={{ width: CONTAINER_W, height: totalH }}>
             <svg className="absolute inset-0 pointer-events-none overflow-visible" width={CONTAINER_W} height={totalH}>
               <defs>
                 <linearGradient id={`lg-${section.level}`} x1="0" y1="0" x2="0" y2="1">
@@ -420,7 +428,9 @@ function PathSection({
               );
             })}
           </div>
-        ) : null
+          );
+          return null;
+        })()
       )}
     </div>
   );
@@ -434,13 +444,13 @@ function RightPanel({
   skillAverages,
   currentSection,
   nextSection,
-}: {
+}: Readonly<{
   totalXP: number;
   streakDays: number;
   skillAverages: SkillAverages;
   currentSection: CEFRSection;
   nextSection: CEFRSection | null;
-}) {
+}>) {
   const dailyGoal = 100;
   const dailyDone = Math.min(totalXP, dailyGoal);
   const pct = dailyDone / dailyGoal;
@@ -595,7 +605,7 @@ const _cachedByLevel: Record<string, Question[]> = {};
 
 export default function LearnPathPage() {
   const { user } = useAuth();
-  const { totalXP, completedIds, streakDays, questionScores, skillAverages, levelProgress } = useLearnProgress();
+  const { totalXP, completedIds, streakDays, questionScores, skillAverages } = useLearnProgress();
   const navigate = useNavigate();
 
   const [xpRanges, setXpRanges] = useState<Record<string, [number, number]>>({});
@@ -798,12 +808,11 @@ export default function LearnPathPage() {
                             Examen de Nivel {section.level} → {nextLevel}
                           </h3>
                           <p className="text-xs text-zinc-500 mt-0.5">
-                            {examPassed
-                              ? '¡Examen aprobado! Ya subiste de nivel.'
-                              : canTakeExam
-                                ? '¡Has alcanzado el XP necesario! Demuestra tus conocimientos para avanzar.'
-                                : `Requiere ${requiredForLevel ?? 0} XP acumulado para desbloquear el examen.`
-                            }
+                            {(() => {
+                              if (examPassed) return '¡Examen aprobado! Ya subiste de nivel.';
+                              if (canTakeExam) return '¡Has alcanzado el XP necesario! Demuestra tus conocimientos para avanzar.';
+                              return `Requiere ${requiredForLevel ?? 0} XP acumulado para desbloquear el examen.`;
+                            })()}
                           </p>
                         </div>
                         {!examPassed && (

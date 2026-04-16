@@ -1,12 +1,17 @@
 import { z } from 'zod';
 
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,63}(?:\.[^\s@]{1,63})+$/;
+const NAME_PATTERN = /^[a-zA-ZÀ-ÿ' -]{1,100}$/;
+const UPPERCASE_PATTERN = /[A-Z]/;
+const NUMBER_PATTERN = /\d/;
+
 // ── Login schema ─────────────────────────────────────────────
 
 export const loginSchema = z.object({
   email: z
     .string()
     .min(1, 'Email is required')
-    .email('Enter a valid email address'),
+    .refine((value) => EMAIL_PATTERN.test(value), 'Enter a valid email address'),
   password: z
     .string()
     .min(1, 'Password is required')
@@ -27,16 +32,16 @@ export const registerSchema = z
       .min(1, 'Full name is required')
       .min(2, 'Name must be at least 2 characters')
       .max(50, 'Name must be less than 50 characters')
-      .regex(/^[a-zA-ZÀ-ÿ\s'-]+$/, 'Name contains invalid characters'),
+      .refine((value) => NAME_PATTERN.test(value), 'Name contains invalid characters'),
     email: z
       .string()
       .min(1, 'Email is required')
-      .email('Enter a valid email address'),
+      .refine((value) => EMAIL_PATTERN.test(value), 'Enter a valid email address'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
-      .regex(/[A-Z]/, 'Must include at least one uppercase letter')
-      .regex(/[0-9]/, 'Must include at least one number'),
+      .refine((value) => UPPERCASE_PATTERN.test(value), 'Must include at least one uppercase letter')
+      .refine((value) => NUMBER_PATTERN.test(value), 'Must include at least one number'),
     confirmPassword: z.string().min(1, 'Please confirm your password'),
     // react-hook-form's setValueAs converts the empty string to undefined before
     // Zod sees the value, so z.number().optional() is sufficient here.

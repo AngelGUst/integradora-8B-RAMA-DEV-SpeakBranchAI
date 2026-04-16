@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Cell,
+  ResponsiveContainer,
 } from 'recharts';
 import { dashboardService } from '@/services/dashboardService';
 
@@ -18,10 +18,10 @@ interface TooltipPayload {
   payload: { skill: string };
 }
 
-function CustomTooltip({ active, payload }: {
+function CustomTooltip({ active, payload }: Readonly<{
   active?: boolean;
   payload?: TooltipPayload[];
-}) {
+}>) {
   if (!active || !payload?.length) return null;
   const cfg = SKILL_CONFIG.find((s) => s.key === payload[0].payload.skill);
   return (
@@ -35,7 +35,7 @@ function CustomTooltip({ active, payload }: {
 }
 
 export default function SkillDistributionChart() {
-  const [chartData, setChartData] = useState<{ skill: string; label: string; count: number; color: string }[]>([]);
+  const [chartData, setChartData] = useState<{ skill: string; label: string; count: number; fill: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -47,7 +47,7 @@ export default function SkillDistributionChart() {
             skill: cfg.key,
             label: cfg.label,
             count: d.by_skill[cfg.key] ?? 0,
-            color: cfg.color,
+            fill: cfg.color,
           }))
         );
       })
@@ -55,46 +55,50 @@ export default function SkillDistributionChart() {
       .finally(() => setLoading(false));
   }, []);
 
+  const hasNoData = error || chartData.every((d) => d.count === 0);
+
+  let content = (
+    <div className="overflow-x-auto">
+      <div style={{ minWidth: 320 }}>
+        <ResponsiveContainer width="100%" height={176}>
+          <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+            <XAxis
+              dataKey="label"
+              tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11 }}
+              axisLine={false}
+              tickLine={false}
+              allowDecimals={false}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+            <Bar dataKey="count" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    content = <div className="h-44 rounded-xl bg-white/[0.03] animate-pulse" />;
+  } else if (hasNoData) {
+    content = (
+      <div className="h-44 flex items-center justify-center">
+        <span className="text-[13px] text-white/20">No data yet</span>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-6">
       <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/30 mb-5">
         Attempts by skill
       </p>
 
-      {loading ? (
-        <div className="h-44 rounded-xl bg-white/[0.03] animate-pulse" />
-      ) : error || chartData.every((d) => d.count === 0) ? (
-        <div className="h-44 flex items-center justify-center">
-          <span className="text-[13px] text-white/20">No data yet</span>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <div style={{ minWidth: 320 }}>
-            <ResponsiveContainer width="100%" height={176}>
-              <BarChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <XAxis
-                  dataKey="label"
-                  tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: 'rgba(255,255,255,0.25)', fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                  allowDecimals={false}
-                />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {chartData.map((entry) => (
-                    <Cell key={entry.skill} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
+      {content}
     </div>
   );
 }

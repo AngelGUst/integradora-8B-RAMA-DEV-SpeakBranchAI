@@ -1,10 +1,44 @@
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
+from auditlog.models import LogEntry
+from auditlog.signals import pre_log
 
 from backend.middleware import get_current_user
 
 User = get_user_model()
+
+
+@receiver(pre_log, sender=LogEntry)
+def add_actor_to_log_entry(sender, instance, **kwargs):
+    """
+    Signal para agregar el actor (usuario) a cada entrada de auditoría.
+    Captura el usuario desde el middleware y lo asigna al log de auditlog.
+    Si no hay usuario autenticado, asigna un usuario ficticio 'api-user'.
+    """
+    current_user = get_current_user()
+    
+    # Si ya tiene un actor asignado, no hacer nada
+    if instance.actor:
+        return
+    
+    # Si el usuario es un string 'api-user', obtener o crear el usuario ficticio
+    if isinstance(current_user, str) and current_user == 'api-user':
+        api_user, created = User.objects.get_or_create(
+            email='api-user@system.local',
+            defaults={
+                'first_name': 'API User',
+                'is_active': False,  # Usuario inactivo para que no pueda iniciar sesión
+                'role': 'STUDENT',  # Asignar rol por defecto
+            }
+        )
+        instance.actor = api_user
+        if created:
+            print(f"✅ Usuario ficticio 'api-user@system.local' creado para auditoría")
+    
+    # Si es un usuario autenticado, asignarlo
+    elif current_user and hasattr(current_user, 'is_authenticated') and current_user.is_authenticated:
+        instance.actor = current_user
 
 
 def auto_set_audit_fields(sender, instance, **kwargs):

@@ -87,11 +87,11 @@ function WordFormModal({
   initial,
   onClose,
   onSaved,
-}: {
+}: Readonly<{
   initial?: VocabularyWord;
   onClose: () => void;
   onSaved: (word: VocabularyWord) => void;
-}) {
+}>) {
   const [form, setForm] = useState<FormState>(
     initial
       ? {
@@ -172,38 +172,38 @@ function WordFormModal({
           <div className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className={LABEL}>Palabra *</label>
-                <input className={INPUT} value={form.word} onChange={set('word')} placeholder="e.g. apple" />
+                <label htmlFor="vocab-word" className={LABEL}>Palabra *</label>
+                <input id="vocab-word" className={INPUT} value={form.word} onChange={set('word')} placeholder="e.g. apple" />
               </div>
               <div>
-                <label className={LABEL}>Nivel *</label>
-                <select className={INPUT} value={form.level} onChange={set('level')}>
+                <label htmlFor="vocab-level" className={LABEL}>Nivel *</label>
+                <select id="vocab-level" className={INPUT} value={form.level} onChange={set('level')}>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label className={LABEL}>Categoría</label>
-                <input className={INPUT} value={form.category} onChange={set('category')} placeholder="e.g. Food" />
+                <label htmlFor="vocab-category" className={LABEL}>Categoría</label>
+                <input id="vocab-category" className={INPUT} value={form.category} onChange={set('category')} placeholder="e.g. Food" />
               </div>
               <div className="col-span-2">
-                <label className={LABEL}>Significado *</label>
-                <textarea className={`${INPUT} resize-none`} rows={2} value={form.meaning} onChange={set('meaning')} placeholder="Definición o traducción" />
+                <label htmlFor="vocab-meaning" className={LABEL}>Significado *</label>
+                <textarea id="vocab-meaning" className={`${INPUT} resize-none`} rows={2} value={form.meaning} onChange={set('meaning')} placeholder="Definición o traducción" />
               </div>
               <div>
-                <label className={LABEL}>Pronunciación</label>
-                <input className={INPUT} value={form.pronunciation} onChange={set('pronunciation')} placeholder="/ˈæp.əl/" />
+                <label htmlFor="vocab-pronunciation" className={LABEL}>Pronunciación</label>
+                <input id="vocab-pronunciation" className={INPUT} value={form.pronunciation} onChange={set('pronunciation')} placeholder="/ˈæp.əl/" />
               </div>
               <div>
-                <label className={LABEL}>URL Audio <span className="normal-case font-normal text-white/20">(opcional)</span></label>
-                <input className={INPUT} value={form.audio_url} onChange={set('audio_url')} placeholder="https://… — o déjalo vacío para usar TTS" />
+                <label htmlFor="vocab-audio-url" className={LABEL}>URL Audio <span className="normal-case font-normal text-white/20">(opcional)</span></label>
+                <input id="vocab-audio-url" className={INPUT} value={form.audio_url} onChange={set('audio_url')} placeholder="https://… — o déjalo vacío para usar TTS" />
               </div>
               <div className="col-span-2">
-                <label className={LABEL}>Oración de ejemplo</label>
-                <textarea className={`${INPUT} resize-none`} rows={2} value={form.example_sentence} onChange={set('example_sentence')} placeholder="I eat an apple every day." />
+                <label htmlFor="vocab-example" className={LABEL}>Oración de ejemplo</label>
+                <textarea id="vocab-example" className={`${INPUT} resize-none`} rows={2} value={form.example_sentence} onChange={set('example_sentence')} placeholder="I eat an apple every day." />
               </div>
               <div className="col-span-2">
-                <label className={LABEL}>URL Imagen</label>
-                <input className={INPUT} value={form.image_url} onChange={set('image_url')} placeholder="https://…" />
+                <label htmlFor="vocab-image-url" className={LABEL}>URL Imagen</label>
+                <input id="vocab-image-url" className={INPUT} value={form.image_url} onChange={set('image_url')} placeholder="https://…" />
               </div>
               <div className="col-span-2 flex items-center gap-2">
                 <input
@@ -252,7 +252,7 @@ export default function VocabularyPage() {
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
   const [search, setSearch]         = useState('');
-  const [levelFilter, setLevel]     = useState('');
+  const [levelFilter, setLevelFilter]     = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing]       = useState<VocabularyWord | null>(null);
   const [deleting, setDeleting]     = useState<number | null>(null);
@@ -260,12 +260,12 @@ export default function VocabularyPage() {
   // Pagination
   const [page, setPage]             = useState(1);
   const [pageSize, setPageSize]     = useState(5);
-  const [pageSizeInput, setPSInput] = useState('20');
+  const [pageSizeInput, setPageSizeInput] = useState<string>('20');
 
   function applyPageSize() {
-    const n = parseInt(pageSizeInput, 10);
-    if (!isNaN(n) && n >= 1) { setPageSize(n); setPage(1); }
-    else setPSInput(String(pageSize));
+    const n = Number.parseInt(pageSizeInput, 10);
+    if (!Number.isNaN(n) && n >= 1) { setPageSize(n); setPage(1); }
+    else setPageSizeInput(String(pageSize));
   }
 
   const load = useCallback(async () => {
@@ -275,8 +275,9 @@ export default function VocabularyPage() {
       const params = new URLSearchParams();
       if (levelFilter) params.set('level', levelFilter);
       if (search.trim()) params.set('search', search.trim());
+      const qs = params.toString() ? `?${params}` : '';
       const res = await apiFetch<{ data: VocabularyWord[] }>(
-        `/vocabulary/${params.toString() ? `?${params}` : ''}`
+        `/vocabulary/${qs}`
       );
       setWords(res.data);
     } catch {
@@ -365,7 +366,7 @@ export default function VocabularyPage() {
                 {/* Level filter */}
                 <select
                   value={levelFilter}
-                  onChange={(e) => setLevel(e.target.value)}
+                  onChange={(e) => setLevelFilter(e.target.value)}
                   className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
                 >
                   <option value="">Todos los niveles</option>
@@ -381,7 +382,7 @@ export default function VocabularyPage() {
                     type="number"
                     min={1}
                     value={pageSizeInput}
-                    onChange={(e) => setPSInput(e.target.value)}
+                    onChange={(e) => setPageSizeInput(e.target.value)}
                     onBlur={applyPageSize}
                     onKeyDown={(e) => e.key === 'Enter' && applyPageSize()}
                     className="w-14 bg-white/[0.03] border border-white/[0.08] rounded-lg text-white/70 text-[12px] px-2 py-1.5 text-center focus:outline-none focus:border-violet-500/50 transition-colors"
@@ -418,7 +419,7 @@ export default function VocabularyPage() {
             </div>
 
             {loading && (
-              Array.from({ length: pageSize }).map((_, i) => <SkeletonRow key={i} />)
+              Array.from({ length: pageSize }, (_, i) => `skeleton-${i}`).map((key) => <SkeletonRow key={key} />)
             )}
 
             {!loading && error && (
@@ -481,7 +482,7 @@ export default function VocabularyPage() {
               className="mt-4 flex items-center justify-between"
             >
               <p className="text-[12px] text-white/20">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, words.length)} de {words.length} palabra{words.length !== 1 ? 's' : ''}
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, words.length)} de {words.length} palabra{words.length === 1 ? '' : 's'}
               </p>
 
               <div className="flex items-center gap-1">
@@ -495,18 +496,18 @@ export default function VocabularyPage() {
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
-                    acc.push(p);
+                  .reduce<{ key: string; value: number | '…' }[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push({ key: `ellipsis-before-${p}`, value: '…' });
+                    acc.push({ key: `page-${p}`, value: p });
                     return acc;
                   }, [])
-                  .map((p, i) =>
+                  .map(({ key, value: p }) =>
                     p === '…' ? (
-                      <span key={`el-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                      <span key={key} className="px-1 text-[12px] text-white/20">…</span>
                     ) : (
                       <button
-                        key={p}
-                        onClick={() => setPage(p as number)}
+                        key={key}
+                        onClick={() => setPage(p)}
                         className={`min-w-[28px] h-7 rounded-lg text-[12px] font-medium transition-colors ${
                           page === p
                             ? 'bg-violet-600 text-white'

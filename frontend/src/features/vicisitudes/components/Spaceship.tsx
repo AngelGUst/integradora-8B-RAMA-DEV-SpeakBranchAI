@@ -5,7 +5,7 @@ interface Props {
   thruster:  boolean;
 }
 
-export function Spaceship({ tilt, thruster }: Props) {
+export function Spaceship({ tilt, thruster }: Readonly<Props>) {
   return (
     <motion.div
       className="relative select-none"

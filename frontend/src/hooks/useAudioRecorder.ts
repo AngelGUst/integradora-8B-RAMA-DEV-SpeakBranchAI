@@ -17,10 +17,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
 
     const isSupported = Boolean(navigator.mediaDevices?.getUserMedia);
 
-    const start = useCallback(async () => {
-        setError(null);
-        chunksRef.current = [];
-
+    const initRecorder = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             const mediaRecorder = new MediaRecorder(stream);
@@ -40,6 +37,12 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
         } catch {
             setError('No se pudo acceder al micrófono.');
         }
+    };
+
+    const start = useCallback(() => {
+        setError(null);
+        chunksRef.current = [];
+        void initRecorder();
     }, []);
 
     const stop = useCallback((): Promise<Blob | null> => {

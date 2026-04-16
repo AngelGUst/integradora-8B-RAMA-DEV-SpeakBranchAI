@@ -46,7 +46,7 @@ function parseMCQOptions(question: ExamQuestion): string[] {
     return question.options;
   }
   try {
-    const data = JSON.parse(question.correct_answer) as any;
+    const data = JSON.parse(question.correct_answer);
     if (Array.isArray(data?.questions?.[0]?.options)) return data.questions[0].options;
     if (Array.isArray(data?.options)) return data.options;
   } catch { /* ignore */ }
@@ -60,11 +60,11 @@ function playAudio(question: ExamQuestion) {
     return;
   }
   const text = question.phonetic_text || question.text;
-  if (!text || !('speechSynthesis' in window)) return;
+  if (!text || !('speechSynthesis' in globalThis)) return;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utterance);
+  globalThis.speechSynthesis.cancel();
+  globalThis.speechSynthesis.speak(utterance);
 }
 
 function formatTime(seconds: number) {
@@ -77,7 +77,7 @@ type ExamScreen = 'loading' | 'intro' | 'quiz' | 'submitting' | 'result' | 'erro
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 
-function LoadingScreen({ message = 'Cargando examen…' }: { message?: string }) {
+function LoadingScreen({ message = 'Cargando examen…' }: Readonly<{ message?: string }>) {
   return (
     <motion.div
       className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4"
@@ -98,11 +98,11 @@ function IntroScreen({
   exam,
   continuing,
   onStart,
-}: {
+}: Readonly<{
   exam: Exam;
   continuing: boolean;
   onStart: () => void;
-}) {
+}>) {
   const meta = CEFR_META[exam.level] ?? CEFR_META.A1;
   const nextLevel = NEXT_LEVEL[exam.level] ?? '?';
 
@@ -201,18 +201,18 @@ function MCQOptions({
   options,
   selected,
   onSelect,
-}: {
+}: Readonly<{
   options: string[];
   selected: string | null;
   onSelect: (opt: string) => void;
-}) {
+}>) {
   return (
     <div className="space-y-2.5">
       {options.map((opt, i) => {
         const isSelected = selected === opt;
         return (
           <motion.button
-            key={i}
+            key={opt}
             onClick={() => onSelect(opt)}
             className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
             style={{
@@ -264,18 +264,18 @@ function SpeakingInput({
   question,
   answer,
   onAnswer,
-}: {
+}: Readonly<{
   question: ExamQuestion;
   answer: string | null;
   onAnswer: (text: string) => void;
-}) {
+}>) {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const startRecording = () => {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SR = (globalThis as any).SpeechRecognition || (globalThis as any).webkitSpeechRecognition;
     if (!SR) {
-      const fallback = window.prompt('Tu navegador no soporta grabación. Escribe tu respuesta:');
+      const fallback = globalThis.prompt('Tu navegador no soporta grabación. Escribe tu respuesta:');
       if (fallback) onAnswer(fallback);
       return;
     }
@@ -296,7 +296,9 @@ function SpeakingInput({
   return (
     <div className="flex flex-col items-center gap-5">
       {question.audio_url && (
-        <audio controls src={question.audio_url} className="w-full rounded-lg" />
+        <audio controls src={question.audio_url} className="w-full rounded-lg">
+          <track kind="captions" />
+        </audio>
       )}
 
       <motion.button
@@ -332,10 +334,10 @@ function SpeakingInput({
 function WritingInput({
   answer,
   onAnswer,
-}: {
+}: Readonly<{
   answer: string | null;
   onAnswer: (text: string) => void;
-}) {
+}>) {
   return (
     <textarea
       value={answer ?? ''}
@@ -359,7 +361,7 @@ function QuizScreen({
   isLast,
   timeRemaining,
   examLevel,
-}: {
+}: Readonly<{
   question: ExamQuestion;
   current: number;
   total: number;
@@ -370,7 +372,7 @@ function QuizScreen({
   isLast: boolean;
   timeRemaining: number;
   examLevel: string;
-}) {
+}>) {
   const progress = ((current + 1) / total) * 100;
   const canContinue = !!answer?.trim();
   const meta = CEFR_META[examLevel] ?? CEFR_META.A1;
@@ -444,7 +446,10 @@ function QuizScreen({
             {/* Type tag */}
             <div className="mb-5 flex flex-wrap items-center gap-2">
               <span className="text-slate-500">
-                {isMCQ ? <BookOpen size={12} /> : isSpeaking ? <Headphones size={12} /> : <PenLine size={12} />}
+                {(() => {
+                  if (isMCQ) return <BookOpen size={12} />;
+                  return isSpeaking ? <Headphones size={12} /> : <PenLine size={12} />;
+                })()}
               </span>
               <span className="text-xs font-medium text-slate-500">{question.question_type}</span>
 
@@ -524,7 +529,7 @@ function ResultScreen({
   examLevel,
   message,
   onFinish,
-}: {
+}: Readonly<{
   passed: boolean;
   score: number;
   passingScore: number;
@@ -533,7 +538,7 @@ function ResultScreen({
   examLevel: string;
   message: string;
   onFinish: () => void;
-}) {
+}>) {
   const nextLevel   = NEXT_LEVEL[examLevel] ?? '?';
   const displayLevel = passed ? nextLevel : examLevel;
   const meta        = CEFR_META[displayLevel] ?? CEFR_META.A1;

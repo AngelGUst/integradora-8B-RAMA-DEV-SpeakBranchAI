@@ -22,7 +22,7 @@ interface Props {
   onUpdate: (q: Question) => void;
 }
 
-export default function EditQuestionModal({ question, onClose, onUpdate }: Props) {
+export default function EditQuestionModal({ question, onClose, onUpdate }: Readonly<Props>) {
   const [tab, setTab]   = useState<Tab>('question');
   const [form, setForm] = useState<FormState>(() =>
     initFormFromQuestion(question.type, question)

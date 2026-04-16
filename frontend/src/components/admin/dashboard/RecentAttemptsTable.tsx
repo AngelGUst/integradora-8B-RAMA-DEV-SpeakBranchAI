@@ -58,6 +58,45 @@ export default function RecentAttemptsTable() {
       .finally(() => setLoading(false));
   }, []);
 
+  const skeletonRows = Array.from({ length: 6 }, (_, index) => `skeleton-${index}`);
+
+  let content = data.map((a, i) => (
+    <div
+      key={`${a.student_name}-${a.created_at}-${i}`}
+      className="flex items-center gap-4 px-5 py-3.5 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.015] transition-colors"
+    >
+      <p className="flex-1 text-[13px] text-white/70 truncate">{a.student_name}</p>
+
+      <span
+        className={`w-24 px-2 py-0.5 rounded-md text-[11px] font-semibold ${SKILL_COLORS[a.skill] ?? 'bg-white/[0.06] text-white/40'}`}
+      >
+        {SKILL_LABELS[a.skill] ?? a.skill}
+      </span>
+
+      <span className={`w-12 text-right text-[13px] font-semibold ${scoreColor(a.score)}`}>
+        {a.score.toFixed(0)}
+      </span>
+
+      <span className="w-14 text-right text-[13px] text-white/40">
+        +{a.xp_earned}
+      </span>
+
+      <span className="w-16 text-right text-[12px] text-white/25">
+        {timeAgo(a.created_at)}
+      </span>
+    </div>
+  ));
+
+  if (loading) {
+    content = skeletonRows.map((key) => <SkeletonRow key={key} />);
+  } else if (error || data.length === 0) {
+    content = [
+      <div key="empty" className="flex items-center justify-center py-12">
+        <p className="text-[13px] text-white/20">No data yet</p>
+      </div>,
+    ];
+  }
+
   return (
     <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden">
       {/* Header */}
@@ -69,40 +108,7 @@ export default function RecentAttemptsTable() {
         <span className="w-16 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/30 text-right">When</span>
       </div>
 
-      {loading ? (
-        Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
-      ) : error || data.length === 0 ? (
-        <div className="flex items-center justify-center py-12">
-          <p className="text-[13px] text-white/20">No data yet</p>
-        </div>
-      ) : (
-        data.map((a, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-4 px-5 py-3.5 border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.015] transition-colors"
-          >
-            <p className="flex-1 text-[13px] text-white/70 truncate">{a.student_name}</p>
-
-            <span
-              className={`w-24 px-2 py-0.5 rounded-md text-[11px] font-semibold ${SKILL_COLORS[a.skill] ?? 'bg-white/[0.06] text-white/40'}`}
-            >
-              {SKILL_LABELS[a.skill] ?? a.skill}
-            </span>
-
-            <span className={`w-12 text-right text-[13px] font-semibold ${scoreColor(a.score)}`}>
-              {a.score.toFixed(0)}
-            </span>
-
-            <span className="w-14 text-right text-[13px] text-white/40">
-              +{a.xp_earned}
-            </span>
-
-            <span className="w-16 text-right text-[12px] text-white/25">
-              {timeAgo(a.created_at)}
-            </span>
-          </div>
-        ))
-      )}
+      {content}
     </div>
   );
 }

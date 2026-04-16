@@ -32,21 +32,28 @@ export default function ScoreBySkillChart() {
         </p>
       </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-3 w-28 rounded bg-white/[0.05] mb-2" />
-              <div className="h-2.5 rounded-full bg-white/[0.05]" />
+      {(() => {
+        if (loading) {
+          return (
+            <div className="space-y-4">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={`skeleton-${i}`} className="animate-pulse">
+                  <div className="h-3 w-28 rounded bg-white/[0.05] mb-2" />
+                  <div className="h-2.5 rounded-full bg-white/[0.05]" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ) : error || !data ? (
-        <div className="h-32 flex items-center justify-center">
-          <span className="text-[13px] text-white/20">No data yet</span>
-        </div>
-      ) : (
-        <div className="space-y-4">
+          );
+        }
+        if (error || !data) {
+          return (
+            <div className="h-32 flex items-center justify-center">
+              <span className="text-[13px] text-white/20">No data yet</span>
+            </div>
+          );
+        }
+        return (
+          <div className="space-y-4">
           {SKILL_CONFIG.map((cfg) => {
             const score = data[cfg.key] ?? 0;
             const pct = Math.min(100, Math.max(0, score));
@@ -92,7 +99,8 @@ export default function ScoreBySkillChart() {
             <div className="h-px flex-1 bg-white/[0.06]" />
           </div>
         </div>
-      )}
+      );
+      })()}
     </div>
   );
 }

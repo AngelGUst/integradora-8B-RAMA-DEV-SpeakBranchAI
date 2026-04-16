@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motio
 import { Rocket } from 'lucide-react';
 import { GameProvider, useGame } from '../store/GameContext';
 import { Spaceship } from '../components/Spaceship';
-import { HUD } from '../components/HUD';
+import { HUD as Hud } from '../components/HUD';
 import { ExerciseOverlay } from '../components/ExerciseOverlay';
 import type { CefrZone } from '../types/game.types';
 
@@ -75,7 +75,10 @@ function GameScene() {
     }
   }, [state.phase, dismissResult]);
 
-  const currentZone: CefrZone = state.altitude < 44 ? 'atmosfera' : state.altitude < 77 ? 'orbita' : 'vacio';
+  let currentZone: CefrZone;
+  if (state.altitude < 44) currentZone = 'atmosfera';
+  else if (state.altitude < 77) currentZone = 'orbita';
+  else currentZone = 'vacio';
   const accentColor = ZONE_ACCENT[currentZone];
 
   // Ship vertical position: stays roughly 35% from top while world scrolls
@@ -122,9 +125,9 @@ function GameScene() {
         />
 
         {/* ── Stars ── */}
-        {STARS.map((s, i) => (
+        {STARS.map((s) => (
           <div
-            key={i}
+            key={`star-${s.x}-${s.y}-${s.size}`}
             className="absolute rounded-full bg-white"
             style={{
               left:    `${s.x}%`,
@@ -269,7 +272,7 @@ function GameScene() {
 
       {/* ─── HUD ─────────────────────────────────────────────────── */}
       {state.phase !== 'intro' && state.phase !== 'victory' && state.phase !== 'gameover' && (
-        <HUD />
+        <Hud key="game-hud" />
       )}
 
       {/* ─── Exercise overlay ─────────────────────────────────────── */}
@@ -289,7 +292,7 @@ function GameScene() {
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
               {STARS.slice(0, 60).map((s, i) => (
                 <motion.div
-                  key={i}
+                  key={`intro-star-${s.x}-${s.y}-${s.size}`}
                   className="absolute rounded-full bg-white"
                   style={{ left: `${s.x}%`, top: `${(i / 60) * 100}%`, width: s.size + 1, height: s.size + 1, opacity: s.op * 0.7 }}
                   animate={{ opacity: [s.op * 0.4, s.op, s.op * 0.4] }}

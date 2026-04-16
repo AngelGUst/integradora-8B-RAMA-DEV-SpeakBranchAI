@@ -21,7 +21,7 @@ export default function Logo({
   size = 'md',
   showText = true,
   variant = 'color',
-}: LogoProps) {
+}: Readonly<LogoProps>) {
   const { icon: s, text: textClass } = CONFIG[size];
   const accent       = variant === 'color' ? '#7C3AED' : '#ffffff';
   const accentBright = variant === 'color' ? '#A78BFA' : '#ffffff';
@@ -30,7 +30,7 @@ export default function Logo({
   const wordColor    = variant === 'color' ? '#f5f3ff' : '#ffffff';
 
   return (
-    <div className="inline-flex select-none items-center gap-2.5" role="img" aria-label="SpeakBranch AI">
+    <figure className="inline-flex select-none items-center gap-2.5" aria-label="SpeakBranch AI">
       <svg width={s} height={s} viewBox="0 0 36 36" fill="none" aria-hidden="true">
         <rect width="36" height="36" rx="9" fill={bgFill} />
         <rect width="36" height="36" rx="9" stroke={bgStroke} strokeWidth="1" />
@@ -45,6 +45,6 @@ export default function Logo({
           <span style={{ color: accentBright }}>Branch</span>
         </span>
       )}
-    </div>
+    </figure>
   );
 }

@@ -12,7 +12,7 @@ interface LoginFormProps {
   serverError?: string | null;
 }
 
-export default function LoginForm({ onSubmit, serverError }: LoginFormProps) {
+export default function LoginForm({ onSubmit, serverError }: Readonly<LoginFormProps>) {
   const [showPassword, setShowPassword] = useState(false);
 
   const {

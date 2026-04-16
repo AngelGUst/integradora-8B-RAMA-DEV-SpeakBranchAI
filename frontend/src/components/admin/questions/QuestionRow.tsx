@@ -25,7 +25,7 @@ interface Props {
   onTry: (q: Question) => void;
 }
 
-export default function QuestionRow({ question, index, onEdit, onDelete, onTry }: Props) {
+export default function QuestionRow({ question, index, onEdit, onDelete, onTry }: Readonly<Props>) {
   const Icon = TYPE_ICONS[question.type];
   const truncated = question.text.length > 80
     ? question.text.slice(0, 80) + '…'

@@ -16,7 +16,7 @@ interface AlertRowProps {
   linkLabel: string;
 }
 
-function AlertRow({ level, message, linkTo, linkLabel }: AlertRowProps) {
+function AlertRow({ level, message, linkTo, linkLabel }: Readonly<AlertRowProps>) {
   const isRed = level === 'red';
   return (
     <div
@@ -115,7 +115,7 @@ export default function AlertsSection() {
 
   return (
     <div className="flex flex-col gap-3">
-      {alerts.map((a, i) => <AlertRow key={i} {...a} />)}
+      {alerts.map((a) => <AlertRow key={a.linkTo} {...a} />)}
     </div>
   );
 }

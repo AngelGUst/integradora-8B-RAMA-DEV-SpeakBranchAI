@@ -8,8 +8,9 @@ export const questionsApi = {
       params.set('limit', String(limit));
     }
     const query = params.toString();
+    const suffix = query ? `?${query}` : '';
     const { data } = await apiClient.get<Question[]>(
-      `/questions/diagnostic/${query ? `?${query}` : ''}`,
+      `/questions/diagnostic/${suffix}`,
     );
     return data;
   },

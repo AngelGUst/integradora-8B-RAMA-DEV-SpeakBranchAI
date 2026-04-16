@@ -42,8 +42,8 @@ apiClient.interceptors.response.use(
       localStorage.removeItem(REFRESH_KEY);
       // Avoid hard redirect if already on auth pages
       const publicPaths = ['/login', '/register'];
-      if (!publicPaths.includes(window.location.pathname)) {
-        window.location.href = '/login';
+      if (!publicPaths.includes(globalThis.location.pathname)) {
+        globalThis.location.href = '/login';
       }
     }
     return Promise.reject(error);

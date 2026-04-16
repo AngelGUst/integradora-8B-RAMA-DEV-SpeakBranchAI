@@ -5,6 +5,7 @@ GET  /api/auth/progress/   → devuelve total_xp, streak_days, completed_questio
 POST /api/auth/progress/complete/ → registra completion de un ejercicio
 """
 import json
+from django.db.models import Max
 
 from django.http import JsonResponse
 from django.utils import timezone
@@ -14,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from attempts.models import SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt
 from users.models import UserProgress, UserWeakCategory
+from system_config.services import LevelProgressionService
 
 
 def _require_auth(request):
@@ -71,6 +73,26 @@ _SKILL_FIELD = {
 }
 
 
+def _best_score_for_question(user, question_id: int) -> float:
+    """Best historical score for a question across all attempt models."""
+    best = 0.0
+
+    speaking = SpeakingAttempt.objects.filter(user=user, question_id=question_id).aggregate(v=Max('score'))['v']
+    reading = ReadingAttempt.objects.filter(user=user, question_id=question_id).aggregate(v=Max('score'))['v']
+    listening = ListeningAttempt.objects.filter(user=user, question_id=question_id).aggregate(v=Max('score'))['v']
+    writing = WritingAttempt.objects.filter(user=user, question_id=question_id).aggregate(v=Max('score'))['v']
+
+    for value in (speaking, reading, listening, writing):
+        if value is not None:
+            best = max(best, float(value))
+
+    return best
+
+
+def _xp_from_score(question_xp_max: int, score: float) -> int:
+    return max(0, round(question_xp_max * (max(0.0, min(100.0, score)) / 100.0)))
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ProgressView(View):
 
@@ -80,6 +102,7 @@ class ProgressView(View):
             return auth_error
 
         progress, _ = UserProgress.objects.get_or_create(user=request.user)
+        level_progress = LevelProgressionService.get_user_level_progress(request.user, progress=progress)
 
         return JsonResponse({
             'total_xp':             progress.total_xp,
@@ -91,6 +114,7 @@ class ProgressView(View):
             'average_writing':      progress.average_writing,
             'completed_question_ids': _get_completed_ids(request.user),
             'question_scores':        _get_best_scores(request.user),
+            'level_progress':         level_progress,
         })
 
     def post(self, request):
@@ -111,12 +135,20 @@ class ProgressView(View):
         except (json.JSONDecodeError, ValueError, TypeError):
             return JsonResponse({'error': 'Invalid body.'}, status=400)
 
+        previous_best_score = 0.0
+        calculated_xp_from_score = max(0, xp_earned)
+        question_xp_max = max(0, xp_earned)
+
         # ── Create Attempt record ──────────────────────────────────────────────
         if question_id:
             try:
                 from questions.models import Question
                 question = Question.objects.get(id=question_id)
                 difficulty = question.difficulty or 'EASY'
+                question_xp_max = question.xp_max
+
+                previous_best_score = _best_score_for_question(request.user, question_id)
+                calculated_xp_from_score = _xp_from_score(question_xp_max, score)
 
                 if q_type == 'SPEAKING':
                     SpeakingAttempt.objects.create(
@@ -168,8 +200,16 @@ class ProgressView(View):
         # ── Update UserProgress ───────────────────────────────────────────────
         progress, _ = UserProgress.objects.get_or_create(user=request.user)
 
-        progress.add_xp(xp_earned)
+        previous_best_xp = _xp_from_score(
+            question_xp_max=question_xp_max,
+            score=previous_best_score,
+        )
+        xp_delta = max(0, calculated_xp_from_score - previous_best_xp)
+
+        progress.add_xp(xp_delta)
         progress.update_streak()
+
+        level_progress = LevelProgressionService.get_user_level_progress(request.user, progress=progress)
 
         skill_field = _SKILL_FIELD.get(q_type)
         if skill_field:
@@ -188,4 +228,8 @@ class ProgressView(View):
         return JsonResponse({
             'total_xp':    progress.total_xp,
             'streak_days': progress.streak_days,
+            'xp_delta': xp_delta,
+            'previous_best_score': previous_best_score,
+            'current_score': score,
+            'level_progress': level_progress,
         })

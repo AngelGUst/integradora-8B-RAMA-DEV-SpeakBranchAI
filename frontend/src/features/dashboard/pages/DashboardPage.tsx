@@ -12,10 +12,11 @@
  *  - Performance trajectory chart (VicissitudesEngine)
  */
 
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mic, Headphones, BookOpen, Repeat,
-  Trophy, Flame, Zap, ArrowRight, CheckCircle2, Lock,
+  Trophy, Flame, Zap, ArrowRight, CheckCircle2, Lock, GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
@@ -23,15 +24,14 @@ import AppSidebar from '@/shared/components/layout/AppSidebar';
 import VicissitudesEngine from '../components/VicissitudesEngine';
 import { LEARN_PATH } from '@/features/learn/data/pathData';
 import type { LessonNode } from '@/features/learn/data/pathData';
+import { examService } from '@/services/examService';
+import type { Exam } from '@/types/exam';
 
 // ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
 
 const WINDOW_SIZE = 3;
 const THRESHOLD_UP = 16.0;
 const THRESHOLD_DOWN = 10.0;
-const RECENT_XP = [18, 15, 21]; // TODO: read from last N attempts in localStorage/backend
-const AVG = RECENT_XP.reduce((a, b) => a + b, 0) / RECENT_XP.length;
-const NEXT_DIFF = AVG >= THRESHOLD_UP ? 'HARD' : AVG < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
 
 // ─── CEFR path data ───────────────────────────────────────────────────────────
 
@@ -40,19 +40,26 @@ const CEFR_STEPS = [
   { level: 'A2', label: 'Elementary' },
   { level: 'B1', label: 'Intermediate' },
   { level: 'B2', label: 'Upper-Int.' },
-  { level: 'C1', label: 'Advanced' },
-  { level: 'C2', label: 'Mastery' },
 ] as const;
 
 const CEFR_ORDER = CEFR_STEPS.map(step => step.level);
+const PLACEMENT_RESULT_LEVEL_KEY = 'sb_placement_result_level';
+const CEFR_LEVEL_LABEL: Record<string, string> = {
+  A1: 'Beginner',
+  A2: 'Elementary',
+  B1: 'Intermediate',
+  B2: 'Upper-Intermediate',
+  C1: 'Advanced',
+  C2: 'Mastery',
+};
 
 // ─── Skill definitions ────────────────────────────────────────────────────────
 
 const SKILLS = [
-  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Comprensión lectora con textos CEFR.', score: 82 },
-  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciación evaluada por IA (Whisper).', score: 68 },
-  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Escucha y replica: entrena oído y pronunciación.', score: 45 },
-  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.', score: 59 },
+  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Comprensión lectora con textos CEFR.' },
+  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciación evaluada por IA (Whisper).' },
+  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Escucha y replica: entrena oído y pronunciación.' },
+  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.' },
 ] as const;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -119,19 +126,64 @@ const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { totalXP, completedIds } = useLearnProgress();
+  const { totalXP, completedIds, streakDays, questionScores, levelProgress } = useLearnProgress();
   const navigate = useNavigate();
+  const [availableExams, setAvailableExams] = useState<Exam[]>([]);
+  const [placementLevelMessage, setPlacementLevelMessage] = useState<string | null>(null);
+
+  // Fetch exams on mount
+  useEffect(() => {
+    examService.getExams()
+      .then(setAvailableExams)
+      .catch(() => { /* silently ignore */ });
+  }, []);
+
+  useEffect(() => {
+    const level = sessionStorage.getItem(PLACEMENT_RESULT_LEVEL_KEY);
+    if (!level) return;
+    const clean = String(level).toUpperCase();
+    if (!/^(A1|A2|B1|B2|C1|C2)$/.test(clean)) {
+      sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+      return;
+    }
+    const label = CEFR_LEVEL_LABEL[clean] ?? 'Nivel asignado';
+    setPlacementLevelMessage(`Diagnóstico completado. Tu nivel asignado es ${clean} (${label}).`);
+    sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+  }, []);
 
   const currentNode = findCurrentNode(completedIds, totalXP);
   const currentMeta = currentNode ? SKILL_META[currentNode.skill] : null;
   const CurrentIcon = currentMeta?.Icon;
 
-  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(user.level))
+  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2'].includes(user.level))
     ? user.level : 'A1';
   const activeLvlIdx = CEFR_STEPS.findIndex(s => s.level === activeLvl);
   const nextLvl = activeLvlIdx >= 0 && activeLvlIdx < CEFR_ORDER.length - 1
     ? CEFR_ORDER[activeLvlIdx + 1]
     : null;
+
+  // Find exam for current level (the one to level up from current)
+  const currentExam = availableExams.find(e => e.level === activeLvl);
+  const canTakeExam = currentExam && (currentExam.can_unlock || currentExam.is_unlocked);
+  const examPassedAlready = currentExam?.last_attempt?.passed === true;
+  const requiredLevelXp = currentExam?.required_xp_for_level ?? currentExam?.xp_required ?? 0;
+  const currentLevelXp = levelProgress?.current_level_xp ?? 0;
+  const remainingForExam = Math.max(0, requiredLevelXp - currentLevelXp);
+
+  // Derive recent scores from questionScores for adaptive window
+  const recentScores = Object.values(questionScores).slice(-WINDOW_SIZE);
+  const recentXP = recentScores.length > 0 ? recentScores : [0];
+  const avg = recentXP.reduce((a, b) => a + b, 0) / recentXP.length;
+  const nextDiff = avg >= THRESHOLD_UP ? 'HARD' : avg < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+
+  // Average score across all completed exercises
+  const allScores = Object.values(questionScores);
+  const avgScore = allScores.length > 0
+    ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+    : 0;
+  const lowestSkill = SKILLS.reduce((lowest, skill) => {
+    return skill.key === 'shadowing' ? skill.key : lowest; // Default lowest to shadowing if no real data
+  }, SKILLS[0].key);
 
   return (
     <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
@@ -139,6 +191,21 @@ export default function DashboardPage() {
 
       <main className="flex-1 h-screen overflow-y-auto">
         <div className="max-w-6xl mx-auto px-8 py-8 space-y-8">
+
+          {placementLevelMessage && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-sm font-medium text-emerald-300">{placementLevelMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setPlacementLevelMessage(null)}
+                  className="text-xs font-semibold text-emerald-200/80 transition-colors hover:text-emerald-100"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Header ── */}
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
@@ -156,7 +223,7 @@ export default function DashboardPage() {
                 <div className="p-2 bg-amber-500/10 rounded-lg"><Flame size={18} className="text-amber-500" /></div>
                 <div>
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Racha</p>
-                  <p className="text-lg font-semibold leading-none">3 <span className="text-sm font-normal text-zinc-500">días</span></p>
+                  <p className="text-lg font-semibold leading-none">{streakDays} <span className="text-sm font-normal text-zinc-500">días</span></p>
                 </div>
               </div>
               <div className="w-px h-9 bg-zinc-800" />
@@ -208,6 +275,50 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* ── Level-Up Exam CTA ── */}
+          {currentExam && !examPassedAlready && (
+            <div
+              className={`w-full flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${canTakeExam
+                ? 'border-violet-500/25 bg-violet-500/[0.06] hover:bg-violet-500/[0.10] hover:border-violet-500/40'
+                : 'border-zinc-800 bg-zinc-900/40'
+                }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${canTakeExam ? 'bg-violet-500/15 border border-violet-500/25' : 'bg-zinc-800 border border-zinc-700'}`}>
+                  <GraduationCap size={22} className={canTakeExam ? 'text-violet-400' : 'text-zinc-500'} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-violet-400/80 font-semibold mb-0.5">
+                    Examen de Nivel
+                  </p>
+                  <p className="font-semibold text-zinc-100 text-base leading-tight">
+                    {currentExam.name}
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {canTakeExam
+                      ? `${currentExam.question_count} preguntas · ${currentExam.time_limit_minutes} min · Aprobar con ${currentExam.passing_score}%`
+                      : `Necesitas ${requiredLevelXp} XP en el nivel actual (llevas ${currentLevelXp})`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {canTakeExam ? (
+                <button
+                  onClick={() => navigate(`/exam/${currentExam.id}`)}
+                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0"
+                >
+                  Presentar examen <ArrowRight size={15} />
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
+                  <Lock size={13} />
+                  {remainingForExam} XP restantes
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Performance chart ── */}
           <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
@@ -244,8 +355,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-end gap-2 h-20 mb-5">
-                  {RECENT_XP.map((xp, i) => {
-                    const pct = (xp / 30) * 100;
+                  {recentXP.map((xp, i) => {
+                    const pct = (xp / 100) * 100;
                     const color = xp >= THRESHOLD_UP ? 'bg-purple-500' : xp < THRESHOLD_DOWN ? 'bg-emerald-500' : 'bg-sky-500';
                     return (
                       <div key={i} className="flex-1 flex flex-col justify-end gap-1">
@@ -261,11 +372,11 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-zinc-800">
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Promedio</p>
-                    <p className="text-sm font-semibold text-zinc-200">{AVG.toFixed(1)} / 30.0</p>
+                    <p className="text-sm font-semibold text-zinc-200">{avg.toFixed(1)} / 100</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Dificultad</p>
-                    <Badge variant={NEXT_DIFF.toLowerCase() as BadgeVariant}>{NEXT_DIFF}</Badge>
+                    <Badge variant={nextDiff.toLowerCase() as BadgeVariant}>{nextDiff}</Badge>
                   </div>
                 </div>
               </section>
@@ -320,14 +431,14 @@ export default function DashboardPage() {
 
               {SKILLS.map(skill => {
                 const nextId = findNextBySkill(skill.key, completedIds, totalXP);
-                const recommended = skill.key === 'shadowing'; // lowest score → recommended
+                const recommended = skill.key === lowestSkill;
 
                 return (
                   <div
                     key={skill.key}
                     className={`flex items-center justify-between p-5 rounded-xl border transition-all ${recommended
-                        ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
-                        : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
+                      ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
+                      : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
                       }`}
                   >
                     <div className="flex items-center gap-4">
@@ -351,7 +462,7 @@ export default function DashboardPage() {
                       <div className="hidden sm:block text-right">
                         <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Score</p>
                         <div className="flex items-end gap-0.5">
-                          <span className="text-lg font-semibold text-zinc-200 leading-none">{skill.score}</span>
+                          <span className="text-lg font-semibold text-zinc-200 leading-none">{avgScore}</span>
                           <span className="text-xs text-zinc-600 mb-0.5">/100</span>
                         </div>
                       </div>
@@ -360,8 +471,8 @@ export default function DashboardPage() {
                         <button
                           onClick={() => navigate(`/exercise/${nextId}`)}
                           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all shrink-0 ${recommended
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
-                              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                            : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
                             }`}
                         >
                           Practicar

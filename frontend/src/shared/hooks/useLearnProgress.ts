@@ -20,17 +20,18 @@ interface ProgressResponse {
   streak_days: number;
   completed_question_ids: string[];
   question_scores: Record<string, number>;
-  average_speaking: number;
-  average_reading: number;
-  average_listening: number;
-  average_writing: number;
-}
-
-export interface SkillAverages {
-  speaking: number;
-  reading: number;
-  listening: number;
-  writing: number;
+  level_progress?: {
+    current_level: string;
+    next_level: string | null;
+    required_xp: number;
+    current_xp: number;
+    current_level_xp: number;
+    remaining_xp: number;
+    progress_percentage: number;
+    diagnostic_completed: boolean;
+    can_take_level_exam: boolean;
+    at_max_level: boolean;
+  };
 }
 
 export function useLearnProgress() {
@@ -38,9 +39,7 @@ export function useLearnProgress() {
   const [completedIds, setCompletedIds] = useState<string[]>([]);
   const [streakDays, setStreakDays] = useState(0);
   const [questionScores, setQuestionScores] = useState<Record<string, number>>({});
-  const [skillAverages, setSkillAverages] = useState<SkillAverages>({
-    speaking: 0, reading: 0, listening: 0, writing: 0,
-  });
+  const [levelProgress, setLevelProgress] = useState<ProgressResponse['level_progress']>(undefined);
 
   useEffect(() => {
     apiFetch<ProgressResponse>('/auth/progress/')
@@ -49,12 +48,7 @@ export function useLearnProgress() {
         setCompletedIds(data.completed_question_ids);
         setStreakDays(data.streak_days);
         setQuestionScores(data.question_scores ?? {});
-        setSkillAverages({
-          speaking:  data.average_speaking  ?? 0,
-          reading:   data.average_reading   ?? 0,
-          listening: data.average_listening ?? 0,
-          writing:   data.average_writing   ?? 0,
-        });
+        setLevelProgress(data.level_progress);
       })
       .catch(() => {
         setTotalXP(Number(localStorage.getItem('sb_total_xp') ?? 0));

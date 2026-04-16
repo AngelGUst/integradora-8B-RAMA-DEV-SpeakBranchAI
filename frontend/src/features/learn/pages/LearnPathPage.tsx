@@ -552,6 +552,9 @@ const DEFAULT_XP_RANGES: Record<string, [number, number]> = {
 };
 
 export default function LearnPathPage() {
+  const { user } = useAuth();
+  const { totalXP, completedIds, questionScores, levelProgress } = useLearnProgress();
+  const navigate = useNavigate();
   const { user }                              = useAuth();
   const { totalXP, completedIds, streakDays, questionScores, skillAverages } = useLearnProgress();
   const navigate                   = useNavigate();

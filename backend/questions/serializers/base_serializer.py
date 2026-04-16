@@ -8,6 +8,7 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
     xp_max = serializers.IntegerField(read_only=True)
     created_by = serializers.StringRelatedField(read_only=True)
     vocabulary_items = serializers.SerializerMethodField(required=False)
+    audio_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
 
     class Meta:
         model = Question
@@ -30,6 +31,9 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'xp_max', 'created_by', 'created_at', 'vocabulary_items']
 
     def validate(self, attrs):
+        if attrs.get('audio_url', None) == '':
+            attrs['audio_url'] = None
+
         difficulty = attrs.get('difficulty') or (
             self.instance.difficulty if self.instance else None
         )

@@ -127,6 +127,7 @@ class LessonCompletionResponseSerializer(serializers.Serializer):
     score = serializers.FloatField()
     xp_earned = serializers.IntegerField()
     total_xp = serializers.IntegerField()
+    level_progress = serializers.JSONField()
     is_first_completion = serializers.BooleanField()
     course_completed = serializers.BooleanField()
     next_lesson = LessonSimpleSerializer(required=False)

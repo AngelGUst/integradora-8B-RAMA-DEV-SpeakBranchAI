@@ -156,8 +156,19 @@ function backendToExercise(q: Question): AnyExercise {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function safeInt(n: unknown, fallback = 0): number {
+  const v = typeof n === 'number' ? n : Number(n);
+  return Number.isFinite(v) ? Math.round(v) : fallback;
+}
+
 function calcXP(maxXP: number, score: number): number {
+  if (!Number.isFinite(maxXP) || !Number.isFinite(score)) return 0;
   return Math.round(maxXP * (score / 100));
+}
+
+function safeScore(correct: number, total: number): number {
+  if (!total || !Number.isFinite(total) || !Number.isFinite(correct)) return 0;
+  return Math.round((correct / total) * 100);
 }
 
 /** Approximates RapidFuzz word-ratio for demo without backend */
@@ -206,6 +217,8 @@ function ResultScreen({
   expectedPhrase?: string;
   onBack: () => void;
 }) {
+  const safeScoreVal = safeInt(score);
+  const safeXpVal = safeInt(xp);
   const accent =
     score >= 80 ? { ring: 'border-emerald-500/40', text: 'text-emerald-400' } :
       score >= 50 ? { ring: 'border-sky-500/40', text: 'text-sky-400' } :
@@ -219,7 +232,7 @@ function ResultScreen({
       {/* Score card */}
       <div className={`border ${accent.ring} bg-zinc-900/50 rounded-2xl p-5 flex items-center gap-5`}>
         <div className={`w-20 h-20 rounded-full border-4 ${accent.ring} flex flex-col items-center justify-center shrink-0`}>
-          <span className={`text-2xl font-black ${accent.text}`}>{score}</span>
+          <span className={`text-2xl font-black ${accent.text}`}>{safeScoreVal}</span>
           <span className="text-[10px] text-zinc-600">/100</span>
         </div>
         <div>
@@ -832,7 +845,7 @@ function WritingPlayer({ ex, onComplete }: { ex: WritingExercise; onComplete: (s
         {/* Score card */}
         <div className={`border ${accent.ring} bg-zinc-900/50 rounded-2xl p-5 flex items-center gap-5`}>
           <div className={`w-20 h-20 rounded-full border-4 ${accent.ring} flex flex-col items-center justify-center shrink-0`}>
-            <span className={`text-2xl font-black ${accent.text}`}>{result.score}</span>
+            <span className={`text-2xl font-black ${accent.text}`}>{safeInt(result.score)}</span>
             <span className="text-[10px] text-zinc-600">/100</span>
           </div>
           <div>
@@ -865,7 +878,7 @@ function WritingPlayer({ ex, onComplete }: { ex: WritingExercise; onComplete: (s
                   style={{ width: `${c.value}%` }}
                 />
               </div>
-              <span className="text-xs font-mono text-zinc-400 w-8 text-right">{Math.round(c.value)}</span>
+              <span className="text-xs font-mono text-zinc-400 w-8 text-right">{c.value}</span>
               <span className="text-[10px] text-zinc-600 w-8">{c.weight}</span>
             </div>
           ))}

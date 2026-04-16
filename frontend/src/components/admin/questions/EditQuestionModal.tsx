@@ -35,6 +35,9 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
+  const setValue = (key: keyof FormState, value: FormState[keyof FormState]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
   const setOption = (idx: number) => (e: ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => {
       const opts = [...prev.options] as [string, string, string, string];
@@ -115,6 +118,7 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
                 type={question.type}
                 form={form}
                 set={set}
+                setValue={setValue}
                 setOption={setOption}
                 onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
               />

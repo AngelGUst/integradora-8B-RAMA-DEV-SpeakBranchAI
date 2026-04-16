@@ -45,9 +45,11 @@ class QuestionAdmin(admin.ModelAdmin):
     text_preview.short_description = 'Texto'
     
     def save_model(self, request, obj, form, change):
-        """Auto-asignar created_by si es nuevo"""
+        """Auto-asignar created_by y updated_by"""
         if not change:  # Si es nuevo
             obj.created_by = request.user
+        else:  # Si es actualización
+            obj.updated_by = request.user
         super().save_model(request, obj, form, change)
 
 @admin.register(QuestionVocabulary)

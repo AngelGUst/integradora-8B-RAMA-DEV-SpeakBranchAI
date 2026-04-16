@@ -192,7 +192,7 @@ print(f"Progreso: {summary['completion_percentage']:.1f}%")
 print(f"XP ganado: {summary['total_xp_earned']} / {summary['total_xp_available']}")
 print(f"Estado: {'✓ COMPLETADO' if summary['is_completed'] else '📚 EN PROGRESO'}")
 
-print(f"\nDetalle de lecciones:")
+print("\nDetalle de lecciones:")
 for lesson_data in summary['lessons']:
     status = "✓" if lesson_data['completed'] else "○"
     locked = "" if lesson_data['is_unlocked'] else " [BLOQUEADA]"
@@ -214,7 +214,7 @@ next_locked = LessonProgressService.get_next_locked_lesson(user, course)
 if next_locked:
     print(f"\nPróxima lección bloqueada: {next_locked.title}")
 else:
-    print(f"\nTodas las lecciones están desbloqueadas")
+    print("Todas las lecciones están desbloqueadas")
 
 # ============================================================================
 # EJEMPLO 10: Información de inscripción
@@ -223,7 +223,7 @@ else:
 print("\n[EJEMPLO 10] Estado de inscripción\n")
 
 enrollment.refresh_from_db()
-print(f"Inscripción:")
+print("Inscripción:")
 print(f"  - Usuario: {enrollment.user.email}")
 print(f"  - Curso: {enrollment.course.name}")
 print(f"  - Lección actual: {enrollment.current_lesson.title if enrollment.current_lesson else 'Completado'}")
@@ -250,7 +250,7 @@ print(f"✓ ¿Curso completado?: {result_final['course_completed']}")
 
 # Verificar estado final
 enrollment.refresh_from_db()
-print(f"\nEstado final de la inscripción:")
+print("\nEstado final de la inscripción:")
 print(f"  - ¿Completado?: {enrollment.is_completed}")
 print(f"  - Fecha completado: {enrollment.completed_at}")
 print(f"  - Progreso: {enrollment.progress_percentage:.1f}%")

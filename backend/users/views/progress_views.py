@@ -49,9 +49,9 @@ def _get_best_scores(user):
     from django.db.models import Max
     scores = {}
 
-    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+    for model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
         qs = (
-            Model.objects
+            model.objects
             .filter(user=user, score__isnull=False)
             .values('question_id')
             .annotate(best=Max('score'))
@@ -132,7 +132,7 @@ class ProgressView(View):
             score       = float(body.get('score', 0))
             xp_earned   = int(body.get('xp_earned', 0))
             q_type      = body.get('question_type', '')
-        except (json.JSONDecodeError, ValueError, TypeError):
+        except (TypeError, json.JSONDecodeError):
             return JsonResponse({'error': 'Invalid body.'}, status=400)
 
         previous_best_score = 0.0

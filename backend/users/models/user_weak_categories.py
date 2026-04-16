@@ -48,7 +48,7 @@ class UserWeakCategory(models.Model):
         """
         Actualiza o crea una categoría débil para el usuario
         """
-        weak_category, created = cls.objects.update_or_create(
+        weak_category, _ = cls.objects.update_or_create(
             user=user,
             skill=skill,
             category=category,

@@ -19,6 +19,144 @@ from .serializers import (
 )
 from .services import calculate_speaking_score, evaluate_writing
 
+# Message constants to avoid duplication
+MSG_ALREADY_COMPLETED = "Ya completaste este ejercicio con una calificación aprobatoria."
+MSG_INSUFFICIENT_SCORE = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
+
+
+# Helper functions to reduce cognitive complexity
+def _calculate_xp_for_attempt(user, question, score, attempt_model):
+    """Calculate XP and message based on score and previous attempts"""
+    xp = 0
+    xp_message = ""
+    
+    if not user.is_authenticated:
+        return xp, xp_message
+    
+    previous_successful = attempt_model.objects.filter(
+        user=user,
+        question=question,
+        score__gte=80
+    ).first()
+    
+    if score >= 80:
+        if previous_successful:
+            xp = 0
+            xp_message = MSG_ALREADY_COMPLETED
+        else:
+            xp = question.xp_max
+            xp_message = f"¡Excelente! Obtuviste {xp} XP."
+    else:
+        xp = max(0, round((score / 100) * 5))
+        if xp > 0:
+            xp_message = f"Obtuviste {xp} XP. Intenta de nuevo para obtener la calificación completa."
+        else:
+            xp_message = MSG_INSUFFICIENT_SCORE
+    
+    return xp, xp_message
+
+
+def _update_lesson_progress(user, question, xp):
+    """Update lesson progress and return progress object"""
+    if not user.is_authenticated:
+        return None
+    
+    lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
+        user=user,
+        question_type=question.type,
+        question_level=question.level,
+    )
+    lesson_progress.refresh_from_db()
+    
+    if xp > 0:
+        lesson_progress.xp_easy += xp
+        lesson_progress.save()
+        lesson_progress.refresh_from_db()
+    
+    return lesson_progress
+
+
+def _get_lesson_progress_response(lesson_progress):
+    """Generate standard lesson progress response"""
+    if not lesson_progress:
+        return {
+            "total_xp": 0,
+            "max_xp": 60,
+            "is_completed": False,
+            "xp_breakdown": {"easy": 0, "medium": 0, "hard": 0}
+        }
+    
+    return {
+        "total_xp": lesson_progress.total_xp,
+        "max_xp": 60,
+        "is_completed": lesson_progress.is_completed,
+        "xp_breakdown": {
+            "easy": lesson_progress.xp_easy,
+            "medium": lesson_progress.xp_medium,
+            "hard": lesson_progress.xp_hard,
+        }
+    }
+
+
+def _parse_mcq_correct_answer(question):
+    """Parse the correct answer from JSON format used in MCQ questions
+    
+    Returns the correct answer value or the raw correct_answer if parsing fails
+    """
+    try:
+        parsed = json.loads(question.correct_answer)
+        if isinstance(parsed, dict) and 'questions' in parsed:
+            questions_list = parsed.get('questions', [])
+            if questions_list and isinstance(questions_list[0], dict):
+                return questions_list[0].get('correct')
+        return question.correct_answer
+    except (json.JSONDecodeError, TypeError, IndexError):
+        return question.correct_answer
+
+
+def _get_random_question(question_type, additional_fields=None):
+    """Get a random question of the specified type
+    
+    Args:
+        question_type: The type of question to retrieve
+        additional_fields: Optional list of additional field names to include in response
+    
+    Returns:
+        Response object with question data or error
+    """
+    try:
+        questions = Question.objects.filter(type=question_type, is_active=True)
+        if not questions.exists():
+            return Response(
+                {'detail': f'No hay preguntas {question_type} disponibles'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        question = questions.order_by('?').first()
+        
+        # Base fields always included
+        response_data = {
+            "id": question.id,
+            "text": question.text,
+            "difficulty": question.difficulty,
+            "level": question.level,
+            "correct_answer": question.correct_answer,
+            "xp_max": question.xp_max,
+        }
+        
+        # Add additional fields if specified
+        if additional_fields:
+            for field in additional_fields:
+                if hasattr(question, field):
+                    response_data[field] = getattr(question, field)
+        
+        return Response(response_data)
+    except Exception as e:
+        return Response(
+            {'detail': f'Error al obtener pregunta: {str(e)}'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 
 class SpeakingViewSet(viewsets.GenericViewSet):
 
@@ -27,27 +165,7 @@ class SpeakingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='question')
     def question(self, request):
         """Obtiene una pregunta SPEAKING aleatoria de la BD"""
-        try:
-            questions = Question.objects.filter(type='SPEAKING', is_active=True)
-            if not questions.exists():
-                return Response(
-                    {'detail': 'No hay preguntas SPEAKING disponibles'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            question = questions.order_by('?').first()
-            return Response({
-                "id": question.id,
-                "text": question.text,
-                "difficulty": question.difficulty,
-                "level": question.level,
-                "phonetic_text": question.phonetic_text,
-                "xp_max": question.xp_max,
-            })
-        except Exception as e:
-            return Response(
-                {'detail': f'Error al obtener pregunta: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return _get_random_question('SPEAKING', additional_fields=['phonetic_text'])
 
     @action(detail=False, methods=['post'], url_path='evaluate')
     def evaluate(self, request):
@@ -72,52 +190,16 @@ class SpeakingViewSet(viewsets.GenericViewSet):
         expected = question.correct_answer or question.text
         score, match = calculate_speaking_score(expected, transcript)
         
-        # ---- LÓGICA XP POR EJERCICIO ----
-        xp = 0
-        xp_message = ""
+        # Calculate XP using helper
+        xp, xp_message = _calculate_xp_for_attempt(
+            request.user, question, score, SpeakingAttempt
+        )
         
+        # Update lesson progress using helper
+        lesson_progress = _update_lesson_progress(request.user, question, xp)
+        
+        # Save the attempt
         if request.user.is_authenticated:
-            # ★ Verificar si ya hay intento con score >= 80 en ESTE ejercicio
-            previous_successful = SpeakingAttempt.objects.filter(
-                user=request.user,
-                question=question,
-                score__gte=80
-            ).first()
-            
-            if score >= 80:
-                if previous_successful:
-                    # Ya completó este ejercicio, no suma más
-                    xp = 0
-                    xp_message = "Ya completaste este ejercicio con una calificación aprobatoria."
-                else:
-                    # Primera vez con score >= 80, suma xp_max
-                    xp = question.xp_max
-                    xp_message = f"¡Excelente! Obtuviste {xp} XP."
-            else:
-                # Score < 80: suma pequeño proporcional
-                xp = max(0, round((score / 100) * 5))
-                if xp > 0:
-                    xp_message = f"Obtuviste {xp} XP. Intenta de nuevo para obtener la calificación completa."
-                else:
-                    xp_message = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
-
-        # ---- REGISTRAR XP EN LECCIÓN ----
-        lesson_progress = None
-        if request.user.is_authenticated:
-            lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
-                user=request.user,
-                question_type=question.type,
-                question_level=question.level,
-            )
-            lesson_progress.refresh_from_db()
-            
-            # Sumar XP a la lección
-            if xp > 0:
-                lesson_progress.xp_easy += xp
-                lesson_progress.save()
-                lesson_progress.refresh_from_db()
-            
-            # Guardar el intento
             SpeakingAttempt.objects.create(
                 user=request.user,
                 question=question,
@@ -139,16 +221,7 @@ class SpeakingViewSet(viewsets.GenericViewSet):
             "xp_message": xp_message,
             "attempts_count": attempts_count,
             "created_at": "2026-03-26T00:00:00Z",
-            "lesson_progress": {
-                "total_xp": lesson_progress.total_xp if lesson_progress else 0,
-                "max_xp": 60,
-                "is_completed": lesson_progress.is_completed if lesson_progress else False,
-                "xp_breakdown": {
-                    "easy": lesson_progress.xp_easy if lesson_progress else 0,
-                    "medium": lesson_progress.xp_medium if lesson_progress else 0,
-                    "hard": lesson_progress.xp_hard if lesson_progress else 0,
-                }
-            }
+            "lesson_progress": _get_lesson_progress_response(lesson_progress)
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['post'], url_path='transcribe')
@@ -260,52 +333,16 @@ class WritingViewSet(viewsets.GenericViewSet):
             result['score_spelling']   * 0.15
         )
         
-        # ---- LÓGICA XP POR EJERCICIO ----
-        xp_earned = 0
-        xp_message = ""
+        # Calculate XP using helper
+        xp_earned, xp_message = _calculate_xp_for_attempt(
+            request.user, question, score, WritingAttempt
+        )
         
-        if request.user.is_authenticated:
-            # ★ Verificar si ya hay intento con score >= 80 en ESTE ejercicio
-            previous_successful = WritingAttempt.objects.filter(
-                user=request.user,
-                question=question,
-                score__gte=80
-            ).first()
-            
-            if score >= 80:
-                if previous_successful:
-                    # Ya completó este ejercicio, no suma más
-                    xp_earned = 0
-                    xp_message = "Ya completaste este ejercicio con una calificación aprobatoria."
-                else:
-                    # Primera vez con score >= 80, suma xp_max
-                    xp_earned = question.xp_max
-                    xp_message = f"¡Excelente! Obtuviste {xp_earned} XP."
-            else:
-                # Score < 80: suma pequeño proporcional
-                xp_earned = max(0, round((score / 100) * 5))
-                if xp_earned > 0:
-                    xp_message = f"Obtuviste {xp_earned} XP. Intenta de nuevo para obtener la calificación completa."
-                else:
-                    xp_message = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
+        # Update lesson progress using helper
+        lesson_progress = _update_lesson_progress(request.user, question, xp_earned)
         
-        lesson_progress = None
-
+        # Save the attempt
         if request.user.is_authenticated:
-            # ---- REGISTRAR XP EN LECCIÓN ----
-            lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
-                user=request.user,
-                question_type=question.type,
-                question_level=question.level,
-            )
-            lesson_progress.refresh_from_db()
-            
-            # Sumar XP a la lección
-            if xp_earned > 0:
-                lesson_progress.xp_easy += xp_earned
-                lesson_progress.save()
-                lesson_progress.refresh_from_db()
-            
             attempt = WritingAttempt(
                 user=request.user,
                 question=question,
@@ -332,16 +369,7 @@ class WritingViewSet(viewsets.GenericViewSet):
             'feedback':         result['feedback'],
             'xp_earned':        xp_earned,
             'xp_message':       xp_message,
-            'lesson_progress': {
-                "total_xp": lesson_progress.total_xp if lesson_progress else 0,
-                "max_xp": 60,
-                "is_completed": lesson_progress.is_completed if lesson_progress else False,
-                "xp_breakdown": {
-                    "easy": lesson_progress.xp_easy if lesson_progress else 0,
-                    "medium": lesson_progress.xp_medium if lesson_progress else 0,
-                    "hard": lesson_progress.xp_hard if lesson_progress else 0,
-                }
-            }
+            'lesson_progress': _get_lesson_progress_response(lesson_progress)
         }, status=status.HTTP_200_OK)
         
 
@@ -353,27 +381,7 @@ class ReadingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='question')
     def question(self, request):
         """Obtiene una pregunta READING aleatoria de la BD"""
-        try:
-            questions = Question.objects.filter(type='READING', is_active=True)
-            if not questions.exists():
-                return Response(
-                    {'detail': 'No hay preguntas READING disponibles'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            question = questions.order_by('?').first()
-            return Response({
-                "id": question.id,
-                "text": question.text,
-                "difficulty": question.difficulty,
-                "level": question.level,
-                "correct_answer": question.correct_answer,
-                "xp_max": question.xp_max,
-            })
-        except Exception as e:
-            return Response(
-                {'detail': f'Error al obtener pregunta: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return _get_random_question('READING')
 
     @action(detail=False, methods=['post'], url_path='evaluate')
     def evaluate(self, request):
@@ -395,72 +403,24 @@ class ReadingViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # ★ PARSEAR JSON DEL correct_answer
-        correct_value = None
-        try:
-            parsed = json.loads(question.correct_answer)
-            if isinstance(parsed, dict) and 'questions' in parsed:
-                questions_list = parsed.get('questions', [])
-                if questions_list and isinstance(questions_list[0], dict):
-                    correct_value = questions_list[0].get('correct')
-            else:
-                correct_value = question.correct_answer
-        except (json.JSONDecodeError, TypeError, IndexError):
-            correct_value = question.correct_answer
+        # Parse correct answer using helper
+        correct_value = _parse_mcq_correct_answer(question)
 
         # Evaluar respuesta
         correct = str(selected_answer).strip().lower() == str(correct_value).strip().lower()
         score = 100 if correct else 0
         
-        # ---- LÓGICA XP POR EJERCICIO ----
-        xp = 0
-        xp_message = ""
+        # Calculate XP using helper
+        from attempts.models.reading_attempt import ReadingAttempt
+        xp, xp_message = _calculate_xp_for_attempt(
+            request.user, question, score, ReadingAttempt
+        )
         
+        # Update lesson progress using helper
+        lesson_progress = _update_lesson_progress(request.user, question, xp)
+        
+        # Save the attempt
         if request.user.is_authenticated:
-            from attempts.models.reading_attempt import ReadingAttempt
-            
-            # ★ Verificar si ya hay intento con score >= 80 en ESTE ejercicio
-            previous_successful = ReadingAttempt.objects.filter(
-                user=request.user,
-                question=question,
-                score__gte=80
-            ).first()
-            
-            if score >= 80:
-                if previous_successful:
-                    # Ya completó este ejercicio, no suma más
-                    xp = 0
-                    xp_message = "Ya completaste este ejercicio con una calificación aprobatoria."
-                else:
-                    # Primera vez con score >= 80, suma xp_max
-                    xp = question.xp_max
-                    xp_message = f"¡Excelente! Obtuviste {xp} XP."
-            else:
-                # Score < 80: suma pequeño proporcional
-                xp = max(0, round((score / 100) * 5))
-                if xp > 0:
-                    xp_message = f"Obtuviste {xp} XP. Intenta de nuevo para obtener la calificación completa."
-                else:
-                    xp_message = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
-
-        # ---- REGISTRAR XP EN LECCIÓN ----
-        lesson_progress = None
-        if request.user.is_authenticated:
-            from attempts.models.reading_attempt import ReadingAttempt
-            lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
-                user=request.user,
-                question_type=question.type,
-                question_level=question.level,
-            )
-            lesson_progress.refresh_from_db()
-            
-            # Sumar XP a la lección
-            if xp > 0:
-                lesson_progress.xp_easy += xp
-                lesson_progress.save()
-                lesson_progress.refresh_from_db()
-            
-            # Guardar intento
             ReadingAttempt.objects.create(
                 user=request.user,
                 question=question,
@@ -478,16 +438,7 @@ class ReadingViewSet(viewsets.GenericViewSet):
             "score": score,
             "xp_earned": xp,
             "xp_message": xp_message,
-            "lesson_progress": {
-                "total_xp": lesson_progress.total_xp if lesson_progress else 0,
-                "max_xp": 60,
-                "is_completed": lesson_progress.is_completed if lesson_progress else False,
-                "xp_breakdown": {
-                    "easy": lesson_progress.xp_easy if lesson_progress else 0,
-                    "medium": lesson_progress.xp_medium if lesson_progress else 0,
-                    "hard": lesson_progress.xp_hard if lesson_progress else 0,
-                }
-            }
+            "lesson_progress": _get_lesson_progress_response(lesson_progress)
         }, status=status.HTTP_201_CREATED)
 
 
@@ -498,28 +449,7 @@ class ListeningShadowingViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='question')
     def question(self, request):
         """Obtiene una pregunta LISTENING_SHADOWING aleatoria"""
-        try:
-            questions = Question.objects.filter(type='LISTENING_SHADOWING', is_active=True)
-            if not questions.exists():
-                return Response(
-                    {'detail': 'No hay preguntas LISTENING_SHADOWING disponibles'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            question = questions.order_by('?').first()
-            return Response({
-                "id": question.id,
-                "text": question.text,
-                "difficulty": question.difficulty,
-                "level": question.level,
-                "correct_answer": question.correct_answer,
-                "audio_url": question.audio_url,
-                "xp_max": question.xp_max,
-            })
-        except Exception as e:
-            return Response(
-                {'detail': f'Error al obtener pregunta: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return _get_random_question('LISTENING_SHADOWING', additional_fields=['audio_url'])
 
     @action(detail=False, methods=['post'], url_path='evaluate')
     def evaluate(self, request):
@@ -544,52 +474,16 @@ class ListeningShadowingViewSet(viewsets.GenericViewSet):
         expected = question.correct_answer or question.text
         score, match = calculate_speaking_score(expected, transcript)
         
-        # ---- LÓGICA XP POR EJERCICIO ----
-        xp = 0
-        xp_message = ""
+        # Calculate XP using helper
+        xp, xp_message = _calculate_xp_for_attempt(
+            request.user, question, score, SpeakingAttempt
+        )
         
+        # Update lesson progress using helper
+        lesson_progress = _update_lesson_progress(request.user, question, xp)
+        
+        # Save the attempt
         if request.user.is_authenticated:
-            # ★ Verificar si ya hay intento con score >= 80 en ESTE ejercicio
-            previous_successful = SpeakingAttempt.objects.filter(
-                user=request.user,
-                question=question,
-                score__gte=80
-            ).first()
-            
-            if score >= 80:
-                if previous_successful:
-                    # Ya completó este ejercicio, no suma más
-                    xp = 0
-                    xp_message = "Ya completaste este ejercicio con una calificación aprobatoria."
-                else:
-                    # Primera vez con score >= 80, suma xp_max
-                    xp = question.xp_max
-                    xp_message = f"¡Excelente! Obtuviste {xp} XP."
-            else:
-                # Score < 80: suma pequeño proporcional
-                xp = max(0, round((score / 100) * 5))
-                if xp > 0:
-                    xp_message = f"Obtuviste {xp} XP. Intenta de nuevo para obtener la calificación completa."
-                else:
-                    xp_message = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
-
-        # ---- REGISTRAR XP EN LECCIÓN ----
-        lesson_progress = None
-        if request.user.is_authenticated:
-            lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
-                user=request.user,
-                question_type=question.type,
-                question_level=question.level,
-            )
-            lesson_progress.refresh_from_db()
-            
-            # Sumar XP a la lección
-            if xp > 0:
-                lesson_progress.xp_easy += xp
-                lesson_progress.save()
-                lesson_progress.refresh_from_db()
-            
-            # Guardar intento
             SpeakingAttempt.objects.create(
                 user=request.user,
                 question=question,
@@ -607,16 +501,7 @@ class ListeningShadowingViewSet(viewsets.GenericViewSet):
             "score": score,
             "xp_earned": xp,
             "xp_message": xp_message,
-            "lesson_progress": {
-                "total_xp": lesson_progress.total_xp if lesson_progress else 0,
-                "max_xp": 60,
-                "is_completed": lesson_progress.is_completed if lesson_progress else False,
-                "xp_breakdown": {
-                    "easy": lesson_progress.xp_easy if lesson_progress else 0,
-                    "medium": lesson_progress.xp_medium if lesson_progress else 0,
-                    "hard": lesson_progress.xp_hard if lesson_progress else 0,
-                }
-            }
+            "lesson_progress": _get_lesson_progress_response(lesson_progress)
         }, status=status.HTTP_201_CREATED)
 
 
@@ -627,29 +512,7 @@ class ListeningComprehensionViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['get'], url_path='question')
     def question(self, request):
         """Obtiene una pregunta LISTENING_COMPREHENSION aleatoria"""
-        try:
-            questions = Question.objects.filter(type='LISTENING_COMPREHENSION', is_active=True)
-            if not questions.exists():
-                return Response(
-                    {'detail': 'No hay preguntas LISTENING_COMPREHENSION disponibles'},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            question = questions.order_by('?').first()
-            return Response({
-                "id": question.id,
-                "text": question.text,
-                "difficulty": question.difficulty,
-                "level": question.level,
-                "correct_answer": question.correct_answer,
-                "audio_url": question.audio_url,
-                "phonetic_text": question.phonetic_text,
-                "xp_max": question.xp_max,
-            })
-        except Exception as e:
-            return Response(
-                {'detail': f'Error al obtener pregunta: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return _get_random_question('LISTENING_COMPREHENSION', additional_fields=['audio_url', 'phonetic_text'])
  
     @action(detail=False, methods=['post'], url_path='evaluate')
     def evaluate(self, request):
@@ -671,72 +534,24 @@ class ListeningComprehensionViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
  
-        # ★ PARSEAR JSON DEL correct_answer
-        correct_value = None
-        try:
-            parsed = json.loads(question.correct_answer)
-            if isinstance(parsed, dict) and 'questions' in parsed:
-                questions_list = parsed.get('questions', [])
-                if questions_list and isinstance(questions_list[0], dict):
-                    correct_value = questions_list[0].get('correct')
-            else:
-                correct_value = question.correct_answer
-        except (json.JSONDecodeError, TypeError, IndexError):
-            correct_value = question.correct_answer
+        # Parse correct answer using helper
+        correct_value = _parse_mcq_correct_answer(question)
  
         # Evaluar respuesta
         correct = str(selected_answer).strip().lower() == str(correct_value).strip().lower()
         score = 100 if correct else 0
         
-        # ---- LÓGICA XP POR EJERCICIO ----
-        xp = 0
-        xp_message = ""
+        # Calculate XP using helper
+        from attempts.models.reading_attempt import ReadingAttempt
+        xp, xp_message = _calculate_xp_for_attempt(
+            request.user, question, score, ReadingAttempt
+        )
         
+        # Update lesson progress using helper
+        lesson_progress = _update_lesson_progress(request.user, question, xp)
+        
+        # Save the attempt
         if request.user.is_authenticated:
-            from attempts.models.reading_attempt import ReadingAttempt
-            
-            # ★ Verificar si ya hay intento con score >= 80 en ESTE ejercicio
-            previous_successful = ReadingAttempt.objects.filter(
-                user=request.user,
-                question=question,
-                score__gte=80
-            ).first()
-            
-            if score >= 80:
-                if previous_successful:
-                    # Ya completó este ejercicio, no suma más
-                    xp = 0
-                    xp_message = "Ya completaste este ejercicio con una calificación aprobatoria."
-                else:
-                    # Primera vez con score >= 80, suma xp_max
-                    xp = question.xp_max
-                    xp_message = f"¡Excelente! Obtuviste {xp} XP."
-            else:
-                # Score < 80: suma pequeño proporcional
-                xp = max(0, round((score / 100) * 5))
-                if xp > 0:
-                    xp_message = f"Obtuviste {xp} XP. Intenta de nuevo para obtener la calificación completa."
-                else:
-                    xp_message = "No obtuviste suficientes puntos. ¡Intenta de nuevo!"
- 
-        # ---- REGISTRAR XP EN LECCIÓN ----
-        lesson_progress = None
-        if request.user.is_authenticated:
-            from attempts.models.reading_attempt import ReadingAttempt
-            lesson_progress, _ = AttemptLessonProgress.objects.get_or_create(
-                user=request.user,
-                question_type=question.type,
-                question_level=question.level,
-            )
-            lesson_progress.refresh_from_db()
-            
-            # Sumar XP a la lección
-            if xp > 0:
-                lesson_progress.xp_easy += xp
-                lesson_progress.save()
-                lesson_progress.refresh_from_db()
-            
-            # Guardar intento
             ReadingAttempt.objects.create(
                 user=request.user,
                 question=question,
@@ -754,14 +569,5 @@ class ListeningComprehensionViewSet(viewsets.GenericViewSet):
             "score": score,
             "xp_earned": xp,
             "xp_message": xp_message,
-            "lesson_progress": {
-                "total_xp": lesson_progress.total_xp if lesson_progress else 0,
-                "max_xp": 60,
-                "is_completed": lesson_progress.is_completed if lesson_progress else False,
-                "xp_breakdown": {
-                    "easy": lesson_progress.xp_easy if lesson_progress else 0,
-                    "medium": lesson_progress.xp_medium if lesson_progress else 0,
-                    "hard": lesson_progress.xp_hard if lesson_progress else 0,
-                }
-            }
+            "lesson_progress": _get_lesson_progress_response(lesson_progress)
         }, status=status.HTTP_201_CREATED)

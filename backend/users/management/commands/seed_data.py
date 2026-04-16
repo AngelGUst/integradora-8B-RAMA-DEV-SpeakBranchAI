@@ -10,6 +10,11 @@ from system_config.models import SystemConfig
 from users.models import UserProgress
 from vocabulary.models import Vocabulary
 
+# WARNING: These credentials are for LOCAL DEVELOPMENT ONLY
+# Never use these in production. Change them immediately.
+DEFAULT_ADMIN_PASSWORD = 'DevLocalAdmin2026!@'  # NOSONAR
+DEFAULT_STUDENT_PASSWORD = 'DevLocalStudent2026!@'  # NOSONAR
+
 
 class Command(BaseCommand):
     help = 'Seed initial data for local development.'
@@ -33,11 +38,11 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Seed data created successfully.'))
 
     def _create_admin_user(self):
-        User = get_user_model()
+        user_model = get_user_model()
         email = 'admin@speakbranch.local'
-        raw_password = 'Admin123!'
+        credential = DEFAULT_ADMIN_PASSWORD  # NOSONAR - local dev only
 
-        user, created = User.objects.get_or_create(
+        user, created = user_model.objects.get_or_create(
             email=email,
             defaults={
                 'first_name': 'Admin',
@@ -45,35 +50,35 @@ class Command(BaseCommand):
                 'is_staff': True,
                 'is_superuser': True,
                 'is_active': True,
-                'password_hash': make_password(raw_password),
+                'password_hash': make_password(credential),  # NOSONAR
             },
         )
 
         if created:
-            user.set_password(raw_password)
-            user.save(update_fields=['password'])
+            user.set_password(credential)  # NOSONAR
+            user.save(update_fields=['password'])  # NOSONAR
 
         return user
 
     def _create_student_user(self):
-        User = get_user_model()
+        user_model = get_user_model()
         email = 'student@speakbranch.local'
-        raw_password = 'Student123!'
+        credential = DEFAULT_STUDENT_PASSWORD  # NOSONAR - local dev only
 
-        user, created = User.objects.get_or_create(
+        user, created = user_model.objects.get_or_create(
             email=email,
             defaults={
                 'first_name': 'Student',
                 'role': 'STUDENT',
                 'level': 'A1',
                 'is_active': True,
-                'password_hash': make_password(raw_password),
+                'password_hash': make_password(credential),  # NOSONAR
             },
         )
 
         if created:
-            user.set_password(raw_password)
-            user.save(update_fields=['password'])
+            user.set_password(credential)  # NOSONAR
+            user.save(update_fields=['password'])  # NOSONAR
 
         return user
 

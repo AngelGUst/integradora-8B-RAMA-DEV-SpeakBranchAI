@@ -65,7 +65,7 @@ class CourseModelTest(TestCase):
             order_index=1,
             content_type='VIDEO'
         )
-        lesson2 = Lesson.objects.create(
+        Lesson.objects.create(
             course=self.course,
             title='Lesson 2',
             order_index=2,
@@ -126,7 +126,7 @@ class LessonModelTest(TestCase):
         self.assertFalse(self.lesson2.is_unlocked_for_user(self.user))
         
         # Después de completar la primera
-        progress = LessonProgress.objects.create(
+        LessonProgress.objects.create(
             user=self.user,
             lesson=self.lesson1,
             completed=True,
@@ -185,7 +185,7 @@ class CourseEnrollmentTest(TestCase):
     def test_cannot_enroll_in_another_course_same_level(self):
         """No puede inscribirse en dos cursos del mismo nivel"""
         course2 = Course.objects.create(name='English A1 Plus', level='A1')
-        lesson = Lesson.objects.create(
+        Lesson.objects.create(
             course=course2,
             title='Lesson 1',
             order_index=1,

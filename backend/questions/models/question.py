@@ -213,6 +213,5 @@ class Question(models.Model):
             return base_query.filter(
                 category=cls.Category.TOEFL
             ).order_by('?')[:count]
-            return base_query.filter(category='LEVEL_UP').order_by('?')[:count]
         
         return base_query.order_by('?')[:count]

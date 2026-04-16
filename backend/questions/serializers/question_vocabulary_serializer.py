@@ -34,7 +34,7 @@ class QuestionVocabularyCreateSerializer(serializers.ModelSerializer):
         vocabulary_id = validated_data.pop('vocabulary_id')
         question = self.context['question']
 
-        obj, created = QuestionVocabulary.objects.update_or_create(
+        obj, _ = QuestionVocabulary.objects.update_or_create(
             question=question,
             vocabulary_id=vocabulary_id,
             defaults=validated_data

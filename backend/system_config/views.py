@@ -14,21 +14,25 @@ import os
 from pathlib import Path
 from django.conf import settings
 
+# Constants to avoid string duplication
+BEARER_PREFIX = 'Bearer '
+MSG_AUTH_REQUIRED = 'Authentication required'
+
 # Create your views here.
 
 def _require_admin(request):
     if not request.user.is_authenticated:
         auth_header = request.headers.get('Authorization', '')
-        if auth_header.startswith('Bearer '):
+        if auth_header.startswith(BEARER_PREFIX):
             try:
                 jwt_auth = JWTAuthentication()
                 token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
                 request.user = jwt_auth.get_user(token)
             except Exception:
-                return JsonResponse({'error': 'Authentication required'}, status=401)
+                return JsonResponse({'error': MSG_AUTH_REQUIRED}, status=401)
 
         if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
+            return JsonResponse({'error': MSG_AUTH_REQUIRED}, status=401)
         if request.user.role != 'ADMIN':
             return JsonResponse({'error': 'Admin privileges required'}, status=403)
     return None
@@ -39,7 +43,7 @@ def _require_auth(request):
         return None
 
     auth_header = request.headers.get('Authorization', '')
-    if auth_header.startswith('Bearer '):
+    if auth_header.startswith(BEARER_PREFIX):
         try:
             jwt_auth = JWTAuthentication()
             token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
@@ -48,7 +52,62 @@ def _require_auth(request):
         except Exception:
             pass
 
-    return JsonResponse({'error': 'Authentication required'}, status=401)
+    return JsonResponse({'error': MSG_AUTH_REQUIRED}, status=401)
+
+
+def _validate_threshold(value, name):
+    """Validate threshold value is between 0 and 100"""
+    val = float(value)
+    if val <= 0 or val > 100:
+        return JsonResponse(
+            {'error': f'{name} must be between 0 and 100'}, 
+            status=400
+        )
+    return val
+
+
+def _validate_level_xp_requirements(incoming):
+    """Validate level XP requirements structure and monotonicity"""
+    if not isinstance(incoming, dict):
+        return JsonResponse(
+            {'error': 'level_xp_requirements must be a JSON object'}, 
+            status=400
+        ), None
+    
+    normalized = LevelProgressionService._normalize_overrides(incoming)
+    invalid_levels = [
+        key for key in incoming.keys()
+        if str(key).upper() not in LevelProgressionService.LEVEL_SEQUENCE
+    ]
+    
+    if invalid_levels:
+        return JsonResponse(
+            {'error': f'Invalid levels in level_xp_requirements: {", ".join(map(str, invalid_levels))}'},
+            status=400
+        ), None
+    
+    resolved_base = LevelProgressionService.get_level_xp_requirements()
+    candidate = {**resolved_base, **normalized}
+    
+    prev_level = None
+    prev_value = None
+    for level in LevelProgressionService.LEVEL_SEQUENCE:
+        current_value = int(candidate.get(level, 0) or 0)
+        if prev_value is not None and current_value < prev_value:
+            return JsonResponse(
+                {
+                    'error': (
+                        'level_xp_requirements must be monotonic: '
+                        f'{level} ({current_value}) cannot be lower than '
+                        f'{prev_level} ({prev_value}).'
+                    )
+                },
+                status=400,
+            ), None
+        prev_level = level
+        prev_value = current_value
+    
+    return None, normalized
         
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -81,17 +140,17 @@ class SystemConfigView(View):
         changed = []
 
         if 'adaptive_threshold_up' in body:
-            val = float(body['adaptive_threshold_up'])
-            if val <=0 or val > 100:
-                return JsonResponse({'error': 'adaptive_threshold_up must be between 0 and 100'}, status=400)
-            cfg.adaptive_threshold_up = val
+            result = _validate_threshold(body['adaptive_threshold_up'], 'adaptive_threshold_up')
+            if isinstance(result, JsonResponse):
+                return result
+            cfg.adaptive_threshold_up = result
             changed.append('adaptive_threshold_up')
 
         if 'adaptive_threshold_down' in body:
-            val = float(body['adaptive_threshold_down'])
-            if val <=0 or val > 100:
-                return JsonResponse({'error': 'adaptive_threshold_down must be between 0 and 100'}, status=400)
-            cfg.adaptive_threshold_down = val
+            result = _validate_threshold(body['adaptive_threshold_down'], 'adaptive_threshold_down')
+            if isinstance(result, JsonResponse):
+                return result
+            cfg.adaptive_threshold_down = result
             changed.append('adaptive_threshold_down')
 
         if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
@@ -105,42 +164,9 @@ class SystemConfigView(View):
             changed.append('registration_enabled')
 
         if 'level_xp_requirements' in body:
-            incoming = body['level_xp_requirements']
-            if not isinstance(incoming, dict):
-                return JsonResponse({'error': 'level_xp_requirements must be a JSON object'}, status=400)
-
-            normalized = LevelProgressionService._normalize_overrides(incoming)
-            invalid_levels = [
-                key for key in incoming.keys()
-                if str(key).upper() not in LevelProgressionService.LEVEL_SEQUENCE
-            ]
-            if invalid_levels:
-                return JsonResponse(
-                    {'error': f'Invalid levels in level_xp_requirements: {", ".join(map(str, invalid_levels))}'},
-                    status=400
-                )
-
-            resolved_base = LevelProgressionService.get_level_xp_requirements()
-            candidate = {**resolved_base, **normalized}
-
-            prev_level = None
-            prev_value = None
-            for level in LevelProgressionService.LEVEL_SEQUENCE:
-                current_value = int(candidate.get(level, 0) or 0)
-                if prev_value is not None and current_value < prev_value:
-                    return JsonResponse(
-                        {
-                            'error': (
-                                'level_xp_requirements must be monotonic: '
-                                f'{level} ({current_value}) cannot be lower than '
-                                f'{prev_level} ({prev_value}).'
-                            )
-                        },
-                        status=400,
-                    )
-                prev_level = level
-                prev_value = current_value
-
+            error, normalized = _validate_level_xp_requirements(body['level_xp_requirements'])
+            if error:
+                return error
             cfg.level_xp_requirements = normalized
             changed.append('level_xp_requirements')
 
@@ -164,16 +190,16 @@ class PublicLevelsView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             auth_header = request.headers.get('Authorization', '')
-            if auth_header.startswith('Bearer '):
+            if auth_header.startswith(BEARER_PREFIX):
                 try:
                     jwt_auth = JWTAuthentication()
                     token = jwt_auth.get_validated_token(auth_header.split(' ', 1)[1])
                     request.user = jwt_auth.get_user(token)
                 except Exception:
-                    return JsonResponse({'error': 'Authentication required'}, status=401)
+                    return JsonResponse({'error': MSG_AUTH_REQUIRED}, status=401)
 
         if not request.user.is_authenticated:
-            return JsonResponse({'error': 'Authentication required'}, status=401)
+            return JsonResponse({'error': MSG_AUTH_REQUIRED}, status=401)
 
         cfg = SystemConfig.get()
         return JsonResponse({

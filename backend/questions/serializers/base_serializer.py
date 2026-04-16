@@ -30,6 +30,16 @@ class BaseQuestionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'xp_max', 'created_by', 'created_at', 'vocabulary_items']
 
+    def _validate_required_field(self, value, field_name, question_type=''):
+        """Generic validation for required text fields"""
+        if not value or not value.strip():
+            msg = f'{field_name} es requerido'
+            if question_type:
+                msg += f' para {question_type}'
+            msg += '.'
+            raise serializers.ValidationError(msg)
+        return value
+
     def validate(self, attrs):
         if attrs.get('audio_url', None) == '':
             attrs['audio_url'] = None

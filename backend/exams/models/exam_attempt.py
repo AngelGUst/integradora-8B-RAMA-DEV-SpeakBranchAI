@@ -119,7 +119,8 @@ class ExamAttempt(models.Model):
                     if correct_value and user_answer.strip().lower() == correct_value.strip().lower():
                         earned_points += eq.points
                 elif question.type == 'SPEAKING':
-                    pass
+                    # Speaking questions are scored separately through pronunciation/fluency analysis
+                    continue
 
         if total_points > 0:
             self.score = (earned_points / total_points) * 100

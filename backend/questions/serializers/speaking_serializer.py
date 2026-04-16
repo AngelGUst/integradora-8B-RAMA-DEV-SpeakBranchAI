@@ -14,14 +14,10 @@ class SpeakingQuestionSerializer(BaseQuestionSerializer):
         ]
 
     def validate_phonetic_text(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError('Este campo es requerido para Speaking.')
-        return value
+        return self._validate_required_field(value, 'phonetic_text', 'Speaking')
 
     def validate_correct_answer(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError('Este campo es requerido para Speaking.')
-        return value
+        return self._validate_required_field(value, 'correct_answer', 'Speaking')
 
     def create(self, validated_data):
         validated_data['type'] = 'SPEAKING'

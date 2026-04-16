@@ -97,10 +97,12 @@ def get_next_adaptive_question(
     if q_type:
         base_qs = base_qs.filter(type=q_type)
 
+    # Always exclude diagnostic/exam questions
+    excluded_cats = [Question.Category.DIAGNOSTIC, Question.Category.LEVEL_UP]
+    base_qs = base_qs.exclude(category__in=excluded_cats)
+
     if category:
         base_qs = base_qs.filter(category=category)
-    else:
-        base_qs = base_qs.exclude(category=Question.Category.DIAGNOSTIC)
 
     attempted = _get_attempted_question_ids(user)
     exclude = set(exclude_ids) | attempted
@@ -255,10 +257,12 @@ def get_adaptive_session_questions(
     if q_type:
         base_qs = base_qs.filter(type=q_type)
 
+    # Always exclude diagnostic/exam questions from learn path sessions
+    excluded_cats = [Question.Category.DIAGNOSTIC, Question.Category.LEVEL_UP]
+    base_qs = base_qs.exclude(category__in=excluded_cats)
+
     if category:
         base_qs = base_qs.filter(category=category)
-    else:
-        base_qs = base_qs.exclude(category=Question.Category.DIAGNOSTIC)
 
     attempted = _get_attempted_question_ids(user)
     base_qs = base_qs.exclude(id__in=attempted)

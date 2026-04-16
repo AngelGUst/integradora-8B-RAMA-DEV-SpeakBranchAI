@@ -16,6 +16,7 @@ from questions.serializers import (
 )
 from questions.services import evaluate_diagnostic, get_next_adaptive_question
 from questions.services.adaptive_service import get_adaptive_session_questions
+from system_config.services import LevelProgressionService
 from users.models import UserProgress
 
 
@@ -92,10 +93,20 @@ class DiagnosticSubmitView(APIView):
             request.user.diagnostic_completed = True
             request.user.save(update_fields=['level', 'diagnostic_completed'])
 
+            # Grant XP equal to the start of the assigned level so the user
+            # enters their section already unlocked and with the correct baseline.
+            # e.g. placed at A2 → grant xp_level_a1 XP (200).
+            level_ranges = LevelProgressionService.get_cumulative_level_ranges()
+            placement_xp = level_ranges.get(result.assigned_level, [0])[0]
+
             progress, _ = UserProgress.objects.get_or_create(user=request.user)
             progress.level = result.assigned_level
+            # Only set XP if the placement grant is larger than what they already have
+            # (protects against running the diagnostic twice).
+            if placement_xp > progress.total_xp:
+                progress.total_xp = placement_xp
             progress.level_start_xp = progress.total_xp
-            progress.save(update_fields=['level', 'level_start_xp'])
+            progress.save(update_fields=['level', 'total_xp', 'level_start_xp'])
 
         response_serializer = DiagnosticSubmitResponseSerializer({
             'assigned_level': result.assigned_level,
@@ -171,7 +182,7 @@ class LevelExercisesView(ListAPIView):
 
         qs = (
             Question.objects.filter(is_active=True, level=level)
-            .exclude(category=Question.Category.DIAGNOSTIC)
+            .exclude(category__in=[Question.Category.DIAGNOSTIC, Question.Category.LEVEL_UP])
             .select_related('created_by')
             .prefetch_related('vocabulary_items__vocabulary')
             .annotate(difficulty_order=difficulty_order)

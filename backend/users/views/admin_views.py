@@ -82,6 +82,7 @@ def _user_row(user):
 
 def _user_detail(user, progress):
     """Full representation for the detail drawer."""
+    user._cached_progress = progress  # ensure _user_row picks up XP/streak
     return {
         **_user_row(user),
         'average_speaking':  progress.average_speaking if progress else 0.0,

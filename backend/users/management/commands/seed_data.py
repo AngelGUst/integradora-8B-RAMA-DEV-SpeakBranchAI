@@ -95,37 +95,17 @@ class Command(BaseCommand):
         )
 
     def _create_system_config(self):
-        cfg = SystemConfig.get()
-        desired = {
-            'A1': 100,
-            'A2': 200,
-            'B1': 310,
-            'B2': 450,
-        }
-
-        if not cfg.level_xp_requirements:
-            cfg.level_xp_requirements = desired
-            cfg.save(update_fields=['level_xp_requirements'])
-            return
-
-        updated = dict(cfg.level_xp_requirements or {})
-        changed = False
-        for level, xp in desired.items():
-            if int(updated.get(level, xp)) != xp:
-                updated[level] = xp
-                changed = True
-
-        if changed:
-            cfg.level_xp_requirements = updated
-            cfg.save(update_fields=['level_xp_requirements'])
+        # SystemConfig defaults are set by the model (xp_level_a1=200, etc.).
+        # Nothing to seed here — the get_or_create in SystemConfig.get() handles it.
+        SystemConfig.get()
 
     def _create_exams(self):
         cfg = SystemConfig.get()
-        xp_map = cfg.level_xp_requirements or {
-            'A1': 100,
-            'A2': 200,
-            'B1': 310,
-            'B2': 450,
+        xp_map = {
+            'A1': cfg.xp_level_a1,
+            'A2': cfg.xp_level_a2,
+            'B1': cfg.xp_level_b1,
+            'B2': cfg.xp_level_b2,
         }
 
         level_up_targets = {

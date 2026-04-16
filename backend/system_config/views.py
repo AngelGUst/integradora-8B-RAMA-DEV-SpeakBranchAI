@@ -163,15 +163,52 @@ class SystemConfigView(View):
             cfg.registration_enabled = bool(body['registration_enabled'])
             changed.append('registration_enabled')
 
-        if 'level_xp_requirements' in body:
-            error, normalized = _validate_level_xp_requirements(body['level_xp_requirements'])
-            if error:
-                return error
-            cfg.level_xp_requirements = normalized
-            changed.append('level_xp_requirements')
+        XP_LEVEL_FIELDS = {
+            'xp_level_a1': 'xp_level_a1',
+            'xp_level_a2': 'xp_level_a2',
+            'xp_level_b1': 'xp_level_b1',
+            'xp_level_b2': 'xp_level_b2',
+        }
+        for key, field in XP_LEVEL_FIELDS.items():
+            if key in body:
+                try:
+                    val = int(body[key])
+                    if val <= 0:
+                        return JsonResponse({'error': f'{key} must be a positive integer'}, status=400)
+                    setattr(cfg, field, val)
+                    changed.append(field)
+                except (TypeError, ValueError):
+                    return JsonResponse({'error': f'{key} must be an integer'}, status=400)
+
+        # Validate monotonic order for xp_level fields
+        if any(f in changed for f in XP_LEVEL_FIELDS.values()):
+            vals = [cfg.xp_level_a1, cfg.xp_level_a2, cfg.xp_level_b1, cfg.xp_level_b2]
+            labels = ['xp_level_a1', 'xp_level_a2', 'xp_level_b1', 'xp_level_b2']
+            for i in range(len(vals) - 1):
+                if vals[i] >= vals[i + 1]:
+                    return JsonResponse(
+                        {'error': f'{labels[i]} ({vals[i]}) must be less than {labels[i+1]} ({vals[i+1]})'},
+                        status=400,
+                    )
 
         if changed:
-            cfg.save()
+            cfg.save(update_fields=changed)
+
+            # Sync Exam.xp_required to match SystemConfig so LevelProgressionService
+            # stays consistent when reading from the Exam table.
+            if any(f in changed for f in XP_LEVEL_FIELDS.values()):
+                try:
+                    from exams.models import Exam
+                    LEVEL_TO_NEXT_XP = {
+                        'A1': cfg.xp_level_a1,
+                        'A2': cfg.xp_level_a2,
+                        'B1': cfg.xp_level_b1,
+                        'B2': cfg.xp_level_b2,
+                    }
+                    for level, xp in LEVEL_TO_NEXT_XP.items():
+                        Exam.objects.filter(type='LEVEL_UP', level=level).update(xp_required=xp)
+                except Exception:
+                    pass  # non-critical — LevelProgressionService will use SystemConfig directly
 
         return JsonResponse({
             'adaptive_threshold_up':  cfg.adaptive_threshold_up,

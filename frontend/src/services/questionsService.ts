@@ -109,7 +109,7 @@ export const questionsService = {
 
     params.set('all', 'true');
 
-    const response = await apiFetch<PaginatedResponse<Question> | Question[] | Question>(`/api/questions/?${params.toString()}`);
+    const response = await apiFetch<PaginatedResponse<Question> | Question[] | Question>(`/questions/?${params.toString()}`);
     if (Array.isArray(response)) {
       return response;
     }
@@ -198,6 +198,20 @@ export interface QuestionVocabularyItem {
   is_key: boolean;
   order: number;
   created_at: string;
+}
+
+// ── Ordered exercise IDs (set by LearnPathPage, read by ExercisePage) ─────────
+let _orderedQuestionIds: string[] = [];
+
+export function setOrderedQuestionIds(ids: string[]): void {
+  _orderedQuestionIds = ids;
+}
+
+export function getNextQuestionId(currentId: string): string | null {
+  const idx = _orderedQuestionIds.indexOf(String(currentId));
+  return idx >= 0 && idx + 1 < _orderedQuestionIds.length
+    ? _orderedQuestionIds[idx + 1]
+    : null;
 }
 
 export interface WritingEvaluationResult {

@@ -1,775 +1,893 @@
 /**
  * LevelExamPage — SpeakBranch AI
  *
- * Página para realizar exámenes de nivel (LEVEL_UP).
- * Muestra preguntas del examen, permite responder y enviar.
- * Al aprobar, el usuario sube al siguiente nivel CEFR.
+ * Diseño idéntico al diagnóstico: intro → quiz → resultado.
+ * Las respuestas se recopilan localmente y se envían todas al final.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Clock, CheckCircle2, XCircle, Trophy, AlertCircle,
-  Volume2, Mic, BookOpen, PenLine, Loader2, Send,
+  ChevronRight, ArrowRight, Trophy, AlertCircle,
+  Volume2, Mic, BookOpen, Headphones, PenLine, Clock, CheckCheck,
 } from 'lucide-react';
+import Logo from '@/shared/components/ui/Logo';
 import { examService } from '@/services/examService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { Exam, ExamQuestion, ExamStartResponse, Level } from '@/types/exam';
-import { questionsService } from '@/services/questionsService';
-import type { VocabularyWord, WritingEvaluationResult } from '@/services/questionsService';
-import type { Question } from '@/types/question';
+import type { Exam, ExamQuestion, ExamStartResponse } from '@/types/exam';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-interface MCQOption {
-  id: string;
-  text: string;
-}
+const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 
-interface MCQQuestion {
-  id: string;
-  text: string;
-  options: [string, string, string, string];
-  correctIndex: number;
-  explanation: string;
-}
+// ── CEFR palette (mirrors PlacementTestPage) ──────────────────────────────────
 
-// ─── Helper: Convert backend question to exercise-like format ─────────────────
+const CEFR_META: Record<string, {
+  color: string; bg: string; border: string; title: string; icon: string;
+}> = {
+  A1: { color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.25)',  title: 'Beginner',           icon: '🌱' },
+  A2: { color: '#6ee7b7', bg: 'rgba(110,231,183,0.08)', border: 'rgba(110,231,183,0.25)', title: 'Elementary',         icon: '🌿' },
+  B1: { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)',  border: 'rgba(56,189,248,0.25)',  title: 'Intermediate',       icon: '🌊' },
+  B2: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', title: 'Upper-Intermediate', icon: '⚡' },
+  C1: { color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)', title: 'Advanced',           icon: '🔥' },
+  C2: { color: '#f472b6', bg: 'rgba(244,114,182,0.08)', border: 'rgba(244,114,182,0.25)', title: 'Mastery',            icon: '👑' },
+};
 
-function parseMCQQuestion(question: ExamQuestion): MCQQuestion | null {
-  if (question.question_type !== 'READING' && question.question_type !== 'LISTENING_COMPREHENSION') {
-    return null;
-  }
+const NEXT_LEVEL: Record<string, string> = {
+  A1: 'A2', A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2',
+};
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function parseMCQOptions(question: ExamQuestion): string[] {
   if (Array.isArray(question.options) && question.options.length >= 2) {
-    let correctIdx = 0;
-    try {
-      const parsed = JSON.parse(question.correct_answer) as {
-        correct?: string;
-        questions?: Array<{ correct?: string }>;
-      };
-      const correctValue = parsed?.questions?.[0]?.correct ?? parsed?.correct;
-      if (correctValue) {
-        const idx = question.options.findIndex(
-          (opt) => opt.trim().toLowerCase() === String(correctValue).trim().toLowerCase(),
-        );
-        if (idx >= 0) correctIdx = idx;
-      }
-    } catch {
-      // keep default 0
-    }
-
-    return {
-      id: String(question.question_id),
-      text: question.text,
-      options: question.options as [string, string, string, string],
-      correctIndex: correctIdx,
-      explanation: 'Respuesta validada por el sistema.',
-    };
+    return question.options;
   }
-
-  const source = question.correct_answer || question.text;
-
   try {
-    const parsed = JSON.parse(source) as {
-      questions?: Array<{ text: string; options: string[]; correct: string }>;
-      options?: string[];
-      correct?: string;
-    };
-
-    if (Array.isArray(parsed.questions) && parsed.questions.length > 0) {
-      const q = parsed.questions[0];
-      const correctIdx = q.options.indexOf(q.correct);
-      return {
-        id: String(question.question_id),
-        text: q.text,
-        options: q.options as [string, string, string, string],
-        correctIndex: correctIdx >= 0 ? correctIdx : 0,
-        explanation: `La respuesta correcta es: "${q.correct}".`,
-      };
-    }
-
-    if (Array.isArray(parsed.options) && parsed.correct) {
-      const correctIdx = parsed.options.indexOf(parsed.correct);
-      return {
-        id: String(question.question_id),
-        text: question.text,
-        options: parsed.options as [string, string, string, string],
-        correctIndex: correctIdx >= 0 ? correctIdx : 0,
-        explanation: `La respuesta correcta es: "${parsed.correct}".`,
-      };
-    }
-  } catch {
-    // Not a MCQ structure
-  }
-
-  return null;
+    const data = JSON.parse(question.correct_answer) as any;
+    if (Array.isArray(data?.questions?.[0]?.options)) return data.questions[0].options;
+    if (Array.isArray(data?.options)) return data.options;
+  } catch { /* ignore */ }
+  return [];
 }
 
-function playQuestionAudio(question: ExamQuestion) {
+function playAudio(question: ExamQuestion) {
   if (question.audio_url) {
     const audio = new Audio(question.audio_url);
-    void audio.play().catch(() => { });
+    void audio.play().catch(() => {});
     return;
   }
-
-  const ttsText = question.phonetic_text || question.text;
-  if (!ttsText || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    return;
-  }
-
-  const utterance = new SpeechSynthesisUtterance(ttsText);
+  const text = question.phonetic_text || question.text;
+  if (!text || !('speechSynthesis' in window)) return;
+  const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-US';
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(utterance);
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
 
-function MCQPlayer({
-  question,
-  onSubmit,
+type ExamScreen = 'loading' | 'intro' | 'quiz' | 'submitting' | 'result' | 'error';
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+
+function LoadingScreen({ message = 'Cargando examen…' }: { message?: string }) {
+  return (
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/6 border-t-emerald-500" />
+      <p className="text-xs text-slate-500">{message}</p>
+    </motion.div>
+  );
+}
+
+// ── Intro Screen ──────────────────────────────────────────────────────────────
+
+function IntroScreen({
+  exam,
+  continuing,
+  onStart,
 }: {
-  question: ExamQuestion;
-  onSubmit: (answer: string) => void;
+  exam: Exam;
+  continuing: boolean;
+  onStart: () => void;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [correct, setCorrect] = useState(false);
-
-  const mcq = parseMCQQuestion(question);
-  if (!mcq) return null;
-  const shouldOfferAudio = question.resource_requirements?.requires_audio
-    ?? (question.question_type === 'LISTENING_COMPREHENSION' || Boolean(question.audio_url));
-
-  const handleSubmit = () => {
-    if (selected === null || submitted) return;
-    setSubmitted(true);
-    const isCorrect = selected === mcq.correctIndex;
-    setCorrect(isCorrect);
-    onSubmit(mcq.options[selected]);
-  };
+  const meta = CEFR_META[exam.level] ?? CEFR_META.A1;
+  const nextLevel = NEXT_LEVEL[exam.level] ?? '?';
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-6">
-        <p className="text-lg text-slate-100">{mcq.text}</p>
-        {shouldOfferAudio && (
-          <div className="mt-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => playQuestionAudio(question)}
-              className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-sm font-semibold text-cyan-300"
-            >
-              <Volume2 className="h-4 w-4" /> Escuchar audio
-            </button>
-            {question.audio_url && (
-              <audio controls src={question.audio_url} className="h-10" />
-            )}
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.4 }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE }}
+        className="mb-8"
+      >
+        <Logo size="md" />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: EASE, delay: 0.1 }}
+        className="max-w-md space-y-4"
+      >
+        <div
+          className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold"
+          style={{ color: meta.color, borderColor: meta.border, background: meta.bg }}
+        >
+          <Trophy size={12} />
+          Examen de Nivelación · CEFR
+        </div>
+
+        <h1 className="text-4xl font-black tracking-tight text-white leading-tight">
+          Sube de nivel<br />
+          <span style={{ color: meta.color }}>{exam.level} → {nextLevel}</span>
+        </h1>
+
+        <p className="text-sm leading-relaxed text-slate-400">
+          {exam.description ||
+            `Demuestra tus conocimientos en ${exam.level} para avanzar al siguiente nivel. Necesitas ${exam.passing_score}% para aprobar.`}
+        </p>
+      </motion.div>
+
+      <motion.div
+        className="mt-8 flex flex-wrap items-center justify-center gap-3"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE, delay: 0.25 }}
+      >
+        {[
+          { icon: <CheckCheck size={14} />, label: `${exam.question_count} preguntas` },
+          { icon: <Clock size={14} />, label: `${exam.time_limit_minutes} minutos` },
+          { icon: <Trophy size={14} />, label: `Aprobar con ${exam.passing_score}%` },
+        ].map(({ icon, label }) => (
+          <div
+            key={label}
+            className="flex items-center gap-1.5 rounded-lg border border-white/8 bg-white/4 px-3 py-2 text-xs text-slate-400"
+          >
+            <span style={{ color: meta.color }}>{icon}</span>
+            {label}
           </div>
-        )}
-      </div>
+        ))}
+      </motion.div>
 
-      <div className="grid gap-3">
-        {mcq.options.map((option, idx) => {
-          const isSelected = selected === idx;
-          const isCorrect = idx === mcq.correctIndex;
-          let bgColor = 'bg-slate-800 border-slate-700 hover:border-sky-500/50';
-          if (submitted) {
-            bgColor = isCorrect
-              ? 'bg-emerald-900/30 border-emerald-500/70'
-              : isSelected
-                ? 'bg-rose-900/30 border-rose-500/70'
-                : 'bg-slate-800 border-slate-700';
-          } else if (isSelected) {
-            bgColor = 'bg-sky-900/30 border-sky-500/70';
-          }
+      <motion.button
+        onClick={onStart}
+        className="group mt-8 flex items-center gap-2.5 rounded-xl px-7 py-3.5 text-sm font-bold text-[#07090F] shadow-lg transition-all active:scale-95"
+        style={{ background: meta.color, boxShadow: `0 8px 24px ${meta.color}30` }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: EASE, delay: 0.35 }}
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.97 }}
+      >
+        {continuing ? 'Continuar examen' : 'Comenzar examen'}
+        <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+      </motion.button>
 
-          return (
-            <button
-              key={idx}
-              onClick={() => !submitted && setSelected(idx)}
-              disabled={submitted}
-              className={`rounded-xl border p-4 text-left transition-all ${bgColor} ${submitted ? 'cursor-default' : 'cursor-pointer'
-                }`}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-bold ${submitted && isCorrect
-                      ? 'border-emerald-500 bg-emerald-500 text-white'
-                      : submitted && isSelected
-                        ? 'border-rose-500 bg-rose-500 text-white'
-                        : isSelected
-                          ? 'border-sky-500 text-sky-400'
-                          : 'border-slate-600 text-slate-400'
-                    }`}
-                >
-                  {String.fromCharCode(65 + idx)}
-                </div>
-                <span className="text-slate-200">{option}</span>
-                {submitted && isCorrect && <CheckCircle2 className="ml-auto text-emerald-400" />}
-                {submitted && isSelected && !isCorrect && <XCircle className="ml-auto text-rose-400" />}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <motion.p
+        className="mt-5 text-xs text-slate-600"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+      >
+        {continuing ? 'Continuarás donde lo dejaste' : 'Puedes pausar y continuar después'}
+      </motion.p>
+    </motion.div>
+  );
+}
 
-      {!submitted && (
-        <button
-          onClick={handleSubmit}
-          disabled={selected === null}
-          className="rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Enviar respuesta
-        </button>
-      )}
+// ── MCQ Options ───────────────────────────────────────────────────────────────
 
-      {submitted && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`rounded-xl border p-4 ${correct ? 'border-emerald-500/50 bg-emerald-900/20' : 'border-rose-500/50 bg-rose-900/20'
-            }`}
-        >
-          <p className={correct ? 'text-emerald-300' : 'text-rose-300'}>
-            {correct ? '¡Correcto! ' : 'Incorrecto. '}
-            {mcq.explanation}
-          </p>
-        </motion.div>
-      )}
+function MCQOptions({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: string[];
+  selected: string | null;
+  onSelect: (opt: string) => void;
+}) {
+  return (
+    <div className="space-y-2.5">
+      {options.map((opt, i) => {
+        const isSelected = selected === opt;
+        return (
+          <motion.button
+            key={i}
+            onClick={() => onSelect(opt)}
+            className="group relative w-full overflow-hidden rounded-xl border px-4 py-3.5 text-left text-sm transition-all"
+            style={{
+              borderColor: isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.07)',
+              background: isSelected ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.025)',
+            }}
+            whileHover={{ scale: 1.005 }}
+            whileTap={{ scale: 0.995 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.06, duration: 0.3 }}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold transition-all"
+                style={{
+                  borderColor: isSelected ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.1)',
+                  color: isSelected ? '#10b981' : 'rgba(255,255,255,0.4)',
+                  background: isSelected ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.04)',
+                }}
+              >
+                {OPTION_LABELS[i]}
+              </span>
+              <span className={`transition-colors ${isSelected ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                {opt}
+              </span>
+            </div>
+
+            {isSelected && (
+              <motion.div
+                className="absolute right-4 top-1/2 -translate-y-1/2"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+              >
+                <div className="h-2 w-2 rounded-full bg-emerald-400" />
+              </motion.div>
+            )}
+          </motion.button>
+        );
+      })}
     </div>
   );
 }
 
-function SpeakingPlayer({
+// ── Speaking Input ────────────────────────────────────────────────────────────
+
+function SpeakingInput({
   question,
-  onSubmit,
+  answer,
+  onAnswer,
 }: {
   question: ExamQuestion;
-  onSubmit: (answer: string) => void;
+  answer: string | null;
+  onAnswer: (text: string) => void;
 }) {
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState('');
-  const [submitted, setSubmitted] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const startRecording = () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Tu navegador no soporta reconocimiento de voz. Por favor escribe tu respuesta.');
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      const fallback = window.prompt('Tu navegador no soporta grabación. Escribe tu respuesta:');
+      if (fallback) onAnswer(fallback);
       return;
     }
-
-    const recognition = new SpeechRecognition();
+    const recognition = new SR();
     recognition.lang = 'en-US';
     recognition.interimResults = false;
     recognition.continuous = false;
-
-    recognition.onresult = (event: any) => {
-      const text = event.results[0][0].transcript;
-      setTranscript(text);
-    };
-
+    recognition.onresult = (e: any) => onAnswer(e.results[0][0].transcript as string);
     recognition.onend = () => setIsRecording(false);
     recognition.onerror = () => setIsRecording(false);
-
     recognitionRef.current = recognition;
     recognition.start();
     setIsRecording(true);
   };
 
-  const stopRecording = () => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!transcript.trim() || submitted) return;
-    setSubmitted(true);
-    onSubmit(transcript);
-  };
+  const stopRecording = () => recognitionRef.current?.stop();
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-6">
-        <p className="text-lg font-medium text-slate-100">{question.text}</p>
-        {question.phonetic_text && (
-          <p className="mt-2 text-sm text-slate-400">{question.phonetic_text}</p>
-        )}
-      </div>
-
+    <div className="flex flex-col items-center gap-5">
       {question.audio_url && (
-        <audio controls src={question.audio_url} className="w-full" />
+        <audio controls src={question.audio_url} className="w-full rounded-lg" />
       )}
 
-      <div className="flex flex-col items-center gap-4">
-        {!submitted && (
-          <button
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`flex items-center gap-3 rounded-full px-8 py-4 text-lg font-semibold transition-all ${isRecording
-                ? 'bg-rose-600 text-white animate-pulse'
-                : 'bg-sky-600 text-white hover:bg-sky-500'
-              }`}
-          >
-            <Mic className="h-6 w-6" />
-            {isRecording ? 'Detener grabación' : 'Grabar respuesta'}
-          </button>
-        )}
+      <motion.button
+        onClick={isRecording ? stopRecording : startRecording}
+        className={`flex items-center gap-3 rounded-full px-8 py-4 text-sm font-bold border transition-all ${
+          isRecording
+            ? 'bg-rose-500/10 border-rose-500/40 text-rose-300'
+            : 'bg-white/6 border-white/10 text-slate-200 hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-300'
+        }`}
+        animate={isRecording ? { scale: [1, 1.04, 1] } : {}}
+        transition={{ duration: 1, repeat: Infinity }}
+      >
+        <Mic size={18} />
+        {isRecording ? 'Detener grabación' : 'Grabar respuesta'}
+      </motion.button>
 
-        {transcript && (
-          <div className="w-full rounded-xl border border-slate-700 bg-slate-800/50 p-4">
-            <p className="text-sm text-slate-400">Tu respuesta:</p>
-            <p className="mt-1 text-lg text-slate-100">{transcript}</p>
-          </div>
-        )}
-
-        {!submitted && transcript && (
-          <button
-            onClick={handleSubmit}
-            className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500"
-          >
-            Enviar respuesta
-          </button>
-        )}
-
-        {submitted && (
-          <div className="rounded-xl border border-sky-500/50 bg-sky-900/20 p-4">
-            <p className="text-sky-300">Respuesta enviada correctamente.</p>
-          </div>
-        )}
-      </div>
+      {answer && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full rounded-xl border border-white/[0.07] bg-white/3 px-4 py-3"
+        >
+          <p className="text-[10px] uppercase tracking-wider text-slate-600 mb-1">Tu respuesta</p>
+          <p className="text-sm text-slate-200">{answer}</p>
+        </motion.div>
+      )}
     </div>
   );
 }
 
-function WritingPlayer({
+// ── Writing Input ─────────────────────────────────────────────────────────────
+
+function WritingInput({
+  answer,
+  onAnswer,
+}: {
+  answer: string | null;
+  onAnswer: (text: string) => void;
+}) {
+  return (
+    <textarea
+      value={answer ?? ''}
+      onChange={e => onAnswer(e.target.value)}
+      placeholder="Escribe tu respuesta en inglés…"
+      className="min-h-40 w-full rounded-xl border border-white/[0.07] bg-white/3 p-4 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/40 focus:outline-none resize-none transition-colors"
+    />
+  );
+}
+
+// ── Quiz Screen ───────────────────────────────────────────────────────────────
+
+function QuizScreen({
   question,
-  onSubmit,
+  current,
+  total,
+  answer,
+  onAnswer,
+  onNext,
+  onPrev,
+  isLast,
+  timeRemaining,
+  examLevel,
 }: {
   question: ExamQuestion;
-  onSubmit: (answer: string) => void;
+  current: number;
+  total: number;
+  answer: string | null;
+  onAnswer: (a: string) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  isLast: boolean;
+  timeRemaining: number;
+  examLevel: string;
 }) {
-  const [text, setText] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [evaluation, setEvaluation] = useState<WritingEvaluationResult | null>(null);
+  const progress = ((current + 1) / total) * 100;
+  const canContinue = !!answer?.trim();
+  const meta = CEFR_META[examLevel] ?? CEFR_META.A1;
+  const isUrgent = timeRemaining < 300 && timeRemaining > 0;
 
-  const handleSubmit = async () => {
-    if (!text.trim() || submitted) return;
-    setSubmitted(true);
-
-    try {
-      const result = await questionsService.evaluateWriting(question.question_id, text);
-      setEvaluation(result);
-      onSubmit(text);
-    } catch (error) {
-      console.error('Error evaluating writing:', error);
-      onSubmit(text);
-    }
-  };
+  const isMCQ      = ['READING', 'LISTENING_COMPREHENSION'].includes(question.question_type);
+  const isSpeaking = ['SPEAKING', 'LISTENING_SHADOWING'].includes(question.question_type);
+  const isWriting  = question.question_type === 'WRITING';
+  const options    = parseMCQOptions(question);
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-slate-700 bg-slate-800/50 p-6">
-        <p className="text-lg font-medium text-slate-100">{question.text}</p>
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Progress bar */}
+      <div className="h-0.5 w-full bg-white/6">
+        <motion.div
+          className="h-full"
+          style={{ background: meta.color }}
+          initial={{ width: `${(current / total) * 100}%` }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.5, ease: EASE }}
+        />
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        disabled={submitted}
-        placeholder="Escribe tu respuesta en inglés..."
-        className="min-h-[200px] w-full rounded-xl border border-slate-700 bg-slate-800/50 p-4 text-slate-100 placeholder:text-slate-500 focus:border-sky-500 focus:outline-none disabled:opacity-50"
-      />
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4">
+        <Logo size="sm" />
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            {current + 1} <span className="text-slate-700">/ {total}</span>
+          </span>
 
-      {!submitted && (
-        <button
-          onClick={handleSubmit}
-          disabled={!text.trim()}
-          className="rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Enviar respuesta
-        </button>
-      )}
-
-      {submitted && evaluation && (
-        <div className="rounded-xl border border-sky-500/50 bg-sky-900/20 p-6 space-y-4">
-          <h3 className="text-lg font-semibold text-sky-300">Evaluación</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-lg bg-slate-800/50 p-3">
-              <p className="text-sm text-slate-400">Puntuación general</p>
-              <p className="text-2xl font-bold text-sky-300">{evaluation.score}%</p>
-            </div>
-            <div className="rounded-lg bg-slate-800/50 p-3">
-              <p className="text-sm text-slate-400">XP ganados</p>
-              <p className="text-2xl font-bold text-emerald-300">+{evaluation.xp_earned}</p>
-            </div>
+          {/* Timer */}
+          <div
+            className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold font-mono transition-colors ${
+              isUrgent
+                ? 'border-rose-500/40 bg-rose-500/10 text-rose-400'
+                : 'border-white/8 bg-white/4 text-slate-400'
+            }`}
+          >
+            <Clock size={11} />
+            {formatTime(timeRemaining)}
           </div>
-          <p className="text-slate-300">{evaluation.feedback}</p>
+
+          {/* Level badge */}
+          <div
+            className="rounded-md border px-2.5 py-1 text-[11px] font-bold"
+            style={{ color: meta.color, borderColor: meta.border, background: meta.bg }}
+          >
+            {examLevel}
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      {/* Question */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 pb-8">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={question.question_id}
+            className="w-full max-w-xl"
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.35, ease: EASE }}
+          >
+            {/* Type tag */}
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              <span className="text-slate-500">
+                {isMCQ ? <BookOpen size={12} /> : isSpeaking ? <Headphones size={12} /> : <PenLine size={12} />}
+              </span>
+              <span className="text-xs font-medium text-slate-500">{question.question_type}</span>
+
+              {question.resource_requirements?.requires_audio && (
+                <button
+                  type="button"
+                  onClick={() => playAudio(question)}
+                  className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-300"
+                >
+                  <Volume2 size={11} /> Audio
+                </button>
+              )}
+            </div>
+
+            {/* Question text */}
+            <h2 className="mb-6 text-lg font-semibold leading-snug text-white sm:text-xl">
+              {question.text}
+            </h2>
+
+            {question.phonetic_text && (
+              <p className="mb-4 text-sm italic text-slate-400">{question.phonetic_text}</p>
+            )}
+
+            {/* Answer input — no immediate feedback */}
+            {isMCQ && (
+              <MCQOptions options={options} selected={answer} onSelect={onAnswer} />
+            )}
+            {isSpeaking && (
+              <SpeakingInput question={question} answer={answer} onAnswer={onAnswer} />
+            )}
+            {isWriting && (
+              <WritingInput answer={answer} onAnswer={onAnswer} />
+            )}
+
+            {/* Navigation */}
+            <div className="mt-8 flex items-center justify-between">
+              <motion.button
+                onClick={onPrev}
+                disabled={current === 0}
+                className="text-sm text-slate-600 hover:text-slate-400 disabled:opacity-0 transition-colors"
+                whileHover={{ x: -2 }}
+              >
+                ← Anterior
+              </motion.button>
+
+              <motion.div
+                animate={{ opacity: canContinue ? 1 : 0.3 }}
+                transition={{ duration: 0.3 }}
+              >
+                <motion.button
+                  onClick={onNext}
+                  disabled={!canContinue}
+                  className="flex items-center gap-2 rounded-xl bg-white/6 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-emerald-500/20 hover:text-emerald-300 disabled:cursor-not-allowed"
+                  whileHover={canContinue ? { scale: 1.02 } : {}}
+                  whileTap={canContinue ? { scale: 0.97 } : {}}
+                >
+                  {isLast ? 'Finalizar examen' : 'Siguiente'}
+                  <ArrowRight size={15} />
+                </motion.button>
+              </motion.div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
+// ── Result Screen ─────────────────────────────────────────────────────────────
+
+function ResultScreen({
+  passed,
+  score,
+  passingScore,
+  scoreDelta,
+  previousBestScore,
+  examLevel,
+  message,
+  onFinish,
+}: {
+  passed: boolean;
+  score: number;
+  passingScore: number;
+  scoreDelta: number;
+  previousBestScore: number;
+  examLevel: string;
+  message: string;
+  onFinish: () => void;
+}) {
+  const nextLevel   = NEXT_LEVEL[examLevel] ?? '?';
+  const displayLevel = passed ? nextLevel : examLevel;
+  const meta        = CEFR_META[displayLevel] ?? CEFR_META.A1;
+  const glowColor   = passed ? meta.color : '#f43f5e';
+
+  return (
+    <motion.div
+      className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 py-12"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      {/* Ambient glow */}
+      <motion.div
+        className="pointer-events-none absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5, duration: 1 }}
+      >
+        <div
+          className="absolute left-1/2 top-1/2 h-125 w-125 -translate-x-1/2 -translate-y-1/2 rounded-full blur-[120px]"
+          style={{ background: `${glowColor}18` }}
+        />
+      </motion.div>
+
+      <div className="relative w-full max-w-md text-center">
+        {/* Icon */}
+        <motion.div
+          className="mb-6 text-5xl"
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.2, type: 'spring', stiffness: 280, damping: 20 }}
+        >
+          {passed ? meta.icon : '📚'}
+        </motion.div>
+
+        <motion.p
+          className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.5, ease: EASE }}
+        >
+          {passed ? '¡Felicidades! Subiste a' : 'Resultado del examen'}
+        </motion.p>
+
+        {/* Score badge */}
+        <motion.div
+          className="mb-2 inline-flex items-center gap-3 rounded-2xl border px-8 py-4"
+          style={{
+            borderColor: passed ? meta.border : 'rgba(244,63,94,0.25)',
+            background:   passed ? meta.bg    : 'rgba(244,63,94,0.06)',
+          }}
+          initial={{ opacity: 0, scale: 0.8, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ delay: 0.45, duration: 0.6, ease: EASE }}
+        >
+          <span className="text-5xl font-black" style={{ color: glowColor }}>
+            {score.toFixed(0)}%
+          </span>
+          <div className="text-left">
+            <div className="text-base font-bold text-white">
+              {passed ? `Nivel ${nextLevel} · ${meta.title}` : 'No aprobado'}
+            </div>
+            <div className="text-xs text-slate-500">
+              {passed ? 'Marco CEFR' : `Mínimo requerido: ${passingScore}%`}
+            </div>
+          </div>
+        </motion.div>
+
+        <motion.p
+          className="mt-4 text-sm leading-relaxed text-slate-400"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.5 }}
+        >
+          {message}
+        </motion.p>
+
+        {/* Stats card */}
+        <motion.div
+          className="mt-7 rounded-xl border border-white/[0.07] bg-white/3 p-4 space-y-3"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7, duration: 0.5 }}
+        >
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">Tu puntuación</span>
+            <span className="font-bold text-white">
+              {score.toFixed(1)}%
+              <span className="ml-2 text-xs" style={{ color: glowColor }}>
+                {scoreDelta >= 0 ? '+' : ''}{scoreDelta.toFixed(1)} vs anterior
+              </span>
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-500">Puntuación mínima</span>
+            <span className="font-bold text-white">{passingScore}%</span>
+          </div>
+
+          {previousBestScore > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Mejor intento anterior</span>
+              <span className="font-bold text-white">{previousBestScore.toFixed(1)}%</span>
+            </div>
+          )}
+
+          {/* Score bar */}
+          <div className="pt-1">
+            <div className="h-1.5 w-full rounded-full bg-white/6 overflow-hidden">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: glowColor }}
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, score)}%` }}
+                transition={{ delay: 0.8, duration: 0.8, ease: 'easeOut' }}
+              />
+            </div>
+            {/* Passing score marker */}
+            <div className="relative h-3">
+              <div
+                className="absolute -top-1.5 w-px h-4 bg-white/20"
+                style={{ left: `${Math.min(100, passingScore)}%` }}
+              />
+              <span
+                className="absolute -top-0.5 text-[9px] text-slate-600"
+                style={{ left: `${Math.min(100, passingScore)}%`, transform: 'translateX(-50%)' }}
+              >
+                {passingScore}%
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* CTA */}
+        <motion.button
+          onClick={onFinish}
+          className="mt-7 flex w-full items-center justify-center gap-2.5 rounded-xl py-3.5 text-sm font-bold shadow-lg transition-all active:scale-95"
+          style={{
+            background:   passed ? meta.color : '#64748b',
+            color:        passed ? '#07090F'   : '#f8fafc',
+            boxShadow:    passed ? `0 8px 32px ${meta.color}30` : 'none',
+          }}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9, duration: 0.5 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+        >
+          {passed ? 'Continuar mi ruta de aprendizaje' : 'Volver a practicar'}
+          <ArrowRight size={15} />
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function LevelExamPage() {
   const { examId } = useParams<{ examId: string }>();
-  const navigate = useNavigate();
+  const navigate   = useNavigate();
   const { refreshUser } = useAuth();
 
-  const [exam, setExam] = useState<Exam | null>(null);
+  const [screen,   setScreen]   = useState<ExamScreen>('loading');
+  const [exam,     setExam]     = useState<Exam | null>(null);
   const [examData, setExamData] = useState<ExamStartResponse | null>(null);
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{
-    passed: boolean;
-    score: number;
-    previousBestScore: number;
-    scoreDelta: number;
-    message: string;
-  } | null>(null);
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [answers,  setAnswers]  = useState<Record<string, string>>({});
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [error,    setError]    = useState<string | null>(null);
+  const [result,   setResult]   = useState<{
+    passed: boolean; score: number; passingScore: number;
+    scoreDelta: number; previousBestScore: number; message: string;
+  } | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Load exam data
+  // Keep mutable refs so async functions always see latest values
+  const answersRef     = useRef(answers);
+  const timeElapsedRef = useRef(timeElapsed);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
+  useEffect(() => { timeElapsedRef.current = timeElapsed; }, [timeElapsed]);
+
+  // Load exam on mount
   useEffect(() => {
     if (!examId) return;
-
-    const loadExam = async () => {
+    const load = async () => {
       try {
-        const examList = await examService.getExams();
-        const foundExam = examList.find(e => e.id === Number(examId));
-        if (!foundExam) {
-          setError('Examen no encontrado');
-          return;
-        }
-        setExam(foundExam);
-
-        const startResponse = await examService.startExam(foundExam.id);
-        setExamData(startResponse);
-        setTimeElapsed(0);
-
-        // Start timer
-        timerRef.current = setInterval(() => {
-          setTimeElapsed(prev => prev + 1);
-        }, 1000);
+        const list  = await examService.getExams();
+        const found = list.find(e => e.id === Number(examId));
+        if (!found) { setError('Examen no encontrado'); setScreen('error'); return; }
+        setExam(found);
+        const start = await examService.startExam(found.id);
+        setExamData(start);
+        setScreen('intro');
       } catch (err: any) {
-        setError(err.message || 'Error al cargar el examen');
-      } finally {
-        setLoading(false);
+        setError(err.message ?? 'Error al cargar el examen');
+        setScreen('error');
       }
     };
-
-    loadExam();
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    void load();
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [examId]);
 
-  // Check time limit
+  // Auto-submit on time limit
   useEffect(() => {
-    if (exam && timeElapsed >= exam.time_limit_minutes * 60) {
-      handleSubmitExam();
+    if (screen !== 'quiz' || !exam) return;
+    if (timeElapsed >= exam.time_limit_minutes * 60) {
+      void doSubmit();
     }
-  }, [timeElapsed, exam]);
+  }, [timeElapsed, screen, exam]);
 
-  const currentQuestion = examData?.questions[currentQuestionIdx] ?? null;
+  const startTimer = useCallback(() => {
+    timerRef.current = setInterval(() => {
+      setTimeElapsed(prev => prev + 1);
+    }, 1000);
+  }, []);
 
-  const handleAnswer = useCallback((answer: any) => {
-    if (!currentQuestion) return;
-    setAnswers(prev => ({
-      ...prev,
-      [currentQuestion.question_id]: answer,
-    }));
-  }, [currentQuestion]);
-
-  const handleNext = () => {
-    if (examData && currentQuestionIdx < examData.questions.length - 1) {
-      setCurrentQuestionIdx(prev => prev + 1);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentQuestionIdx > 0) {
-      setCurrentQuestionIdx(prev => prev - 1);
-    }
-  };
-
-  const handleSubmitExam = async () => {
-    if (submitting || !examData) return;
-    setSubmitting(true);
-
-    if (timerRef.current) clearInterval(timerRef.current);
+  const doSubmit = async () => {
+    if (!examData) return;
+    setScreen('submitting');
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
 
     try {
       const response = await examService.submitExam(
         examData.attempt.id,
-        answers,
-        timeElapsed
+        answersRef.current,
+        timeElapsedRef.current,
       );
-
-      if (response.passed) {
-        await refreshUser();
-      }
-
+      if (response.passed) await refreshUser();
       setResult({
-        passed: response.passed,
-        score: response.score,
+        passed:            response.passed,
+        score:             response.score,
+        passingScore:      exam?.passing_score ?? 70,
+        scoreDelta:        response.score_delta  ?? response.score,
         previousBestScore: response.previous_best_score ?? 0,
-        scoreDelta: response.score_delta ?? response.score,
-        message: response.message,
+        message:           response.message,
       });
+      setScreen('result');
     } catch (err: any) {
-      setError(err.message || 'Error al enviar el examen');
-    } finally {
-      setSubmitting(false);
+      setError(err.message ?? 'Error al enviar el examen');
+      setScreen('error');
     }
   };
 
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const handleAnswer = useCallback((answer: string) => {
+    if (!examData) return;
+    const qId = examData.questions[currentIdx]?.question_id;
+    if (qId == null) return;
+    setAnswers(prev => ({ ...prev, [qId]: answer }));
+  }, [examData, currentIdx]);
 
-  // ─── Loading State ────────────────────────────────────────────────────────
+  const handleNext = useCallback(() => {
+    if (!examData) return;
+    if (currentIdx === examData.questions.length - 1) {
+      void doSubmit();
+    } else {
+      setCurrentIdx(prev => prev + 1);
+    }
+  }, [examData, currentIdx]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-sky-500" />
-          <p className="mt-4 text-lg text-slate-400">Cargando examen...</p>
-        </div>
-      </div>
-    );
-  }
+  const handlePrev = useCallback(() => {
+    setCurrentIdx(prev => Math.max(0, prev - 1));
+  }, []);
 
-  // ─── Error State ──────────────────────────────────────────────────────────
-
-  if (error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div className="max-w-md text-center">
-          <AlertCircle className="mx-auto h-16 w-16 text-rose-500" />
-          <h2 className="mt-4 text-2xl font-bold text-slate-100">Error</h2>
-          <p className="mt-2 text-slate-400">{error}</p>
-          <button
-            onClick={() => navigate('/learn')}
-            className="mt-6 rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white hover:bg-sky-500"
-          >
-            Volver a la ruta de aprendizaje
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ─── Result State ─────────────────────────────────────────────────────────
-
-  if (result) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-8 text-center"
-        >
-          {result.passed ? (
-            <>
-              <Trophy className="mx-auto h-24 w-24 text-yellow-400" />
-              <h2 className="mt-4 text-3xl font-bold text-emerald-400">¡Felicidades!</h2>
-              <p className="mt-2 text-lg text-slate-300">Has aprobado el examen de nivel</p>
-            </>
-          ) : (
-            <>
-              <XCircle className="mx-auto h-24 w-24 text-rose-500" />
-              <h2 className="mt-4 text-3xl font-bold text-rose-400">No aprobaste</h2>
-              <p className="mt-2 text-lg text-slate-300">Puedes intentarlo de nuevo cuando tengas más XP</p>
-            </>
-          )}
-
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            <div className="rounded-xl bg-slate-800/50 p-4">
-              <p className="text-sm text-slate-400">Puntuación</p>
-              <p className={`text-3xl font-bold ${result.passed ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {result.score.toFixed(1)}%
-              </p>
-            </div>
-            <div className="rounded-xl bg-slate-800/50 p-4">
-              <p className="text-sm text-slate-400">Mínimo requerido</p>
-              <p className="text-3xl font-bold text-slate-300">{exam?.passing_score}%</p>
-            </div>
-            <div className="rounded-xl bg-slate-800/50 p-4">
-              <p className="text-sm text-slate-400">Diferencia</p>
-              <p className={`text-3xl font-bold ${result.scoreDelta >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {result.scoreDelta >= 0 ? '+' : ''}{result.scoreDelta.toFixed(1)}
-              </p>
-              <p className="mt-1 text-xs text-slate-500">vs mejor intento {result.previousBestScore.toFixed(1)}%</p>
-            </div>
-          </div>
-
-          <p className="mt-6 text-slate-300">{result.message}</p>
-
-          <button
-            onClick={() => navigate('/learn')}
-            className="mt-8 w-full rounded-xl bg-sky-600 py-3 text-lg font-semibold text-white transition-colors hover:bg-sky-500"
-          >
-            Volver a la ruta de aprendizaje
-          </button>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // ─── Exam In Progress ─────────────────────────────────────────────────────
-
-  if (!examData || !currentQuestion) {
-    return null;
-  }
-
-  const timeLimit = exam?.time_limit_minutes ?? 60;
-  const timeRemaining = Math.max(0, timeLimit * 60 - timeElapsed);
-  const progress = ((currentQuestionIdx + 1) / examData.questions.length) * 100;
-  const currentResources = currentQuestion.resource_requirements;
+  const currentQuestion = examData?.questions[currentIdx] ?? null;
+  const isLast          = examData ? currentIdx === examData.questions.length - 1 : false;
+  const timeRemaining   = exam ? Math.max(0, exam.time_limit_minutes * 60 - timeElapsed) : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <button
-            onClick={() => navigate('/learn')}
-            className="flex items-center gap-2 text-slate-400 hover:text-slate-200"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            <span>Volver</span>
-          </button>
+    <div className="relative min-h-screen overflow-hidden bg-[#07090F]">
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <div className="absolute left-[20%] top-0 h-125 w-125 -translate-y-1/2 rounded-full bg-emerald-500/6 blur-[120px]" />
+        <div className="absolute right-[15%] bottom-0 h-100 w-100 translate-y-1/2 rounded-full bg-violet-600/6 blur-[100px]" />
+        <div className="absolute inset-0 bg-dot opacity-40" />
+      </div>
 
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <p className="text-xs text-slate-400">Nivel</p>
-              <p className="text-lg font-bold text-sky-400">{exam?.level}</p>
-            </div>
+      <AnimatePresence mode="wait">
 
-            <div className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2">
-              <Clock className="h-5 w-5 text-slate-400" />
-              <span className={`font-mono text-lg font-bold ${timeRemaining < 300 ? 'text-rose-400 animate-pulse' : 'text-slate-200'
-                }`}>
-                {formatTime(timeRemaining)}
-              </span>
-            </div>
-          </div>
-        </div>
+        {/* Loading */}
+        {screen === 'loading' && (
+          <LoadingScreen key="loading" />
+        )}
 
-        {/* Progress bar */}
-        <div className="h-1 w-full bg-slate-800">
-          <motion.div
-            className="h-full bg-sky-500"
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3 }}
+        {/* Intro */}
+        {screen === 'intro' && exam && examData && (
+          <IntroScreen
+            key="intro"
+            exam={exam}
+            continuing={examData.continuing}
+            onStart={() => { startTimer(); setScreen('quiz'); }}
           />
-        </div>
-      </header>
+        )}
 
-      {/* Main content */}
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-100">
-            Pregunta {currentQuestionIdx + 1} de {examData.questions.length}
-          </h2>
-          <div className="flex items-center gap-2">
-            {currentResources?.requires_audio && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2 py-1 text-xs font-semibold text-cyan-300">
-                <Volume2 className="h-3.5 w-3.5" /> Audio
-              </span>
-            )}
-            {currentResources?.requires_microphone && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-xs font-semibold text-violet-300">
-                <Mic className="h-3.5 w-3.5" /> Micrófono
-              </span>
-            )}
-            {currentResources?.has_options && (
-              <span className="inline-flex items-center gap-1 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-2 py-1 text-xs font-semibold text-emerald-300">
-                <BookOpen className="h-3.5 w-3.5" /> Opción múltiple
-              </span>
-            )}
-            <div className="flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-1">
-              <span className="text-sm text-slate-400">Puntos:</span>
-              <span className="font-bold text-sky-400">{currentQuestion.points}</span>
-            </div>
-          </div>
-        </div>
+        {/* Quiz */}
+        {screen === 'quiz' && currentQuestion && exam && (
+          <QuizScreen
+            key="quiz"
+            question={currentQuestion}
+            current={currentIdx}
+            total={examData!.questions.length}
+            answer={answers[currentQuestion.question_id] ?? null}
+            onAnswer={handleAnswer}
+            onNext={handleNext}
+            onPrev={handlePrev}
+            isLast={isLast}
+            timeRemaining={timeRemaining}
+            examLevel={exam.level}
+          />
+        )}
 
-        <AnimatePresence mode="wait">
+        {/* Submitting */}
+        {screen === 'submitting' && (
+          <LoadingScreen key="submitting" message="Evaluando tus respuestas…" />
+        )}
+
+        {/* Result */}
+        {screen === 'result' && result && exam && (
+          <ResultScreen
+            key="result"
+            passed={result.passed}
+            score={result.score}
+            passingScore={result.passingScore}
+            scoreDelta={result.scoreDelta}
+            previousBestScore={result.previousBestScore}
+            examLevel={exam.level}
+            message={result.message}
+            onFinish={() => navigate('/learn')}
+          />
+        )}
+
+        {/* Error */}
+        {screen === 'error' && (
           <motion.div
-            key={currentQuestionIdx}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
+            key="error"
+            className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           >
-            {['READING', 'LISTENING_COMPREHENSION'].includes(currentQuestion.question_type) && (
-              <MCQPlayer question={currentQuestion} onSubmit={handleAnswer} />
-            )}
-            {['SPEAKING', 'LISTENING_SHADOWING'].includes(currentQuestion.question_type) && (
-              <SpeakingPlayer question={currentQuestion} onSubmit={handleAnswer} />
-            )}
-            {currentQuestion.question_type === 'WRITING' && (
-              <WritingPlayer question={currentQuestion} onSubmit={handleAnswer} />
-            )}
+            <AlertCircle size={40} className="text-rose-500" />
+            <p className="max-w-sm text-sm text-slate-400">{error}</p>
+            <button
+              onClick={() => navigate('/learn')}
+              className="mt-2 rounded-xl bg-white/6 px-6 py-2.5 text-sm font-semibold text-slate-200 hover:bg-white/[0.1] transition-colors"
+            >
+              Volver a la ruta
+            </button>
           </motion.div>
-        </AnimatePresence>
+        )}
 
-        {/* Navigation */}
-        <div className="mt-8 flex items-center justify-between gap-4">
-          <button
-            onClick={handlePrev}
-            disabled={currentQuestionIdx === 0}
-            className="rounded-xl bg-slate-800 px-6 py-3 font-semibold text-slate-300 transition-colors hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Anterior
-          </button>
-
-          {currentQuestionIdx < examData.questions.length - 1 ? (
-            <button
-              onClick={handleNext}
-              className="rounded-xl bg-sky-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-sky-500"
-            >
-              Siguiente
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmitExam}
-              disabled={submitting || Object.keys(answers).length === 0}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  Enviando...
-                </>
-              ) : (
-                <>
-                  <Send className="h-5 w-5" />
-                  Enviar examen
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </main>
+      </AnimatePresence>
     </div>
   );
 }

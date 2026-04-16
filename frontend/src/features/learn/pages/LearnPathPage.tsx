@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import {
   BookOpen, Mic, Repeat, Headphones, PenLine,
   Star, Trophy, Lock, CheckCircle2, RefreshCw,
-  Flame, Zap, Target, ChevronDown, Loader2,
+  Flame, Zap, Target, ChevronDown, Loader2, Award,
 } from 'lucide-react';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -22,6 +22,7 @@ import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
 import type { SkillAverages } from '@/shared/hooks/useLearnProgress';
 import { questionsService, setOrderedQuestionIds } from '@/services/questionsService';
 import { examService } from '@/services/examService';
+import type { Exam } from '@/types/exam';
 import type { Question, Level } from '@/types/question';
 import { LEARN_PATH } from '../data/pathData';
 import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
@@ -601,7 +602,7 @@ export default function LearnPathPage() {
   const [questionsByLevel, setQuestionsByLevel] = useState<Record<string, Question[]>>({ ..._cachedByLevel });
   const [loadingLevels, setLoadingLevels] = useState<Set<string>>(new Set());
   const [vocabDrawer, setVocabDrawer] = useState(false);
-  const [examLoading, setExamLoading] = useState(false);
+  const [availableExams, setAvailableExams] = useState<Exam[]>([]);
 
   // Current level — from the user's actual earned level (advances only after passing LEVEL_UP exam)
   const currentLevel = user?.level ?? 'A1';
@@ -714,23 +715,19 @@ export default function LearnPathPage() {
   }, [dynamicPath, currentSection]);
 
   const handleNodeClick = (nodeId: string) => navigate(`/exercise/${nodeId}`);
+  const handleExamClick = (examId: number) => navigate(`/exam/${examId}`);
 
-  const canTakeExam = levelProgress?.can_take_level_exam === true;
+  const getLevelIndex = (level: string) => CEFR_ORDER.indexOf(level);
+  const currentUserLevelIdx = getLevelIndex(currentLevel);
+  const getExamForLevel = (sectionLevel: string) =>
+    availableExams.find(e => e.type === 'LEVEL_UP' && e.level === sectionLevel);
 
-  const handleTakeExam = async () => {
-    setExamLoading(true);
-    try {
-      const exams = await examService.getExams();
-      const exam = exams.find(e => e.type === 'LEVEL_UP' && e.level === currentLevel);
-      if (exam) {
-        navigate(`/exam/${exam.id}`);
-      }
-    } catch {
-      // silently ignore — button stays enabled for retry
-    } finally {
-      setExamLoading(false);
-    }
-  };
+  // Fetch available exams on mount
+  useEffect(() => {
+    examService.getExams()
+      .then(setAvailableExams)
+      .catch(() => { /* silently ignore */ });
+  }, []);
 
   return (
     <div className="bg-[#07090F] text-zinc-50 h-screen flex font-sans overflow-hidden">
@@ -773,58 +770,74 @@ export default function LearnPathPage() {
         <div className="pb-28">
           {dynamicPath.map(section => {
             const isActive = section.level === currentLevel;
+            const examForNextLevel = getExamForLevel(section.level);
+            const sectionLevelIdx = getLevelIndex(section.level);
+            const sectionLockedByLevel = sectionLevelIdx > currentUserLevelIdx;
+            const examPassed = examForNextLevel?.last_attempt?.passed === true;
+            const canTakeExam = Boolean(
+              examForNextLevel && (examForNextLevel.can_unlock || examForNextLevel.is_unlocked)
+            );
+            const requiredForLevel = examForNextLevel?.required_xp_for_level ?? examForNextLevel?.xp_required;
+            const nextLevel = CEFR_ORDER[sectionLevelIdx + 1] ?? '';
+
             return (
-              <PathSection
-                key={section.level}
-                section={section}
-                completedIds={completedIds}
-                questionScores={questionScores}
-                totalXP={totalXP}
-                userLevel={currentLevel}
-                collapsed={!expandedLevels.has(section.level)}
-                loading={loadingLevels.has(section.level)}
-                onToggle={() => toggleLevel(section.level)}
-                onNodeClick={handleNodeClick}
-                sectionRef={isActive ? activeRef : undefined}
-              />
+              <div key={section.level}>
+                {/* Level exam gate */}
+                {examForNextLevel && !sectionLockedByLevel && (
+                  <div className="mx-6 my-6">
+                    <div className={`rounded-xl border ${canTakeExam
+                      ? 'border-emerald-500/30 bg-emerald-500/10'
+                      : 'border-zinc-800 bg-zinc-900/50'
+                      } p-4`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${canTakeExam ? 'bg-emerald-500/20' : 'bg-zinc-800'}`}>
+                          <Award size={24} className={canTakeExam ? 'text-emerald-400' : 'text-zinc-600'} />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className={`font-semibold ${canTakeExam ? 'text-emerald-300' : 'text-zinc-400'}`}>
+                            Examen de Nivel {section.level} → {nextLevel}
+                          </h3>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            {examPassed
+                              ? '¡Examen aprobado! Ya subiste de nivel.'
+                              : canTakeExam
+                                ? '¡Has alcanzado el XP necesario! Demuestra tus conocimientos para avanzar.'
+                                : `Requiere ${requiredForLevel ?? 0} XP acumulado para desbloquear el examen.`
+                            }
+                          </p>
+                        </div>
+                        {!examPassed && (
+                          <button
+                            onClick={() => canTakeExam && handleExamClick(examForNextLevel.id)}
+                            disabled={!canTakeExam}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${canTakeExam
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                              : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                              }`}
+                          >
+                            {canTakeExam ? 'Comenzar Examen' : 'Bloqueado'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <PathSection
+                    section={section}
+                    completedIds={completedIds}
+                    questionScores={questionScores}
+                    totalXP={totalXP}
+                    userLevel={currentLevel}
+                    collapsed={!expandedLevels.has(section.level)}
+                    loading={loadingLevels.has(section.level)}
+                    onToggle={() => toggleLevel(section.level)}
+                    onNodeClick={handleNodeClick}
+                    sectionRef={isActive ? activeRef : undefined}
+                  />
+              </div>
             );
           })}
-
-          {/* Level-up exam banner */}
-          {canTakeExam && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="mx-6 mt-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/6 p-5"
-            >
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/20 shrink-0">
-                  <Trophy size={22} className="text-yellow-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-yellow-300 leading-none">
-                    ¡Listo para subir de nivel!
-                  </p>
-                  <p className="text-xs text-zinc-400 mt-1">
-                    Has completado el XP requerido en {currentLevel}. Toma el examen de nivelación para avanzar a {CEFR_ORDER[CEFR_ORDER.indexOf(currentLevel) + 1] ?? 'el siguiente nivel'}.
-                  </p>
-                </div>
-                <button
-                  onClick={handleTakeExam}
-                  disabled={examLoading}
-                  className="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-yellow-500 hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-black text-[13px] font-bold transition-colors"
-                >
-                  {examLoading ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Trophy size={14} />
-                  )}
-                  Tomar examen
-                </button>
-              </div>
-            </motion.div>
-          )}
 
           {/* End marker */}
           <div className="flex flex-col items-center gap-2 mt-8 mb-4 opacity-25">

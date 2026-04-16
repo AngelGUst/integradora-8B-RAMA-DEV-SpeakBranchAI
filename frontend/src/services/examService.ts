@@ -30,14 +30,14 @@ export const examService = {
    * Obtiene todos los exámenes de nivel disponibles
    */
   getExams(): Promise<Exam[]> {
-    return apiFetch<Exam[]>('/api/exams/');
+    return apiFetch<Exam[]>('/exams/');
   },
 
   /**
    * Obtiene detalles de un examen específico
    */
   getExam(examId: number): Promise<Exam> {
-    return apiFetch<Exam>(`/api/exams/${examId}/`);
+    return apiFetch<Exam>(`/exams/${examId}/`);
   },
 
   /**
@@ -45,7 +45,7 @@ export const examService = {
    * Retorna las preguntas y el intento creado
    */
   startExam(examId: number): Promise<ExamStartResponse> {
-    return apiFetch<ExamStartResponse>(`/api/exams/${examId}/start/`, {
+    return apiFetch<ExamStartResponse>(`/exams/${examId}/start/`, {
       method: 'POST',
     });
   },
@@ -54,7 +54,7 @@ export const examService = {
    * Envía las respuestas de un examen
    */
   submitExam(attemptId: number, answers: Record<string, any>, timeSpentSeconds: number): Promise<ExamSubmitResponse> {
-    return apiFetch<ExamSubmitResponse>('/api/exam-attempts/submit/', {
+    return apiFetch<ExamSubmitResponse>('/exam-attempts/submit/', {
       method: 'POST',
       body: JSON.stringify({
         attempt_id: attemptId,
@@ -68,13 +68,13 @@ export const examService = {
    * Obtiene todos los intentos del usuario
    */
   getAttempts(): Promise<ExamAttempt[]> {
-    return apiFetch<ExamAttempt[]>('/api/exam-attempts/');
+    return apiFetch<ExamAttempt[]>('/exam-attempts/');
   },
 
   /**
    * Obtiene un intento específico
    */
   getAttempt(attemptId: number): Promise<ExamAttempt> {
-    return apiFetch<ExamAttempt>(`/api/exam-attempts/${attemptId}/`);
+    return apiFetch<ExamAttempt>(`/exam-attempts/${attemptId}/`);
   },
 };

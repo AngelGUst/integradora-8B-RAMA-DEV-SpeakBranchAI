@@ -186,7 +186,7 @@ export default function DashboardPage() {
   }, SKILLS[0].key);
 
   return (
-    <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
+    <div className="bg-[#07090F] text-zinc-50 h-screen flex font-sans overflow-hidden">
       <AppSidebar />
 
       <main className="flex-1 h-screen overflow-y-auto">

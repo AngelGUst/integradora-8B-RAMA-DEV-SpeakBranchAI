@@ -18,6 +18,14 @@ from django.conf import settings
 BEARER_PREFIX = 'Bearer '
 MSG_AUTH_REQUIRED = 'Authentication required'
 
+# XP Level field mapping
+XP_LEVEL_FIELDS = {
+    'xp_level_a1': 'xp_level_a1',
+    'xp_level_a2': 'xp_level_a2',
+    'xp_level_b1': 'xp_level_b1',
+    'xp_level_b2': 'xp_level_b2',
+}
+
 # Create your views here.
 
 def _require_admin(request):
@@ -110,6 +118,104 @@ def _validate_level_xp_requirements(incoming):
     return None, normalized
         
 
+def _process_adaptive_thresholds(body, cfg, changed):
+    """Process and validate adaptive threshold fields
+    
+    Returns error response if validation fails, None otherwise
+    """
+    if 'adaptive_threshold_up' in body:
+        result = _validate_threshold(body['adaptive_threshold_up'], 'adaptive_threshold_up')
+        if isinstance(result, JsonResponse):
+            return result
+        cfg.adaptive_threshold_up = result
+        changed.append('adaptive_threshold_up')
+
+    if 'adaptive_threshold_down' in body:
+        result = _validate_threshold(body['adaptive_threshold_down'], 'adaptive_threshold_down')
+        if isinstance(result, JsonResponse):
+            return result
+        cfg.adaptive_threshold_down = result
+        changed.append('adaptive_threshold_down')
+
+    if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
+        return JsonResponse(
+            {'error': 'The lower threshold must be lower than the upper threshold.'}, 
+            status=400
+        )
+    
+    return None
+
+
+def _process_xp_level_fields(body, cfg, changed):
+    """Process XP level fields from request body
+    
+    Returns error response if validation fails, None otherwise
+    """
+    for key, field in XP_LEVEL_FIELDS.items():
+        if key in body:
+            try:
+                val = int(body[key])
+                if val <= 0:
+                    return JsonResponse(
+                        {'error': f'{key} must be a positive integer'}, 
+                        status=400
+                    )
+                setattr(cfg, field, val)
+                changed.append(field)
+            except (TypeError, ValueError):
+                return JsonResponse(
+                    {'error': f'{key} must be an integer'}, 
+                    status=400
+                )
+    return None
+
+
+def _validate_xp_monotonic_order(cfg):
+    """Validate that XP levels are in monotonic increasing order
+    
+    Returns error response if validation fails, None otherwise
+    """
+    vals = [cfg.xp_level_a1, cfg.xp_level_a2, cfg.xp_level_b1, cfg.xp_level_b2]
+    labels = ['xp_level_a1', 'xp_level_a2', 'xp_level_b1', 'xp_level_b2']
+    
+    for i in range(len(vals) - 1):
+        if vals[i] >= vals[i + 1]:
+            return JsonResponse(
+                {'error': f'{labels[i]} ({vals[i]}) must be less than {labels[i+1]} ({vals[i+1]})'},
+                status=400,
+            )
+    return None
+
+
+def _sync_exam_xp_requirements(cfg):
+    """Sync Exam.xp_required to match SystemConfig for consistency"""
+    try:
+        from exams.models import Exam
+        level_to_xp = {
+            'A1': cfg.xp_level_a1,
+            'A2': cfg.xp_level_a2,
+            'B1': cfg.xp_level_b1,
+            'B2': cfg.xp_level_b2,
+        }
+        for level, xp in level_to_xp.items():
+            Exam.objects.filter(type='LEVEL_UP', level=level).update(xp_required=xp)
+    except Exception:
+        pass  # non-critical — LevelProgressionService will use SystemConfig directly
+
+
+def _build_config_response(cfg):
+    """Build JSON response with current config values"""
+    return JsonResponse({
+        'adaptive_threshold_up': cfg.adaptive_threshold_up,
+        'adaptive_threshold_down': cfg.adaptive_threshold_down,
+        'registration_enabled': cfg.registration_enabled,
+        'xp_level_a1': cfg.xp_level_a1,
+        'xp_level_a2': cfg.xp_level_a2,
+        'xp_level_b1': cfg.xp_level_b1,
+        'xp_level_b2': cfg.xp_level_b2,
+    })
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class SystemConfigView(View):
     def get(self, request):
@@ -117,20 +223,13 @@ class SystemConfigView(View):
         if err:
             return err
         cfg = SystemConfig.get()
-        return JsonResponse({
-            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
-            'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            'registration_enabled':   cfg.registration_enabled,
-            'xp_level_a1': cfg.xp_level_a1,
-            'xp_level_a2': cfg.xp_level_a2,
-            'xp_level_b1': cfg.xp_level_b1,
-            'xp_level_b2': cfg.xp_level_b2,
-        })
+        return _build_config_response(cfg)
 
     def patch(self, request):
         err = _require_admin(request)
         if err:
             return err
+        
         try:
             body = json.loads(request.body)
         except json.JSONDecodeError:
@@ -139,86 +238,35 @@ class SystemConfigView(View):
         cfg = SystemConfig.get()
         changed = []
 
-        if 'adaptive_threshold_up' in body:
-            result = _validate_threshold(body['adaptive_threshold_up'], 'adaptive_threshold_up')
-            if isinstance(result, JsonResponse):
-                return result
-            cfg.adaptive_threshold_up = result
-            changed.append('adaptive_threshold_up')
+        # Process adaptive thresholds
+        error = _process_adaptive_thresholds(body, cfg, changed)
+        if error:
+            return error
 
-        if 'adaptive_threshold_down' in body:
-            result = _validate_threshold(body['adaptive_threshold_down'], 'adaptive_threshold_down')
-            if isinstance(result, JsonResponse):
-                return result
-            cfg.adaptive_threshold_down = result
-            changed.append('adaptive_threshold_down')
-
-        if cfg.adaptive_threshold_down >= cfg.adaptive_threshold_up:
-            return JsonResponse(
-                {'error': 'The lower threshold must be lower than the upper threshold.'}, 
-                status=400
-            )
-
+        # Process registration enabled
         if 'registration_enabled' in body:
             cfg.registration_enabled = bool(body['registration_enabled'])
             changed.append('registration_enabled')
 
-        XP_LEVEL_FIELDS = {
-            'xp_level_a1': 'xp_level_a1',
-            'xp_level_a2': 'xp_level_a2',
-            'xp_level_b1': 'xp_level_b1',
-            'xp_level_b2': 'xp_level_b2',
-        }
-        for key, field in XP_LEVEL_FIELDS.items():
-            if key in body:
-                try:
-                    val = int(body[key])
-                    if val <= 0:
-                        return JsonResponse({'error': f'{key} must be a positive integer'}, status=400)
-                    setattr(cfg, field, val)
-                    changed.append(field)
-                except (TypeError, ValueError):
-                    return JsonResponse({'error': f'{key} must be an integer'}, status=400)
+        # Process XP level fields
+        error = _process_xp_level_fields(body, cfg, changed)
+        if error:
+            return error
 
-        # Validate monotonic order for xp_level fields
+        # Validate monotonic order if XP levels changed
         if any(f in changed for f in XP_LEVEL_FIELDS.values()):
-            vals = [cfg.xp_level_a1, cfg.xp_level_a2, cfg.xp_level_b1, cfg.xp_level_b2]
-            labels = ['xp_level_a1', 'xp_level_a2', 'xp_level_b1', 'xp_level_b2']
-            for i in range(len(vals) - 1):
-                if vals[i] >= vals[i + 1]:
-                    return JsonResponse(
-                        {'error': f'{labels[i]} ({vals[i]}) must be less than {labels[i+1]} ({vals[i+1]})'},
-                        status=400,
-                    )
+            error = _validate_xp_monotonic_order(cfg)
+            if error:
+                return error
 
+        # Save changes and sync with Exam table
         if changed:
             cfg.save(update_fields=changed)
-
-            # Sync Exam.xp_required to match SystemConfig so LevelProgressionService
-            # stays consistent when reading from the Exam table.
+            
             if any(f in changed for f in XP_LEVEL_FIELDS.values()):
-                try:
-                    from exams.models import Exam
-                    LEVEL_TO_NEXT_XP = {
-                        'A1': cfg.xp_level_a1,
-                        'A2': cfg.xp_level_a2,
-                        'B1': cfg.xp_level_b1,
-                        'B2': cfg.xp_level_b2,
-                    }
-                    for level, xp in LEVEL_TO_NEXT_XP.items():
-                        Exam.objects.filter(type='LEVEL_UP', level=level).update(xp_required=xp)
-                except Exception:
-                    pass  # non-critical — LevelProgressionService will use SystemConfig directly
+                _sync_exam_xp_requirements(cfg)
 
-        return JsonResponse({
-            'adaptive_threshold_up':  cfg.adaptive_threshold_up,
-            'adaptive_threshold_down': cfg.adaptive_threshold_down,
-            'registration_enabled':   cfg.registration_enabled,
-            'xp_level_a1': cfg.xp_level_a1,
-            'xp_level_a2': cfg.xp_level_a2,
-            'xp_level_b1': cfg.xp_level_b1,
-            'xp_level_b2': cfg.xp_level_b2,
-        })
+        return _build_config_response(cfg)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class PublicLevelsView(View):

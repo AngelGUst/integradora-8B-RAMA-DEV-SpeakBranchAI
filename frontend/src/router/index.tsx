@@ -4,6 +4,7 @@ import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import RegisterPage from '@/features/auth/pages/RegisterPage';
 import GoogleCallbackPage from '@/features/auth/pages/GoogleCallbackPage';
+import ConfirmEmailPage from '@/features/auth/pages/ConfirmEmailPage';
 import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
@@ -13,6 +14,7 @@ import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
 import SystemConfigPage from '@/pages/admin/SystemConfigPage';
+import AdminDashboardPage from '@/pages/admin/DashboardPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import SpeakingPage from '@/pages/user/SpeakingPage';
 import Logo from '@/shared/components/ui/Logo';
@@ -30,7 +32,7 @@ function isPlacementDone(value?: boolean): boolean {
 }
 
 function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string {
-  if (role === 'ADMIN') return '/admin/questions';
+  if (role === 'ADMIN') return '/admin/dashboard';
   return isPlacementDone(diagnosticCompleted) ? '/dashboard' : '/onboarding';
 }
 
@@ -135,6 +137,10 @@ export default function AppRouter() {
         path="/auth/google/callback"
         element={<PublicRoute><GoogleCallbackPage /></PublicRoute>}
       />
+      <Route
+        path="/auth/confirm-email/:token"
+        element={<ConfirmEmailPage />}
+      />
 
       {/* Onboarding — placement test (auth required, placement not done) */}
       <Route
@@ -172,6 +178,16 @@ export default function AppRouter() {
         )}
       />
 
+      {/* Level-up exam */}
+      <Route
+        path="/exam/:examId"
+        element={(
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+            <LevelExamPage />
+          </PrivateRoute>
+        )}
+      />
+
       {/* Speaking practice */}
       <Route
         path="/speaking"
@@ -189,6 +205,11 @@ export default function AppRouter() {
       />
 
       {/* Admin */}
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={<AdminRoute><AdminDashboardPage /></AdminRoute>}
+      />
       <Route
         path="/admin/questions"
         element={<AdminRoute><QuestionsPage /></AdminRoute>}

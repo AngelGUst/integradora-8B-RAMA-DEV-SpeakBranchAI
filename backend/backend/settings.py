@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'courses.apps.CoursesConfig',
     'django_extensions',
     'system_config.apps.SystemConfigConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 # ---------------------------------------------------------------------------

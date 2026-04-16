@@ -17,6 +17,7 @@ import { useParams, useNavigate, useSearchParams, Navigate } from 'react-router-
 import {
   ArrowLeft, BookOpen, Mic, Repeat, Headphones, PenLine,
   CheckCircle2, XCircle, Volume2, CircleStop, Loader2, AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EXERCISES } from '../data/exerciseData';
@@ -24,7 +25,7 @@ import type {
   AnyExercise, ReadingExercise, SpeakingExercise, ComprehensionExercise, WritingExercise, MCQQuestion,
 } from '../data/exerciseData';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
-import { questionsService } from '@/services/questionsService';
+import { questionsService, getNextQuestionId } from '@/services/questionsService';
 import type { WritingEvaluationResult, VocabularyWord } from '@/services/questionsService';
 import type { Question } from '@/types/question';
 
@@ -166,10 +167,6 @@ function calcXP(maxXP: number, score: number): number {
   return Math.round(maxXP * (score / 100));
 }
 
-function safeScore(correct: number, total: number): number {
-  if (!total || !Number.isFinite(total) || !Number.isFinite(correct)) return 0;
-  return Math.round((correct / total) * 100);
-}
 
 /** Approximates RapidFuzz word-ratio for demo without backend */
 function wordSimilarity(expected: string, actual: string): number {
@@ -209,6 +206,7 @@ function ResultScreen({
   transcript,
   expectedPhrase,
   onBack,
+  onNext,
 }: {
   score: number;
   xp: number;
@@ -216,9 +214,9 @@ function ResultScreen({
   transcript?: string;
   expectedPhrase?: string;
   onBack: () => void;
+  onNext?: () => void;
 }) {
   const safeScoreVal = safeInt(score);
-  const safeXpVal = safeInt(xp);
   const accent =
     score >= 80 ? { ring: 'border-emerald-500/40', text: 'text-emerald-400' } :
       score >= 50 ? { ring: 'border-sky-500/40', text: 'text-sky-400' } :
@@ -311,13 +309,23 @@ function ResultScreen({
         </div>
       )}
 
-      <button
-        onClick={onBack}
-        className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition-colors"
-      >
-        <ArrowLeft size={15} />
-        Volver a la Ruta
-      </button>
+      <div className="flex gap-3">
+        {onNext && (
+          <button
+            onClick={onNext}
+            className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold py-3 rounded-xl transition-all"
+          >
+            Siguiente ejercicio →
+          </button>
+        )}
+        <button
+          onClick={onBack}
+          className={`${onNext ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-300 font-semibold py-3 rounded-xl transition-all`}
+        >
+          <ArrowLeft size={15} />
+          Volver al inicio
+        </button>
+      </div>
     </motion.div>
   );
 }
@@ -362,7 +370,7 @@ function MCQOption({
 
 // ─── Reading Player ───────────────────────────────────────────────────────────
 
-function ReadingPlayer({ ex, onComplete }: { ex: ReadingExercise; onComplete: (s: number, xp: number) => void }) {
+function ReadingPlayer({ ex, onComplete, onCompleteNext }: { ex: ReadingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
   const [answers, setAnswers] = useState<Record<number, number>>({});
   const [submitted, setSubmit] = useState(false);
   const [feedback, setFeedback] = useState<QFeedback[]>([]);
@@ -403,6 +411,7 @@ function ReadingPlayer({ ex, onComplete }: { ex: ReadingExercise; onComplete: (s
         score={result.score} xp={result.xp}
         feedback={feedback}
         onBack={() => onComplete(result.score, result.xp)}
+        onNext={onCompleteNext ? () => onCompleteNext(result.score, result.xp) : undefined}
       />
     );
   }
@@ -448,12 +457,13 @@ function ReadingPlayer({ ex, onComplete }: { ex: ReadingExercise; onComplete: (s
 
 type RecPhase = 'idle' | 'recording' | 'processing' | 'done';
 
-function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: (s: number, xp: number) => void }) {
+function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
   const [recPhase, setRecPhase] = useState<RecPhase>('idle');
   const [transcript, setTranscript] = useState('');
   const [showResult, setShowResult] = useState(false);
   const [audioPlayed, setAudioReady] = useState(ex.skill !== 'shadowing');
   const [loading, setLoading] = useState(false);
+  const [evalResult, setEvalResult] = useState<{ score: number; xp: number } | null>(null);
   const recRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -500,35 +510,32 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
     setTimeout(() => setRecPhase(t => t === 'processing' ? 'idle' : t), 2000);
   };
 
-  const submitResult = async () => {
+  const handleViewResult = async () => {
     setLoading(true);
     try {
       const localScore = wordSimilarity(ex.phrase, transcript);
-
-      // ★ LLAMAR AL BACKEND PARA OBTENER XP CON CAP
       const response = ex.skill === 'shadowing'
         ? await exerciseEvaluationService.evaluateShadowing(Number(ex.id), transcript)
         : await exerciseEvaluationService.evaluateSpeaking(Number(ex.id), transcript);
-
-      onComplete(localScore, response.xp_earned);
-    } catch (err) {
-      console.error('Error:', err);
+      setEvalResult({ score: localScore, xp: response.xp_earned });
+    } catch {
       const localScore = wordSimilarity(ex.phrase, transcript);
-      const localXp = calcXP(ex.maxXP, localScore);
-      onComplete(localScore, localXp);
+      setEvalResult({ score: localScore, xp: calcXP(ex.maxXP, localScore) });
     } finally {
       setLoading(false);
+      setShowResult(true);
     }
   };
 
-  if (showResult) {
+  if (showResult && evalResult) {
     return (
       <ResultScreen
-        score={wordSimilarity(ex.phrase, transcript)}
-        xp={0}
+        score={evalResult.score}
+        xp={evalResult.xp}
         transcript={transcript}
         expectedPhrase={ex.phrase}
-        onBack={submitResult}
+        onBack={() => onComplete(evalResult.score, evalResult.xp)}
+        onNext={onCompleteNext ? () => onCompleteNext(evalResult.score, evalResult.xp) : undefined}
       />
     );
   }
@@ -590,7 +597,7 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
             <p className="text-amber-400 text-sm mb-1">⚠ API de voz no disponible</p>
             <p className="text-zinc-500 text-xs mb-3">Usa Google Chrome o Microsoft Edge para grabar.</p>
             <button
-              onClick={() => setShowResult(true)}
+              onClick={handleViewResult}
               className="text-xs text-zinc-400 underline"
             >
               Continuar sin grabación
@@ -651,7 +658,7 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
       </div>
 
       <button
-        onClick={() => setShowResult(true)}
+        onClick={handleViewResult}
         disabled={!!SpeechAPI && recPhase !== 'done' || loading}
         className="w-full py-3 rounded-xl font-semibold text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
       >
@@ -663,7 +670,7 @@ function SpeakingPlayer({ ex, onComplete }: { ex: SpeakingExercise; onComplete: 
 
 // ─── Comprehension Player ─────────────────────────────────────────────────────
 
-function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; onComplete: (s: number, xp: number) => void }) {
+function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: ComprehensionExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
   const [replaysLeft, setReplays] = useState(ex.maxReplays);
   const [audioPlayed, setPlayed] = useState(false);
   const [quizMode, setQuiz] = useState(false);
@@ -732,6 +739,7 @@ function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; on
         score={result.score} xp={result.xp}
         feedback={feedback}
         onBack={() => onComplete(result.score, result.xp)}
+        onNext={onCompleteNext ? () => onCompleteNext(result.score, result.xp) : undefined}
       />
     );
   }
@@ -807,7 +815,7 @@ function ComprehensionPlayer({ ex, onComplete }: { ex: ComprehensionExercise; on
 
 // ─── Writing Player ───────────────────────────────────────────────────────────
 
-function WritingPlayer({ ex, onComplete }: { ex: WritingExercise; onComplete: (s: number, xp: number) => void }) {
+function WritingPlayer({ ex, onComplete, onCompleteNext }: { ex: WritingExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -898,13 +906,23 @@ function WritingPlayer({ ex, onComplete }: { ex: WritingExercise; onComplete: (s
           <p className="text-sm text-zinc-400 leading-relaxed whitespace-pre-wrap">{text}</p>
         </div>
 
-        <button
-          onClick={() => onComplete(result.score, result.xp_earned)}
-          className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition-colors"
-        >
-          <ArrowLeft size={15} />
-          Volver a la Ruta
-        </button>
+        <div className="flex gap-3">
+          {onCompleteNext && (
+            <button
+              onClick={() => onCompleteNext(result.score, result.xp_earned)}
+              className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold py-3 rounded-xl transition-all"
+            >
+              Siguiente ejercicio →
+            </button>
+          )}
+          <button
+            onClick={() => onComplete(result.score, result.xp_earned)}
+            className={`${onCompleteNext ? 'flex-1' : 'w-full'} flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-300 font-semibold py-3 rounded-xl transition-all`}
+          >
+            <ArrowLeft size={15} />
+            Volver al inicio
+          </button>
+        </div>
       </motion.div>
     );
   }
@@ -952,78 +970,60 @@ function WritingPlayer({ ex, onComplete }: { ex: WritingExercise; onComplete: (s
   );
 }
 
-// ─── Vocabulary Reveal Screen ─────────────────────────────────────────────────
+// ─── Vocabulary Panel (shown during exercise) ─────────────────────────────────
 
-function VocabularyRevealScreen({ words, onContinue }: { words: VocabularyWord[]; onContinue: () => void }) {
+function VocabPanel({ words }: { words: VocabularyWord[] }) {
+  const [open, setOpen] = useState(false);
   const [speaking, setSpeaking] = useState<number | null>(null);
 
-  const playWord = (id: number, word: string) => {
+  const playWord = (wordId: number, word: string) => {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(word);
-    u.lang = 'en-US';
-    u.rate = 0.82;
+    u.lang = 'en-US'; u.rate = 0.82;
     u.onend = () => setSpeaking(null);
     u.onerror = () => setSpeaking(null);
-    setSpeaking(id);
+    setSpeaking(wordId);
     window.speechSynthesis.speak(u);
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
-      <div className="text-center">
-        <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-1">Vocabulario del ejercicio</p>
-        <p className="text-lg font-bold text-zinc-100">Palabras clave</p>
-        <p className="text-sm text-zinc-500 mt-0.5">Estas palabras han sido añadidas a tu vocabulario del día.</p>
-      </div>
+    <div className="mt-5 rounded-xl border border-violet-500/20 overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-violet-500/5 hover:bg-violet-500/10 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <BookOpen size={13} className="text-violet-400" />
+          <span className="text-xs font-semibold text-violet-300">Vocabulario clave</span>
+          <span className="text-[10px] text-zinc-600">· {words.length} {words.length === 1 ? 'palabra' : 'palabras'}</span>
+        </div>
+        <ChevronDown size={13} className={`text-zinc-500 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
 
-      <div className="space-y-3">
-        {words.map((w) => (
-          <div
-            key={w.id}
-            className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 space-y-1.5"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-[18px] font-black text-zinc-100 tracking-tight">{w.word}</span>
+      {open && (
+        <div className="divide-y divide-zinc-800/60">
+          {words.map(w => (
+            <div key={w.id} className="flex items-start gap-3 px-4 py-3 bg-zinc-900/30">
+              <div className="flex items-center gap-1.5 min-w-[110px]">
+                <span className="font-bold text-zinc-100 text-sm">{w.word}</span>
                 <button
                   onClick={() => playWord(w.id, w.word)}
-                  className={`p-1.5 rounded-lg transition-colors ${speaking === w.id
-                    ? 'text-violet-400 bg-violet-500/10'
-                    : 'text-zinc-600 hover:text-violet-400 hover:bg-violet-500/10'
-                    }`}
-                  title="Escuchar pronunciación"
+                  className={`p-1 rounded transition-colors ${speaking === w.id ? 'text-violet-400' : 'text-zinc-600 hover:text-violet-400'}`}
                 >
-                  <Volume2 size={14} />
+                  <Volume2 size={11} />
                 </button>
               </div>
-              <span className="text-[11px] font-mono text-zinc-500 shrink-0">{w.level}</span>
+              <div className="flex-1 min-w-0">
+                {w.pronunciation && (
+                  <p className="text-[11px] text-violet-400/70 font-mono mb-0.5">{w.pronunciation}</p>
+                )}
+                <p className="text-xs text-zinc-400">{w.meaning}</p>
+              </div>
             </div>
-            {w.pronunciation && (
-              <p className="text-[12px] text-violet-400/70 font-mono">{w.pronunciation}</p>
-            )}
-            <p className="text-[13px] text-zinc-300 leading-snug">{w.meaning}</p>
-            {w.example_sentence && (
-              <p className="text-[12px] text-zinc-500 italic leading-snug">"{w.example_sentence}"</p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={async () => {
-          // Re-fetch progress antes de navegar
-          const _apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api';
-          await fetch(`${_apiBase}/auth/progress/`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('sb_access_token')}` }
-          });
-          onContinue();
-        }}
-        className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl transition-colors"
-      >
-        <ArrowLeft size={15} />
-        Volver a la Ruta
-      </button>
-    </motion.div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1036,6 +1036,8 @@ export default function ExercisePage() {
   const isAdminPreview = searchParams.get('from') === 'admin';
   const { completeExercise } = useLearnProgress();
 
+  const nextExerciseId = id ? getNextQuestionId(id) : null;
+
   const isNumericId = Boolean(id && Number.isInteger(Number(id)) && Number(id) > 0);
   const [exercise, setExercise] = useState<AnyExercise | undefined>(
     id ? EXERCISES[id] : undefined,
@@ -1043,17 +1045,24 @@ export default function ExercisePage() {
   const [loading, setLoading] = useState(isNumericId);
   const [fetchError, setFetchError] = useState(false);
   const [started, setStarted] = useState(false);
-  const [vocabWords, setVocabWords] = useState<VocabularyWord[] | null>(null);
+  const [exerciseVocab, setExerciseVocab] = useState<VocabularyWord[]>([]);
 
-  // If the ID is numeric → fetch from backend
+  // If the ID is numeric → fetch question + vocab in parallel
   useEffect(() => {
     if (!id) return;
     const numericId = Number(id);
     if (!Number.isInteger(numericId) || numericId <= 0) return; // use static data
     setLoading(true);
     setFetchError(false);
-    questionsService.getQuestion(numericId)
-      .then((q) => setExercise(backendToExercise(q)))
+    setExerciseVocab([]);
+    Promise.all([
+      questionsService.getQuestion(numericId),
+      questionsService.getExerciseVocabulary(numericId).catch(() => []),
+    ])
+      .then(([q, vocab]) => {
+        setExercise(backendToExercise(q));
+        setExerciseVocab(vocab);
+      })
       .catch(() => setFetchError(true))
       .finally(() => setLoading(false));
   }, [id]);
@@ -1096,20 +1105,19 @@ export default function ExercisePage() {
 
   const goLearn = () => navigate(isAdminPreview ? '/admin/questions' : '/learn');
 
-  const afterComplete = async (score: number, xp: number) => {
+  const goNext = () => {
+    setStarted(false);
+    navigate(`/exercise/${nextExerciseId}`);
+  };
+
+  const afterCompleteGoLearn = async (score: number, xp: number) => {
     await handleComplete(score, xp);
-    if (isAdminPreview) { goLearn(); return; }
+    goLearn();
+  };
 
-    // ★ ESPERAR a que la re-fetch termine
-    await new Promise(r => setTimeout(r, 500));
-
-    try {
-      const words = await questionsService.getExerciseVocabulary(Number(id));
-      if (words.length === 0) { goLearn(); return; }
-      setVocabWords(words);
-    } catch {
-      goLearn();
-    }
+  const afterCompleteGoNext = async (score: number, xp: number) => {
+    await handleComplete(score, xp);
+    goNext();
   };
 
   return (
@@ -1180,38 +1188,38 @@ export default function ExercisePage() {
           </motion.div>
         )}
 
-        {/* Vocabulary reveal (shown after exercise completion) */}
-        {started && vocabWords !== null && (
-          <VocabularyRevealScreen words={vocabWords} onContinue={goLearn} />
-        )}
-
         {/* Active exercise */}
-        {started && vocabWords === null && (
+        {started && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             {currentExercise.type === 'reading' && (
               <ReadingPlayer
                 ex={currentExercise as ReadingExercise}
-                onComplete={afterComplete}
+                onComplete={afterCompleteGoLearn}
+                onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'speaking' && (
               <SpeakingPlayer
                 ex={currentExercise as SpeakingExercise}
-                onComplete={afterComplete}
+                onComplete={afterCompleteGoLearn}
+                onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'comprehension' && (
               <ComprehensionPlayer
                 ex={currentExercise as ComprehensionExercise}
-                onComplete={afterComplete}
+                onComplete={afterCompleteGoLearn}
+                onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
             {currentExercise.type === 'writing' && (
               <WritingPlayer
                 ex={currentExercise as WritingExercise}
-                onComplete={afterComplete}
+                onComplete={afterCompleteGoLearn}
+                onCompleteNext={nextExerciseId ? afterCompleteGoNext : undefined}
               />
             )}
+            {exerciseVocab.length > 0 && <VocabPanel words={exerciseVocab} />}
           </motion.div>
         )}
 

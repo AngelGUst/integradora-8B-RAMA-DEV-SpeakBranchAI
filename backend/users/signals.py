@@ -32,5 +32,4 @@ def create_user_progress(sender, instance, created, **kwargs):
         average_reading=0.0,
         average_listening=0.0,
         average_writing=0.0,
-        skill_metrics={},
     )

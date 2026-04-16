@@ -107,9 +107,11 @@ function SkeletonCard() {
 function WordCard({
   entry,
   onMarkSeen,
+  onPractice,
 }: {
   entry: UserVocabEntry;
   onMarkSeen: (id: number) => void;
+  onPractice: (id: number, success: boolean) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -202,7 +204,25 @@ function WordCard({
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-between pt-1">
+              {/* Practice buttons */}
+              <div className="flex gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                <button
+                  onClick={() => onPractice(entry.id, true)}
+                  disabled={entry.mastery_level >= 4}
+                  className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-emerald-900/40 text-emerald-300 border border-emerald-700/30 hover:bg-emerald-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ✓ Lo sé
+                </button>
+                <button
+                  onClick={() => onPractice(entry.id, false)}
+                  disabled={entry.mastery_level <= 0}
+                  className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-amber-900/40 text-amber-300 border border-amber-700/30 hover:bg-amber-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Repasar
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/20">
                   Repasado {entry.times_reviewed} vez{entry.times_reviewed !== 1 ? 'es' : ''}
                 </span>
@@ -292,6 +312,25 @@ export default function VocabularyCollectionPage() {
         prev.map(e => e.id === id ? { ...e, was_seen: true } : e)
       );
     } catch { /* silent */ }
+  };
+
+  const handlePractice = async (id: number, success: boolean) => {
+    // Optimistic update
+    setEntries(prev =>
+      prev.map(e => {
+        if (e.id !== id) return e;
+        const next = success
+          ? Math.min(4, e.mastery_level + 1)
+          : Math.max(0, e.mastery_level - 1);
+        return { ...e, mastery_level: next, was_practiced: true, times_reviewed: e.times_reviewed + 1 };
+      })
+    );
+    try {
+      await apiFetch(`/vocabulary/daily/${id}/practice/`, {
+        method: 'POST',
+        body: JSON.stringify({ success }),
+      });
+    } catch { /* silent — optimistic state stays */ }
   };
 
   // Stats
@@ -428,6 +467,7 @@ export default function VocabularyCollectionPage() {
                     key={entry.id}
                     entry={entry}
                     onMarkSeen={handleMarkSeen}
+                    onPractice={handlePractice}
                   />
                 ))}
               </div>

@@ -39,6 +39,9 @@ class UserProgress(models.Model):
         help_text='XP total al momento de entrar al nivel actual'
     )
     
+    # Skill metrics (JSON storage for extended per-skill data)
+    skill_metrics = models.JSONField(default=dict)
+
     # Streaks
     streak_days = models.IntegerField(default=0)
     streak_freeze = models.IntegerField(default=0)

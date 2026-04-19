@@ -14,6 +14,16 @@ const NAV_ITEMS = [
   { label: 'Configuración',       icon: Settings,   path: '/admin/system',     adminOnly: true  },
 ];
 
+function UserAvatar({ name, url }: { name: string; url: string | null }) {
+  return (
+    <div className="w-8 h-8 rounded-full overflow-hidden bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+      {url
+        ? <img src={url} alt={name} className="w-full h-full object-cover" />
+        : <span className="text-xs font-bold text-emerald-400">{name.charAt(0).toUpperCase()}</span>}
+    </div>
+  );
+}
+
 export default function AppSidebar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -44,7 +54,25 @@ export default function AppSidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-zinc-800 space-y-1">
+        {user && (
+          <button
+            onClick={() => navigate('/profile')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors
+              ${pathname === '/profile'
+                ? 'bg-zinc-800 text-zinc-100'
+                : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'}`}
+          >
+            <UserAvatar name={user.first_name} url={user.avatar_url} />
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-zinc-200 truncate">{user.first_name}</p>
+              <p className="text-[10px] text-zinc-500 truncate">
+                {user.level} · {user.role === 'ADMIN' ? 'Admin' : 'Estudiante'}
+              </p>
+            </div>
+          </button>
+        )}
+
         <button
           onClick={logout}
           className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"

@@ -21,3 +21,9 @@ class UserSerializer(serializers.ModelSerializer):
             'is_active',
             'diagnostic_completed',
         )
+
+
+class ProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('first_name', 'age', 'gender', 'avatar_url')

@@ -17,6 +17,7 @@ import SystemConfigPage from '@/pages/admin/SystemConfigPage';
 import AdminDashboardPage from '@/pages/admin/DashboardPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import SpeakingPage from '@/pages/user/SpeakingPage';
+import ProfilePage from '@/pages/user/ProfilePage';
 import Logo from '@/shared/components/ui/Logo';
 import type { UserRole } from '@/features/auth/types/auth.types';
 
@@ -152,7 +153,7 @@ export default function AppRouter() {
       <Route
         path="/dashboard"
         element={(
-          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT', 'ADMIN']}>
             <DashboardPage />
           </PrivateRoute>
         )}
@@ -202,6 +203,12 @@ export default function AppRouter() {
       <Route
         path="/vocabulary"
         element={<PrivateRoute requiresPlacement><VocabularyCollectionPage /></PrivateRoute>}
+      />
+
+      {/* User profile */}
+      <Route
+        path="/profile"
+        element={<PrivateRoute><ProfilePage /></PrivateRoute>}
       />
 
       {/* Admin */}

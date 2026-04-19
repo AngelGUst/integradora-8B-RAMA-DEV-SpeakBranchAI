@@ -8,6 +8,7 @@ from users.views.auth_views import (
     LogoutView,
     DiagnosticCompleteView,
     MeView,
+    MyAttemptsView,
     PasswordChangeView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
@@ -48,6 +49,9 @@ urlpatterns = [
     # --- Progress ---
     path('progress/', ProgressView.as_view(), name='user-progress'),
     path('progress/complete/', ProgressView.as_view(), name='user-progress-complete'),
+
+    # --- My attempts history ---
+    path('attempts/', MyAttemptsView.as_view(), name='my-attempts'),
 
     # --- Admin: User Management ---
     path('users/', AdminUserListView.as_view(), name='admin-user-list'),

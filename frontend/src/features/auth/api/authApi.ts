@@ -1,6 +1,7 @@
 import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type {
+  Gender,
   LoginCredentials,
   LoginResponse,
   GoogleOAuthResponse,
@@ -8,6 +9,13 @@ import type {
   RegisterResponse,
   User,
 } from '../types/auth.types';
+
+export interface ProfileUpdatePayload {
+  first_name?: string;
+  age?: number | null;
+  gender?: Gender | null;
+  avatar_url?: string | null;
+}
 
 // ── Dev mock (used when backend is unreachable) ───────────────
 
@@ -197,6 +205,14 @@ export const authApi = {
       user,
       isNewUser: data.is_new_user,
     };
+  },
+
+  /**
+   * Update the authenticated user's editable profile fields.
+   */
+  updateProfile: async (payload: ProfileUpdatePayload): Promise<User> => {
+    const { data } = await apiClient.patch<User>('/auth/me/', payload);
+    return data;
   },
 
   /**

@@ -19,6 +19,7 @@ from users.serializers import (
     PasswordChangeSerializer,
     PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer,
+    ProfileUpdateSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -180,6 +181,34 @@ class MeView(APIView):
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary='Update current user profile',
+        request=ProfileUpdateSerializer,
+        responses={200: UserSerializer, 400: OpenApiResponse(description='Validation errors')},
+        tags=['Auth'],
+    )
+    def patch(self, request):
+        serializer = ProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        summary='Delete own account',
+        responses={
+            200: inline_serializer('DeleteAccountResponse', fields={'deleted': serializers.BooleanField()}),
+            400: OpenApiResponse(description='Cannot delete admin account'),
+        },
+        tags=['Auth'],
+    )
+    def delete(self, request):
+        user = request.user
+        if user.role == 'ADMIN':
+            return Response({'error': 'Admin accounts cannot be self-deleted.'}, status=status.HTTP_400_BAD_REQUEST)
+        user.delete()
+        return Response({'deleted': True}, status=status.HTTP_200_OK)
 
 
 class DiagnosticCompleteView(APIView):
@@ -486,3 +515,111 @@ class PasswordChangeView(APIView):
             {'message': 'Password changed successfully.'},
             status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# My attempts history (authenticated user — own data only)
+# ---------------------------------------------------------------------------
+
+ATTEMPTS_LIMIT = 50
+
+
+class MyAttemptsView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [JWTAuthentication]
+
+    @extend_schema(
+        summary='Get own attempt history by skill tab',
+        tags=['Auth'],
+    )
+    def get(self, request):
+        from attempts.models import (
+            SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt,
+        )
+
+        tab = request.GET.get('tab', 'speaking').lower()
+        user = request.user
+
+        if tab == 'speaking':
+            rows = list(
+                SpeakingAttempt.objects.filter(user=user)
+                .select_related('question').order_by('-created_at')[:ATTEMPTS_LIMIT]
+            )
+            results = [
+                {
+                    'id':          r.id,
+                    'question':    r.question.text[:120] if r.question else '',
+                    'difficulty':  r.difficulty,
+                    'score':       r.score,
+                    'xp_earned':   r.xp_earned,
+                    'transcribed': r.transcribed_text[:200] if r.transcribed_text else '',
+                    'match':       r.transcription_match,
+                    'created_at':  r.created_at.strftime('%Y-%m-%d %H:%M'),
+                }
+                for r in rows
+            ]
+        elif tab == 'reading':
+            rows = list(
+                ReadingAttempt.objects.filter(user=user)
+                .select_related('question').order_by('-created_at')[:ATTEMPTS_LIMIT]
+            )
+            results = [
+                {
+                    'id':         r.id,
+                    'question':   r.question.text[:120] if r.question else '',
+                    'difficulty': r.difficulty,
+                    'score':      r.score,
+                    'xp_earned':  r.xp_earned,
+                    'selected':   r.selected_answer,
+                    'correct':    r.correct,
+                    'created_at': r.created_at.strftime('%Y-%m-%d %H:%M'),
+                }
+                for r in rows
+            ]
+        elif tab == 'listening':
+            rows = list(
+                ListeningAttempt.objects.filter(user=user)
+                .select_related('question').order_by('-created_at')[:ATTEMPTS_LIMIT]
+            )
+            results = [
+                {
+                    'id':             r.id,
+                    'question':       r.question.text[:120] if r.question else '',
+                    'listening_type': r.listening_type,
+                    'difficulty':     r.difficulty,
+                    'score':          r.score,
+                    'xp_earned':      r.xp_earned,
+                    'replays_used':   r.replays_used,
+                    'correct':        r.correct,
+                    'created_at':     r.created_at.strftime('%Y-%m-%d %H:%M'),
+                }
+                for r in rows
+            ]
+        elif tab == 'writing':
+            rows = list(
+                WritingAttempt.objects.filter(user=user)
+                .select_related('question').order_by('-created_at')[:ATTEMPTS_LIMIT]
+            )
+            results = [
+                {
+                    'id':              r.id,
+                    'question':        r.question.text[:120] if r.question else '',
+                    'difficulty':      r.difficulty,
+                    'score':           r.score,
+                    'score_grammar':   r.score_grammar,
+                    'score_vocab':     r.score_vocabulary,
+                    'score_coherence': r.score_coherence,
+                    'score_spelling':  r.score_spelling,
+                    'xp_earned':       r.xp_earned,
+                    'ai_feedback':     r.ai_feedback[:300] if r.ai_feedback else '',
+                    'created_at':      r.created_at.strftime('%Y-%m-%d %H:%M'),
+                }
+                for r in rows
+            ]
+        else:
+            return Response(
+                {'error': 'Invalid tab. Use: speaking, reading, listening, writing'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({'tab': tab, 'results': results}, status=status.HTTP_200_OK)

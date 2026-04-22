@@ -208,6 +208,7 @@ export default function RegisterForm({ onSubmit, serverError, serverSuccess }: R
           <select
             id="gender"
             className="h-[52px] w-full rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 text-sm text-slate-100 transition-all duration-200 focus:border-violet-500/50 focus:outline-none focus:ring-2 focus:ring-violet-500/10"
+            style={{ colorScheme: 'dark' }}
             {...register('gender')}
           >
             <option value="">Select…</option>

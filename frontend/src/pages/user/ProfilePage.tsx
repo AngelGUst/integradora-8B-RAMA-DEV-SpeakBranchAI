@@ -469,8 +469,9 @@ export default function ProfilePage() {
                         <select
                           value={gender} onChange={e => setGender(e.target.value as Gender | '')}
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50"
+                          style={{ colorScheme: 'dark' }}
                         >
-                          <option value="">- No indicar -</option>
+                          <option value="">- Not specified -</option>
                           {(Object.entries(GENDER_LABELS) as [Gender, string][]).map(([val, lbl]) => (
                             <option key={val} value={val}>{lbl}</option>
                           ))}

@@ -177,7 +177,7 @@ function WordFormModal({
               </div>
               <div>
                 <label className={LABEL}>Level *</label>
-                <select className={INPUT} value={form.level} onChange={set('level')}>
+                <select className={INPUT} value={form.level} onChange={set('level')} style={{ colorScheme: 'dark' }}>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
@@ -367,6 +367,7 @@ export default function VocabularyPage() {
                   value={levelFilter}
                   onChange={(e) => setLevel(e.target.value)}
                   className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
+                  style={{ colorScheme: 'dark' }}
                 >
                   <option value="">All levels</option>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}

@@ -29,8 +29,8 @@ const CEFR_META: Record<string, {
 }> = {
   A1: { color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.25)',  title: 'Beginner',           icon: '🌊' },
   A2: { color: '#6ee7b7', bg: 'rgba(110,231,183,0.08)', border: 'rgba(110,231,183,0.25)', title: 'Elementary',         icon: '🌊' },
-  B1: { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)',  border: 'rgba(56,189,248,0.25)',  title: 'Intermediate',       icon: '🌊`' },
-  B2: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', title: 'Upper-Intermediate', icon: 'a' },
+  B1: { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)',  border: 'rgba(56,189,248,0.25)',  title: 'Intermediate',       icon: '🌊' },
+  B2: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', title: 'Upper-Intermediate', icon: '🌟' },
   C1: { color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)', title: 'Advanced',           icon: '🔥' },
   C2: { color: '#f472b6', bg: 'rgba(244,114,182,0.08)', border: 'rgba(244,114,182,0.25)', title: 'Mastery',            icon: '👑' },
 };

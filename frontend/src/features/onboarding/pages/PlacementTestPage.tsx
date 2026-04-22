@@ -50,7 +50,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(56,189,248,0.25)',
     title: 'Intermediate',
     description: 'You can communicate in most everyday situations and express opinions.',
-    icon: '🌊`',
+    icon: '🌊',
   },
   B2: {
     color: '#818cf8',
@@ -58,7 +58,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(129,140,248,0.25)',
     title: 'Upper-Intermediate',
     description: 'You communicate with fluency and ease on a wide range of topics.',
-    icon: 'a',
+    icon: '🌟',
   },
   C1: {
     color: '#a78bfa',

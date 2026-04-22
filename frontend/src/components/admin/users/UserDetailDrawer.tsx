@@ -443,13 +443,13 @@ export default function UserDetailDrawer({
                 <div className="space-y-3">
                   <div>
                     <label className={LABEL}>CEFR Level</label>
-                    <select value={level} onChange={e => setLevel(e.target.value)} className={SELECT}>
+                    <select value={level} onChange={e => setLevel(e.target.value)} className={SELECT} style={{ colorScheme: 'dark' }}>
                       {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className={LABEL}>Rol</label>
-                    <select value={role} onChange={e => setRole(e.target.value as 'ADMIN' | 'STUDENT')} className={SELECT}>
+                    <select value={role} onChange={e => setRole(e.target.value as 'ADMIN' | 'STUDENT')} className={SELECT} style={{ colorScheme: 'dark' }}>
                       <option value="STUDENT">Student</option>
                       <option value="ADMIN">Administrator</option>
                     </select>

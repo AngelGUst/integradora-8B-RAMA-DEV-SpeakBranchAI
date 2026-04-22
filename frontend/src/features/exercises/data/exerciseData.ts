@@ -41,7 +41,7 @@ export interface ComprehensionExercise {
   /** Read aloud via browser TTS. Hidden from user during quiz. */
   audioText: string;
   audioUrl?: string;
-  ma🌊eplays: number;
+  maxReplays: number;
   questions: MCQQuestion[];
   maxXP: number;
 }
@@ -221,7 +221,7 @@ const a1_6: ComprehensionExercise = {
     "The kitchen has a refrigerator, a stove, and a small table with four chairs. " +
     "My bedroom has one bed, two lamps, and a large window. " +
     "The bathroom has a shower and a mirror.",
-  ma🌊eplays: 3,
+  maxReplays: 3,
   questions: [
     {
       id: 'q1',

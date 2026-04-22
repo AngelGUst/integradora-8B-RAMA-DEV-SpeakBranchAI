@@ -28,6 +28,16 @@ body {
   color: #E2E8F0;
 }
 
+/* ── Dark native select dropdowns ──────────────────────────── */
+select option {
+  background-color: #18181b;
+  color: #f4f4f5;
+}
+
+select option:disabled {
+  color: #71717a;
+}
+
 #root {
   min-height: 100vh;
 }

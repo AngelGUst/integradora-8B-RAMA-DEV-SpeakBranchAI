@@ -140,7 +140,7 @@ function backendToExercise(q: Question): AnyExercise {
       title: q.text || 'Listening · Comprehension',
       audioText: q.phonetic_text ?? '',
       audioUrl: q.audio_url ?? undefined,
-      ma🌊eplays: q.max_replays ?? 3,
+      maxReplays: q.max_replays ?? 3,
       questions,
     };
   }
@@ -671,7 +671,7 @@ function SpeakingPlayer({ ex, onComplete, onCompleteNext }: { ex: SpeakingExerci
 // --- Comprehension Player -----------------------------------------------------
 
 function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: ComprehensionExercise; onComplete: (s: number, xp: number) => void; onCompleteNext?: (s: number, xp: number) => void }) {
-  const [replaysLeft, setReplays] = useState(ex.ma🌊eplays);
+  const [replaysLeft, setReplays] = useState(ex.maxReplays);
   const [audioPlayed, setPlayed] = useState(false);
   const [quizMode, setQuiz] = useState(false);
   const [answers, setAnswers] = useState<Record<number, number>>({});
@@ -750,7 +750,7 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
         <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-5">
           <p className="text-[10px] uppercase tracking-widest text-amber-400 font-semibold mb-2">Audio del ejercicio</p>
           <p className="text-sm text-zinc-400 mb-4">
-            Listen to the audio. You have <strong className="text-amber-400">{ex.ma🌊eplays}</strong> replay/replays available.
+            Listen to the audio. You have <strong className="text-amber-400">{ex.maxReplays}</strong> replay/replays available.
             You will not be able to replay it while answering.
           </p>
           {!hasAudio && (
@@ -765,7 +765,7 @@ function ComprehensionPlayer({ ex, onComplete, onCompleteNext }: { ex: Comprehen
               <Volume2 size={15} /> Reproducir audio
             </button>
             <span className="text-xs text-zinc-500 font-mono tabular-nums">
-              {replaysLeft} / {ex.ma🌊eplays} restante{replaysLeft !== 1 ? 's' : ''}
+              {replaysLeft} / {ex.maxReplays} restante{replaysLeft !== 1 ? 's' : ''}
             </span>
           </div>
         </div>
@@ -1173,7 +1173,7 @@ export default function ExercisePage() {
                 {currentExercise.type === 'comprehension' && (
                   <div>
                     <p className="text-[10px] uppercase tracking-wider text-zinc-600">Reproducciones</p>
-                    <p className="text-lg font-bold text-zinc-200">{(currentExercise as ComprehensionExercise).ma🌊eplays}</p>
+                    <p className="text-lg font-bold text-zinc-200">{(currentExercise as ComprehensionExercise).maxReplays}</p>
                   </div>
                 )}
               </div>

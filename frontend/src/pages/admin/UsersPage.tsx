@@ -276,21 +276,21 @@ export default function UsersPage() {
                 />
               </div>
 
-              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={SELECT}>
+              <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={SELECT} style={{ colorScheme: 'dark' }}>
                 <option value="">All roles</option>
                 <option value="STUDENT">Student</option>
                 <option value="ADMIN">Admin</option>
               </select>
 
-              <select value={levelFilter} onChange={e => setLevel(e.target.value)} className={SELECT}>
+              <select value={levelFilter} onChange={e => setLevel(e.target.value)} className={SELECT} style={{ colorScheme: 'dark' }}>
                 <option value="">All levels</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
 
-              <select value={statusFilter} onChange={e => setStatus(e.target.value)} className={SELECT}>
+              <select value={statusFilter} onChange={e => setStatus(e.target.value)} className={SELECT} style={{ colorScheme: 'dark' }}>
                 <option value="">All statuses</option>
-                <option value="true">Activos</option>
-                <option value="false">Inactivos</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </select>
 
               {/* Page size */}

@@ -41,7 +41,7 @@ export interface ComprehensionExercise {
   /** Read aloud via browser TTS. Hidden from user during quiz. */
   audioText: string;
   audioUrl?: string;
-  maxReplays: number;
+  ma🌊eplays: number;
   questions: MCQQuestion[];
   maxXP: number;
 }
@@ -109,9 +109,9 @@ const a1_2: SpeakingExercise = {
   skill: 'speaking',
   level: 'A1',
   title: 'Personal Pronouns',
-  instruction: 'Lee la siguiente frase en voz alta en inglés con claridad.',
+  instruction: 'Read the following sentence out loud in English clearly.',
   phrase: 'My name is Maria. I am a student. She is my teacher. We are friends.',
-  translation: 'Mi nombre es María. Soy estudiante. Ella es mi maestra. Somos amigos.',
+  translation: 'My name is Maria. I am a student. She is my teacher. We are friends.',
   maxXP: 10,
 };
 
@@ -201,12 +201,12 @@ const a1_5: SpeakingExercise = {
   level: 'A1',
   title: 'Listen: Daily Routine',
   instruction:
-    'Escucha el audio con atención y luego repite exactamente lo que escuchas. ' +
-    'No verás el texto mientras grabas.',
+    'Listen to the audio carefully and repeat exactly what you hear. ' +
+    'You will not see the text while recording.',
   phrase:
     "Every morning I wake up at seven. I eat breakfast and go to work at eight thirty.",
   translation:
-    'Cada mañana me levanto a las siete. Desayuno y voy al trabajo a las ocho y media.',
+    'Every morning I wake up at seven. I have breakfast and go to work at eight thirty.',
   maxXP: 20,
 };
 
@@ -221,7 +221,7 @@ const a1_6: ComprehensionExercise = {
     "The kitchen has a refrigerator, a stove, and a small table with four chairs. " +
     "My bedroom has one bed, two lamps, and a large window. " +
     "The bathroom has a shower and a mirror.",
-  maxReplays: 3,
+  ma🌊eplays: 3,
   questions: [
     {
       id: 'q1',

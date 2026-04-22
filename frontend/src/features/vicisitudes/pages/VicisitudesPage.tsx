@@ -21,9 +21,9 @@ const STARS = Array.from({ length: 120 }, (_, i) => ({
 
 // ─── Zone visual data ─────────────────────────────────────────────────────────
 const ZONES: { id: CefrZone; from: number; to: number; skyTop: string; skyBot: string; label: string }[] = [
-  { id: 'atmosfera', from: 0,   to: 44,  skyTop: '#0B1A2C', skyBot: '#061022', label: 'A T M Ó S F E R A' },
-  { id: 'orbita',    from: 44,  to: 77,  skyTop: '#0D0525', skyBot: '#07031A', label: 'Ó R B I T A' },
-  { id: 'vacio',     from: 77,  to: 100, skyTop: '#030307', skyBot: '#020204', label: 'V A C Í O' },
+  { id: 'atmosfera', from: 0,   to: 44,  skyTop: '#0B1A2C', skyBot: '#061022', label: 'A T M O S P H E R E' },
+  { id: 'orbita',    from: 44,  to: 77,  skyTop: '#0D0525', skyBot: '#07031A', label: 'O R B I T' },
+  { id: 'vacio',     from: 77,  to: 100, skyTop: '#030307', skyBot: '#020204', label: 'V O I D' },
 ];
 
 const ZONE_ACCENT: Record<CefrZone, string> = {
@@ -206,7 +206,7 @@ function GameScene() {
                 boxShadow: '0 0 30px #F472B630',
               }}
             >
-              ★ ESTACIÓN ORBITAL
+              ★ ORBITAL STATION
             </div>
             {/* Docking arms */}
             <div className="flex items-center gap-1">
@@ -314,7 +314,7 @@ function GameScene() {
               transition={{ delay: 0.3, duration: 0.8 }}
             >
               <span className="font-mono text-[10px] font-bold tracking-[0.4em] text-slate-500 uppercase">
-                SpeakBranch · Misión
+                SpeakBranch · Mission
               </span>
               <h1
                 className="text-center font-mono text-3xl font-black leading-tight tracking-tight text-white sm:text-4xl"
@@ -366,7 +366,7 @@ function GameScene() {
               whileTap={{ scale: 0.96 }}
             >
               <Rocket size={14} className="mr-2 inline-block" />
-              Iniciar Misión
+              Iniciar Mission
             </motion.button>
           </motion.div>
         )}
@@ -396,16 +396,16 @@ function GameScene() {
                 🛸
               </motion.div>
               <span className="font-mono text-[10px] font-bold tracking-[0.4em] text-slate-500 uppercase">
-                Misión completada
+                Mission completed
               </span>
               <h2
                 className="font-mono text-4xl font-black text-white"
                 style={{ textShadow: '0 0 40px #F472B670' }}
               >
-                ¡LLEGASTE!
+                YOU ARRIVED!
               </h2>
               <div className="flex flex-col items-center gap-1">
-                <span className="font-mono text-sm text-slate-400">Puntuación final</span>
+                <span className="font-mono text-sm text-slate-400">Final score</span>
                 <span
                   className="font-mono text-5xl font-black"
                   style={{ color: '#34D399' }}
@@ -442,7 +442,7 @@ function GameScene() {
               transition={{ delay: 0.2 }}
             >
               <span className="text-5xl">💀</span>
-              <h2 className="font-mono text-3xl font-black text-white">MISIÓN FALLIDA</h2>
+              <h2 className="font-mono text-3xl font-black text-white">MISSION FAILED</h2>
               <p className="font-mono text-xs tracking-widest text-slate-500">
                 Altitud alcanzada: {Math.round(state.altitude)}%
               </p>
@@ -457,7 +457,7 @@ function GameScene() {
                 className="mt-4 rounded-2xl px-8 py-3 font-mono text-sm font-bold tracking-widest uppercase"
                 style={{ background: '#F87171', color: '#030307', boxShadow: '0 0 30px #F8717140' }}
               >
-                Reintentar
+                Retry
               </button>
             </motion.div>
           </motion.div>

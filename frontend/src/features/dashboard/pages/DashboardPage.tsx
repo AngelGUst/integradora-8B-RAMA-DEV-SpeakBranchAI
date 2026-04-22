@@ -1,13 +1,13 @@
 /**
- * DashboardPage — SpeakBranch AI
+ * DashboardPage - SpeakBranch AI
  *
  * Stats & overview hub. XP and completion state come from localStorage via
  * useLearnProgress so they always reflect the user's actual progress.
  *
  * Key features:
- *  - Live "next exercise" CTA → navigates directly to /exercise/:id
- *  - "Practicar" per skill → finds the next unlocked exercise for that skill
- *  - Adaptive engine window (last 3 XP scores → derived difficulty)
+ *  - Live "next exercise" CTA  - navigates directly to /exercise/:id
+ *  - "Practicar" per skill  - finds the next unlocked exercise for that skill
+ *  - Adaptive engine window (last 3 XP scores  - derived difficulty)
  *  - Certification path timeline
  *  - Performance trajectory chart (VicissitudesEngine)
  */
@@ -27,13 +27,13 @@ import type { LessonNode } from '@/features/learn/data/pathData';
 import { examService } from '@/services/examService';
 import type { Exam } from '@/types/exam';
 
-// ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
+// --- Adaptive engine constants (mirrors backend) ------------------------------
 
 const WINDOW_SIZE = 3;
 const THRESHOLD_UP = 16.0;
 const THRESHOLD_DOWN = 10.0;
 
-// ─── CEFR path data ───────────────────────────────────────────────────────────
+// --- CEFR path data -----------------------------------------------------------
 
 const CEFR_STEPS = [
   { level: 'A1', label: 'Beginner' },
@@ -53,16 +53,16 @@ const CEFR_LEVEL_LABEL: Record<string, string> = {
   C2: 'Mastery',
 };
 
-// ─── Skill definitions ────────────────────────────────────────────────────────
+// --- Skill definitions --------------------------------------------------------
 
 const SKILLS = [
-  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Comprensión lectora con textos CEFR.' },
-  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciación evaluada por IA (Whisper).' },
-  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Escucha y replica: entrena oído y pronunciación.' },
-  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.' },
+  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Reading comprehension with CEFR texts.' },
+  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciation evaluated by AI (Whisper).' },
+  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Listen and repeat: train listening and pronunciation.' },
+  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + questions. Maximum 3 replays.' },
 ] as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 /** Returns the first unlocked, uncompleted node across all sections. */
 function findCurrentNode(completedIds: string[], totalXP: number): LessonNode | null {
@@ -93,7 +93,7 @@ function findNextBySkill(skill: string, completedIds: string[], totalXP: number)
   return null;
 }
 
-// ─── Badge ────────────────────────────────────────────────────────────────────
+// --- Badge --------------------------------------------------------------------
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'hard' | 'medium' | 'easy';
 const BADGE_STYLES: Record<BadgeVariant, string> = {
@@ -122,7 +122,7 @@ const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
   exam: { text: 'text-rose-400', Icon: Trophy },
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -146,8 +146,8 @@ export default function DashboardPage() {
       sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
       return;
     }
-    const label = CEFR_LEVEL_LABEL[clean] ?? 'Nivel asignado';
-    setPlacementLevelMessage(`Diagnóstico completado. Tu nivel asignado es ${clean} (${label}).`);
+    const label = CEFR_LEVEL_LABEL[clean] ?? 'Level asignado';
+    setPlacementLevelMessage(`Diagnostic completed. Your assigned level is ${clean} (${label}).`);
     sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
   }, []);
 
@@ -207,14 +207,14 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* ── Header ── */}
+          {/* -- Header -- */}
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight leading-none mb-1">
                 Hola, {user?.first_name || 'Piloto'}
               </h1>
               <p className="text-zinc-400 text-sm">
-                Nivel <span className="text-zinc-200 font-medium">{activeLvl}</span> · Sigue practicando para avanzar.
+                Level <span className="text-zinc-200 font-medium">{activeLvl}</span> · Keep practicing para avanzar.
               </p>
             </div>
 
@@ -222,8 +222,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3 px-3">
                 <div className="p-2 bg-amber-500/10 rounded-lg"><Flame size={18} className="text-amber-500" /></div>
                 <div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Racha</p>
-                  <p className="text-lg font-semibold leading-none">{streakDays} <span className="text-sm font-normal text-zinc-500">días</span></p>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Streak</p>
+                  <p className="text-lg font-semibold leading-none">{streakDays} <span className="text-sm font-normal text-zinc-500">days</span></p>
                 </div>
               </div>
               <div className="w-px h-9 bg-zinc-800" />
@@ -237,7 +237,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* ── Next exercise CTA ── */}
+          {/* -- Next exercise CTA -- */}
           {currentNode ? (
             <button
               onClick={() => navigate(`/exercise/${currentNode.id}`)}
@@ -252,11 +252,11 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-emerald-500/80 font-semibold mb-0.5">Continuar donde lo dejaste</p>
                   <p className="font-semibold text-zinc-100 text-base leading-tight">{currentNode.title}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{currentNode.skill.replace('_', ' ')} · {currentNode.xpMax} XP máx</p>
+                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{currentNode.skill.replace('_', ' ')} · {currentNode.xpMax} Max XP</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-emerald-500 group-hover:bg-emerald-400 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0">
-                Comenzar <ArrowRight size={15} />
+                Start <ArrowRight size={15} />
               </div>
             </button>
           ) : (
@@ -265,17 +265,17 @@ export default function DashboardPage() {
                 <Trophy size={22} className="text-emerald-400" />
               </div>
               <div>
-                <p className="font-semibold text-zinc-100">¡Nivel {activeLvl} completado!</p>
+                <p className="font-semibold text-zinc-100">Level {activeLvl} completed!</p>
                 <p className="text-sm text-zinc-500">
                   {nextLvl
                     ? `Espera el desbloqueo de ${nextLvl} o practica ejercicios anteriores.`
-                    : 'Has completado el nivel más alto. Practica ejercicios anteriores.'}
+                    : 'You have completed the highest level. Practice previous exercises.'}
                 </p>
               </div>
             </div>
           )}
 
-          {/* ── Level-Up Exam CTA ── */}
+          {/* -- Level-Up Exam CTA -- */}
           {currentExam && !examPassedAlready && (
             <div
               className={`w-full flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${canTakeExam
@@ -289,15 +289,15 @@ export default function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-violet-400/80 font-semibold mb-0.5">
-                    Examen de Nivel
+                    Level Exam
                   </p>
                   <p className="font-semibold text-zinc-100 text-base leading-tight">
                     {currentExam.name}
                   </p>
                   <p className="text-xs text-zinc-500 mt-0.5">
                     {canTakeExam
-                      ? `${currentExam.question_count} preguntas · ${currentExam.time_limit_minutes} min · Aprobar con ${currentExam.passing_score}%`
-                      : `Necesitas ${requiredLevelXp} XP en el nivel actual (llevas ${currentLevelXp})`
+                      ? `${currentExam.question_count} questions · ${currentExam.time_limit_minutes} min · Pass with ${currentExam.passing_score}%`
+                      : `You need ${requiredLevelXp} XP in the current level (you have ${currentLevelXp})`
                     }
                   </p>
                 </div>
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                   onClick={() => navigate(`/exam/${currentExam.id}`)}
                   className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0"
                 >
-                  Presentar examen <ArrowRight size={15} />
+                  Take exam <ArrowRight size={15} />
                 </button>
               ) : (
                 <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
@@ -319,7 +319,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* ── Performance chart ── */}
+          {/* -- Performance chart -- */}
           <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -335,13 +335,13 @@ export default function DashboardPage() {
             </div>
             <div className="h-64 w-full bg-[#06080F] relative">
               <div className="absolute top-3 left-5 z-10">
-                <p className="text-xs text-zinc-600 font-mono">Últimas {WINDOW_SIZE} interacciones</p>
+                <p className="text-xs text-zinc-600 font-mono">altimas {WINDOW_SIZE} interactions</p>
               </div>
               <VicissitudesEngine />
             </div>
           </section>
 
-          {/* ── Bottom grid ── */}
+          {/* -- Bottom grid -- */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Left col: engine window + cert path */}
@@ -383,7 +383,7 @@ export default function DashboardPage() {
 
               {/* Certification path */}
               <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
-                <h3 className="font-medium text-zinc-100 text-sm mb-5">Ruta de Certificación</h3>
+                <h3 className="font-medium text-zinc-100 text-sm mb-5">Certification Path</h3>
                 <div className="relative">
                   <div className="absolute left-3 top-2 bottom-4 w-px bg-zinc-800" />
                   <div className="space-y-5">
@@ -412,7 +412,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-zinc-600">TOEFL</p>
-                        <p className="text-xs text-zinc-700">Examen final</p>
+                        <p className="text-xs text-zinc-700">Final exam</p>
                       </div>
                     </div>
                   </div>
@@ -423,7 +423,7 @@ export default function DashboardPage() {
             {/* Right col: skill modules */}
             <div className="lg:col-span-2 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Módulos de Práctica</h2>
+                <h2 className="text-lg font-semibold text-white">Practice Modules</h2>
                 <p className="text-sm text-zinc-500 mt-0.5">
                   El motor sugiere la habilidad con menor rendimiento. Puedes practicar cualquiera.
                 </p>
@@ -481,7 +481,7 @@ export default function DashboardPage() {
                       ) : (
                         <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
                           <Lock size={13} />
-                          Bloqueado
+                          Locked
                         </div>
                       )}
                     </div>
@@ -496,3 +496,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

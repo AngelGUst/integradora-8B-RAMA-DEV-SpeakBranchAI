@@ -1,7 +1,7 @@
 import type { Checkpoint } from '../types/game.types';
 
 export const CHECKPOINTS: Checkpoint[] = [
-  // ── ZONA ATMÓSFERA (A1) ────────────────────────────────────────────
+  // ── ATMOSPHERE ZONE (A1) ────────────────────────────────────────────
   {
     id: 1,
     altitudePct: 11,
@@ -54,7 +54,7 @@ export const CHECKPOINTS: Checkpoint[] = [
     },
   },
 
-  // ── ZONA ÓRBITA (A2) ──────────────────────────────────────────────
+  // ── ORBIT ZONE (A2) ──────────────────────────────────────────────
   {
     id: 4,
     altitudePct: 44,
@@ -82,10 +82,10 @@ export const CHECKPOINTS: Checkpoint[] = [
       skill: 'vocabulary',
       prompt: 'What does "ambitious" mean in Spanish?',
       options: [
-        { id: 'a', text: 'Tímido',    correct: false },
-        { id: 'b', text: 'Ambicioso', correct: true  },
-        { id: 'c', text: 'Curioso',   correct: false },
-        { id: 'd', text: 'Paciente',  correct: false },
+        { id: 'a', text: 'Shy',    correct: false },
+        { id: 'b', text: 'Ambitious', correct: true  },
+        { id: 'c', text: 'Curious',   correct: false },
+        { id: 'd', text: 'Patient',  correct: false },
       ],
     },
   },
@@ -107,7 +107,7 @@ export const CHECKPOINTS: Checkpoint[] = [
     },
   },
 
-  // ── ZONA EL VACÍO (B1+) ───────────────────────────────────────────
+  // ── THE VOID ZONE (B1+) ───────────────────────────────────────────
   {
     id: 7,
     altitudePct: 77,

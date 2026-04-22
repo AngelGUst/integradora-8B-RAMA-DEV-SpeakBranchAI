@@ -271,24 +271,24 @@ export default function UsersPage() {
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar por nombre o email…"
+                  placeholder="Search by name or email..."
                   className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
                 />
               </div>
 
               <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)} className={SELECT}>
-                <option value="">Todos los roles</option>
-                <option value="STUDENT">Estudiante</option>
+                <option value="">All roles</option>
+                <option value="STUDENT">Student</option>
                 <option value="ADMIN">Admin</option>
               </select>
 
               <select value={levelFilter} onChange={e => setLevel(e.target.value)} className={SELECT}>
-                <option value="">Todos los niveles</option>
+                <option value="">All levels</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
 
               <select value={statusFilter} onChange={e => setStatus(e.target.value)} className={SELECT}>
-                <option value="">Todos los estados</option>
+                <option value="">All statuses</option>
                 <option value="true">Activos</option>
                 <option value="false">Inactivos</option>
               </select>
@@ -323,12 +323,12 @@ export default function UsersPage() {
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Usuario</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">User</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Rol</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Nivel</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Level</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">XP</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Racha</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Último acceso</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Streak</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Last access</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Estado</th>
                   </tr>
                 </thead>
@@ -339,18 +339,18 @@ export default function UsersPage() {
             ) : users.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 gap-3">
                 <Users className="h-9 w-9 text-white/10" />
-                <p className="text-[14px] text-white/25 leading-relaxed">No se encontraron usuarios.</p>
+                <p className="text-[14px] text-white/25 leading-relaxed">No users found.</p>
               </div>
             ) : (
               <table className="w-full text-[13px]">
                 <thead>
                   <tr className="border-b border-white/[0.05]">
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Usuario</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">User</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Rol</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Nivel</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Level</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">XP</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Racha</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Último acceso</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Streak</th>
+                    <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Last access</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">Estado</th>
                   </tr>
                 </thead>
@@ -381,7 +381,7 @@ export default function UsersPage() {
                         ) : (
                           <span className="inline-flex items-center gap-1 bg-zinc-800 text-zinc-400 text-[11px] font-medium px-2 py-0.5 rounded-full">
                             <GraduationCap className="h-2.5 w-2.5" />
-                            Estudiante
+                            Student
                           </span>
                         )}
                       </td>
@@ -432,7 +432,7 @@ export default function UsersPage() {
               className="mt-4 flex items-center justify-between"
             >
               <p className="text-[12px] text-white/20">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} de {total} usuario{total !== 1 ? 's' : ''}
+                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, total)} of {total} user{total !== 1 ? 's' : ''}
               </p>
 
               <div className="flex items-center gap-1">

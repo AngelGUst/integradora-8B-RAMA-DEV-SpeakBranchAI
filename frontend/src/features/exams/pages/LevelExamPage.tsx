@@ -1,8 +1,8 @@
 /**
- * LevelExamPage — SpeakBranch AI
+ * LevelExamPage - SpeakBranch AI
  *
- * Diseño idéntico al diagnóstico: intro → quiz → resultado.
- * Las respuestas se recopilan localmente y se envían todas al final.
+ * Same design as diagnostic: intro  - quiz  - resultado.
+ * Answers are collected locally and submitted all at the end.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -17,20 +17,20 @@ import { examService } from '@/services/examService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { Exam, ExamQuestion, ExamStartResponse } from '@/types/exam';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// -- Constants -----------------------------------------------------------------
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 
-// ── CEFR palette (mirrors PlacementTestPage) ──────────────────────────────────
+// -- CEFR palette (mirrors PlacementTestPage) ----------------------------------
 
 const CEFR_META: Record<string, {
   color: string; bg: string; border: string; title: string; icon: string;
 }> = {
-  A1: { color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.25)',  title: 'Beginner',           icon: '🌱' },
-  A2: { color: '#6ee7b7', bg: 'rgba(110,231,183,0.08)', border: 'rgba(110,231,183,0.25)', title: 'Elementary',         icon: '🌿' },
-  B1: { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)',  border: 'rgba(56,189,248,0.25)',  title: 'Intermediate',       icon: '🌊' },
-  B2: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', title: 'Upper-Intermediate', icon: '⚡' },
+  A1: { color: '#34d399', bg: 'rgba(52,211,153,0.08)',  border: 'rgba(52,211,153,0.25)',  title: 'Beginner',           icon: '🌊' },
+  A2: { color: '#6ee7b7', bg: 'rgba(110,231,183,0.08)', border: 'rgba(110,231,183,0.25)', title: 'Elementary',         icon: '🌊' },
+  B1: { color: '#38bdf8', bg: 'rgba(56,189,248,0.08)',  border: 'rgba(56,189,248,0.25)',  title: 'Intermediate',       icon: '🌊`' },
+  B2: { color: '#818cf8', bg: 'rgba(129,140,248,0.08)', border: 'rgba(129,140,248,0.25)', title: 'Upper-Intermediate', icon: 'a' },
   C1: { color: '#a78bfa', bg: 'rgba(167,139,250,0.08)', border: 'rgba(167,139,250,0.25)', title: 'Advanced',           icon: '🔥' },
   C2: { color: '#f472b6', bg: 'rgba(244,114,182,0.08)', border: 'rgba(244,114,182,0.25)', title: 'Mastery',            icon: '👑' },
 };
@@ -39,7 +39,7 @@ const NEXT_LEVEL: Record<string, string> = {
   A1: 'A2', A2: 'B1', B1: 'B2', B2: 'C1', C1: 'C2',
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
 function parseMCQOptions(question: ExamQuestion): string[] {
   if (Array.isArray(question.options) && question.options.length >= 2) {
@@ -75,9 +75,9 @@ function formatTime(seconds: number) {
 
 type ExamScreen = 'loading' | 'intro' | 'quiz' | 'submitting' | 'result' | 'error';
 
-// ── Spinner ───────────────────────────────────────────────────────────────────
+// -- Spinner -------------------------------------------------------------------
 
-function LoadingScreen({ message = 'Cargando examen…' }: { message?: string }) {
+function LoadingScreen({ message = 'Loading exam...' }: { message?: string }) {
   return (
     <motion.div
       className="relative z-10 flex min-h-screen flex-col items-center justify-center gap-4"
@@ -92,7 +92,7 @@ function LoadingScreen({ message = 'Cargando examen…' }: { message?: string })
   );
 }
 
-// ── Intro Screen ──────────────────────────────────────────────────────────────
+// -- Intro Screen --------------------------------------------------------------
 
 function IntroScreen({
   exam,
@@ -134,17 +134,17 @@ function IntroScreen({
           style={{ color: meta.color, borderColor: meta.border, background: meta.bg }}
         >
           <Trophy size={12} />
-          Examen de Nivelación · CEFR
+          Placement Exam · CEFR
         </div>
 
         <h1 className="text-4xl font-black tracking-tight text-white leading-tight">
-          Sube de nivel<br />
-          <span style={{ color: meta.color }}>{exam.level} → {nextLevel}</span>
+          Level up<br />
+          <span style={{ color: meta.color }}>{exam.level}  - {nextLevel}</span>
         </h1>
 
         <p className="text-sm leading-relaxed text-slate-400">
           {exam.description ||
-            `Demuestra tus conocimientos en ${exam.level} para avanzar al siguiente nivel. Necesitas ${exam.passing_score}% para aprobar.`}
+            `Show your knowledge in ${exam.level} to move to the next level. You need ${exam.passing_score}% to pass.`}
         </p>
       </motion.div>
 
@@ -155,9 +155,9 @@ function IntroScreen({
         transition={{ duration: 0.6, ease: EASE, delay: 0.25 }}
       >
         {[
-          { icon: <CheckCheck size={14} />, label: `${exam.question_count} preguntas` },
+          { icon: <CheckCheck size={14} />, label: `${exam.question_count} questions` },
           { icon: <Clock size={14} />, label: `${exam.time_limit_minutes} minutos` },
-          { icon: <Trophy size={14} />, label: `Aprobar con ${exam.passing_score}%` },
+          { icon: <Trophy size={14} />, label: `Pass with ${exam.passing_score}%` },
         ].map(({ icon, label }) => (
           <div
             key={label}
@@ -179,7 +179,7 @@ function IntroScreen({
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
       >
-        {continuing ? 'Continuar examen' : 'Comenzar examen'}
+        {continuing ? 'Continue exam' : 'Start exam'}
         <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
       </motion.button>
 
@@ -189,13 +189,13 @@ function IntroScreen({
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
-        {continuing ? 'Continuarás donde lo dejaste' : 'Puedes pausar y continuar después'}
+        {continuing ? 'You will continue where you left off' : 'You can pause and continue later'}
       </motion.p>
     </motion.div>
   );
 }
 
-// ── MCQ Options ───────────────────────────────────────────────────────────────
+// -- MCQ Options ---------------------------------------------------------------
 
 function MCQOptions({
   options,
@@ -258,7 +258,7 @@ function MCQOptions({
   );
 }
 
-// ── Speaking Input ────────────────────────────────────────────────────────────
+// -- Speaking Input ------------------------------------------------------------
 
 function SpeakingInput({
   question,
@@ -275,7 +275,7 @@ function SpeakingInput({
   const startRecording = () => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
-      const fallback = window.prompt('Tu navegador no soporta grabación. Escribe tu respuesta:');
+      const fallback = window.prompt('Your browser does not support recording. Type your answer:');
       if (fallback) onAnswer(fallback);
       return;
     }
@@ -310,7 +310,7 @@ function SpeakingInput({
         transition={{ duration: 1, repeat: Infinity }}
       >
         <Mic size={18} />
-        {isRecording ? 'Detener grabación' : 'Grabar respuesta'}
+        {isRecording ? 'Stop recording' : 'Record answer'}
       </motion.button>
 
       {answer && (
@@ -327,7 +327,7 @@ function SpeakingInput({
   );
 }
 
-// ── Writing Input ─────────────────────────────────────────────────────────────
+// -- Writing Input -------------------------------------------------------------
 
 function WritingInput({
   answer,
@@ -340,13 +340,13 @@ function WritingInput({
     <textarea
       value={answer ?? ''}
       onChange={e => onAnswer(e.target.value)}
-      placeholder="Escribe tu respuesta en inglés…"
+      placeholder="Write your answer in English..."
       className="min-h-40 w-full rounded-xl border border-white/[0.07] bg-white/3 p-4 text-sm text-slate-100 placeholder:text-slate-600 focus:border-emerald-500/40 focus:outline-none resize-none transition-colors"
     />
   );
 }
 
-// ── Quiz Screen ───────────────────────────────────────────────────────────────
+// -- Quiz Screen ---------------------------------------------------------------
 
 function QuizScreen({
   question,
@@ -468,7 +468,7 @@ function QuizScreen({
               <p className="mb-4 text-sm italic text-slate-400">{question.phonetic_text}</p>
             )}
 
-            {/* Answer input — no immediate feedback */}
+            {/* Answer input - no immediate feedback */}
             {isMCQ && (
               <MCQOptions options={options} selected={answer} onSelect={onAnswer} />
             )}
@@ -487,7 +487,7 @@ function QuizScreen({
                 className="text-sm text-slate-600 hover:text-slate-400 disabled:opacity-0 transition-colors"
                 whileHover={{ x: -2 }}
               >
-                ← Anterior
+                  Anterior
               </motion.button>
 
               <motion.div
@@ -501,7 +501,7 @@ function QuizScreen({
                   whileHover={canContinue ? { scale: 1.02 } : {}}
                   whileTap={canContinue ? { scale: 0.97 } : {}}
                 >
-                  {isLast ? 'Finalizar examen' : 'Siguiente'}
+                  {isLast ? 'Finish exam' : 'Next'}
                   <ArrowRight size={15} />
                 </motion.button>
               </motion.div>
@@ -513,7 +513,7 @@ function QuizScreen({
   );
 }
 
-// ── Result Screen ─────────────────────────────────────────────────────────────
+// -- Result Screen -------------------------------------------------------------
 
 function ResultScreen({
   passed,
@@ -567,7 +567,7 @@ function ResultScreen({
           animate={{ scale: 1, rotate: 0 }}
           transition={{ delay: 0.2, type: 'spring', stiffness: 280, damping: 20 }}
         >
-          {passed ? meta.icon : '📚'}
+          {passed ? meta.icon : 'x-a'}
         </motion.div>
 
         <motion.p
@@ -576,7 +576,7 @@ function ResultScreen({
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.5, ease: EASE }}
         >
-          {passed ? '¡Felicidades! Subiste a' : 'Resultado del examen'}
+          {passed ? 'Congratulations! You advanced to' : 'Exam result'}
         </motion.p>
 
         {/* Score badge */}
@@ -595,10 +595,10 @@ function ResultScreen({
           </span>
           <div className="text-left">
             <div className="text-base font-bold text-white">
-              {passed ? `Nivel ${nextLevel} · ${meta.title}` : 'No aprobado'}
+              {passed ? `Level ${nextLevel} · ${meta.title}` : 'Not passed'}
             </div>
             <div className="text-xs text-slate-500">
-              {passed ? 'Marco CEFR' : `Mínimo requerido: ${passingScore}%`}
+              {passed ? 'CEFR framework' : `Minimum required: ${passingScore}%`}
             </div>
           </div>
         </motion.div>
@@ -620,7 +620,7 @@ function ResultScreen({
           transition={{ delay: 0.7, duration: 0.5 }}
         >
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Tu puntuación</span>
+            <span className="text-slate-500">Your score</span>
             <span className="font-bold text-white">
               {score.toFixed(1)}%
               <span className="ml-2 text-xs" style={{ color: glowColor }}>
@@ -630,13 +630,13 @@ function ResultScreen({
           </div>
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-slate-500">Puntuación mínima</span>
+            <span className="text-slate-500">Minimum score</span>
             <span className="font-bold text-white">{passingScore}%</span>
           </div>
 
           {previousBestScore > 0 && (
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">Mejor intento anterior</span>
+              <span className="text-slate-500">Previous best attempt</span>
               <span className="font-bold text-white">{previousBestScore.toFixed(1)}%</span>
             </div>
           )}
@@ -691,7 +691,7 @@ function ResultScreen({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+// -- Main Page -----------------------------------------------------------------
 
 export default function LevelExamPage() {
   const { examId } = useParams<{ examId: string }>();
@@ -725,13 +725,13 @@ export default function LevelExamPage() {
       try {
         const list  = await examService.getExams();
         const found = list.find(e => e.id === Number(examId));
-        if (!found) { setError('Examen no encontrado'); setScreen('error'); return; }
+        if (!found) { setError('Exam not found'); setScreen('error'); return; }
         setExam(found);
         const start = await examService.startExam(found.id);
         setExamData(start);
         setScreen('intro');
       } catch (err: any) {
-        setError(err.message ?? 'Error al cargar el examen');
+        setError(err.message ?? 'Error loading exam');
         setScreen('error');
       }
     };
@@ -775,7 +775,7 @@ export default function LevelExamPage() {
       });
       setScreen('result');
     } catch (err: any) {
-      setError(err.message ?? 'Error al enviar el examen');
+      setError(err.message ?? 'Error submitting exam');
       setScreen('error');
     }
   };
@@ -849,7 +849,7 @@ export default function LevelExamPage() {
 
         {/* Submitting */}
         {screen === 'submitting' && (
-          <LoadingScreen key="submitting" message="Evaluando tus respuestas…" />
+          <LoadingScreen key="submitting" message="Evaluando tus respuestas..." />
         )}
 
         {/* Result */}
@@ -891,3 +891,4 @@ export default function LevelExamPage() {
     </div>
   );
 }
+

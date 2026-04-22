@@ -76,7 +76,7 @@ export default function MetricCards() {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <MetricCard
-        label="Total usuarios"
+        label="Total users"
         value={data.total_users}
         trend={data.trends.total_users}
         icon={<Users className={iconClass} />}
@@ -88,7 +88,7 @@ export default function MetricCards() {
         icon={<Activity className={iconClass} />}
       />
       <MetricCard
-        label="Intentos hoy"
+        label="Attempts today"
         value={data.attempts_today}
         trend={data.trends.attempts_today}
         icon={<Zap className={iconClass} />}

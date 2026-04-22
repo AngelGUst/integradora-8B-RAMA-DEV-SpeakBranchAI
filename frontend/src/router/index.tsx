@@ -26,8 +26,8 @@ import type { UserRole } from '@/features/auth/types/auth.types';
 const PLACEMENT_KEY = 'sb_placement_done';
 
 function isPlacementDone(value?: boolean): boolean {
-  // Fuente de verdad: backend (`diagnostic_completed`) cuando está disponible.
-  // El flag local solo aplica mientras aún no cargamos perfil de usuario.
+  // Source of truth: backend (`diagnostic_completed`) when available.
+  // The local flag applies only while the user profile has not loaded yet.
   if (typeof value === 'boolean') return value;
   return localStorage.getItem(PLACEMENT_KEY) === 'true';
 }

@@ -47,7 +47,7 @@ export const speakingService = {
             },
             body: formData,
         }).then((res) => {
-            if (!res.ok) throw new Error('Error al transcribir');
+            if (!res.ok) throw new Error('Error while transcribing');
             return res.json();
         });
     },

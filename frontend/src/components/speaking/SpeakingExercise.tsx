@@ -9,7 +9,7 @@ const DIFFICULTY_COLOR: Record<string, string> = {
     EASY: '#22c55e', MEDIUM: '#f59e0b', HARD: '#ef4444',
 };
 const DIFFICULTY_LABEL: Record<string, string> = {
-    EASY: 'Fácil', MEDIUM: 'Medio', HARD: 'Difícil',
+    EASY: 'Easy', MEDIUM: 'Medium', HARD: 'Hard',
 };
 
 export default function SpeakingExercise() {
@@ -34,7 +34,7 @@ export default function SpeakingExercise() {
             setQuestion(q);
             setStage('ready');
         } catch {
-            setErrorMsg('No se pudo cargar la pregunta.');
+            setErrorMsg('Could not load the question.');
             setStage('error');
         }
     }, [reset]);
@@ -56,7 +56,7 @@ export default function SpeakingExercise() {
             setTranscript(text);
             setStage('recorded');
         } catch {
-            setErrorMsg('Error al transcribir el audio.');
+            setErrorMsg('Error transcribing audio.');
             setStage('error');
         }
     }, [stop]);
@@ -76,7 +76,7 @@ export default function SpeakingExercise() {
             }
             setStage('result');
         } catch {
-            setErrorMsg('Error al evaluar.');
+            setErrorMsg('Error while evaluating.');
             setStage('error');
         }
     }, [question, transcript, attemptsCount]);
@@ -93,7 +93,7 @@ export default function SpeakingExercise() {
         : '#fff';
 
     const scoreLabel = result
-        ? result.score >= 80 ? '¡Excelente!' : result.score >= 50 ? 'Casi lo tienes' : 'Sigue practicando'
+        ? result.score >= 80 ? '¡Excelente!' : result.score >= 50 ? 'Almost there' : 'Keep practicing'
         : '';
 
     const btn = (label: string, onClick: () => void, primary = false, disabled = false) => (
@@ -134,15 +134,15 @@ export default function SpeakingExercise() {
                             }}>
                                 {DIFFICULTY_LABEL[question.difficulty]}
                             </span>
-                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Nivel</p>
+                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Level</p>
                             <p style={{ fontSize: '16px', color: '#666', marginBottom: '2rem' }}>{question.level}</p>
-                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>XP máximo</p>
-                            <p style={{ fontSize: '16px', color: '#666' }}>⚡ {question.xp_max} XP</p>
+                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Max XP</p>
+                            <p style={{ fontSize: '16px', color: '#666' }}>a {question.xp_max} XP</p>
                         </>
                     )}
                     {stage === 'result' && result && (
                         <>
-                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Resultado</p>
+                            <p style={{ fontSize: '12px', color: '#333', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Result</p>
                             <div style={{ fontSize: '72px', fontWeight: 900, color: scoreColor, lineHeight: 1, marginBottom: '8px' }}>
                                 {result.score}
                             </div>
@@ -151,7 +151,7 @@ export default function SpeakingExercise() {
                                 background: '#1e1e28', borderRadius: '12px', padding: '12px 16px',
                                 fontSize: '13px', color: '#666', display: 'flex', gap: '8px', alignItems: 'center',
                             }}>
-                                <span>⚡</span><span>+{result.xp_earned} XP ganados</span>
+                                <span>a</span><span>+{result.xp_earned} XP ganados</span>
                             </div>
                         </>
                     )}
@@ -164,12 +164,12 @@ export default function SpeakingExercise() {
                 alignItems: 'center', justifyContent: 'center',
             }}>
                 {stage === 'loading' && (
-                    <p style={{ color: '#333', fontSize: '14px' }}>Cargando oración...</p>
+                    <p style={{ color: '#333', fontSize: '14px' }}>Loading sentence...</p>
                 )}
                 {(stage === 'ready' || stage === 'recording' || stage === 'recorded' || stage === 'evaluating') && question && (
                     <div style={{ width: '100%', maxWidth: '600px' }}>
                         <p style={{ fontSize: '12px', color: '#333', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>
-                            Lee esta oración en voz alta
+                            Read this sentence out loud
                         </p>
                         <div style={{
                             fontSize: '36px', fontWeight: 700, lineHeight: 1.4,
@@ -179,7 +179,7 @@ export default function SpeakingExercise() {
                             {question.text}
                         </div>
                         <p style={{ fontSize: '12px', color: '#333', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>
-                            Tu pronunciación
+                            Your pronunciation
                         </p>
                         <div style={{
                             background: '#16161d', border: '1px solid #2a2a35', borderRadius: '16px',
@@ -188,15 +188,15 @@ export default function SpeakingExercise() {
                         }}>
                             {stage === 'evaluating' && !transcript
                                 ? 'Transcribiendo...'
-                                : transcript || 'Presiona Grabar y lee la oración...'}
+                                : transcript || 'Press Record and read the sentence...'}
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginBottom: '1rem' }}>
                             {!isRecording
-                                ? btn('🎤 Grabar', handleStartRecording, false, stage === 'evaluating' || !isSupported)
+                                ? btn('x} Grabar', handleStartRecording, false, stage === 'evaluating' || !isSupported)
                                 : btn('⏹ Detener', handleStopRecording, false, false)
                             }
                             {btn(
-                                stage === 'evaluating' ? 'Evaluando...' : '✅ Evaluar',
+                                stage === 'evaluating' ? 'Evaluando...' : 'S& Evaluar',
                                 handleEvaluate, true,
                                 !transcript || isRecording || stage === 'evaluating'
                             )}
@@ -210,13 +210,13 @@ export default function SpeakingExercise() {
                             </button>
                         )}
                         {micError && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '1rem' }}>{micError}</p>}
-                        {!isSupported && <p style={{ color: '#f59e0b', fontSize: '12px', marginTop: '1rem' }}>Usa Chrome para el micrófono.</p>}
+                        {!isSupported && <p style={{ color: '#f59e0b', fontSize: '12px', marginTop: '1rem' }}>Use Chrome for microphone support.</p>}
                     </div>
                 )}
                 {stage === 'result' && result && (
                     <div style={{ width: '100%', maxWidth: '600px' }}>
                         <p style={{ fontSize: '12px', color: '#333', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '1rem' }}>
-                            Oración
+                            Sentence
                         </p>
                         <div style={{
                             fontSize: '28px', fontWeight: 700, color: '#fff', marginBottom: '2rem',
@@ -234,15 +234,15 @@ export default function SpeakingExercise() {
                             {result.transcribed_text}
                         </div>
                         <div style={{ display: 'flex', gap: '12px' }}>
-                            {btn('Reintentar', handleRetry)}
-                            {btn('Siguiente →', fetchQuestion, true)}
+                            {btn('Retry', handleRetry)}
+                            {btn('Next  -', fetchQuestion, true)}
                         </div>
                     </div>
                 )}
                 {stage === 'error' && (
                     <div style={{ textAlign: 'center' }}>
                         <p style={{ color: '#ef4444', marginBottom: '1.5rem' }}>{errorMsg}</p>
-                        {btn('Reintentar', fetchQuestion, true)}
+                        {btn('Retry', fetchQuestion, true)}
                     </div>
                 )}
             </div>
@@ -259,10 +259,10 @@ export default function SpeakingExercise() {
                     }}>
                         <div style={{ fontSize: '64px', marginBottom: '1rem' }}>🎉</div>
                         <h2 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '1rem', color: '#22c55e' }}>
-                            ¡Lección completada!
+                            Lesson completed!
                         </h2>
                         <p style={{ color: '#888', marginBottom: '2rem', lineHeight: 1.6 }}>
-                            Felicidades, ganaste todo el XP posible en esta lección.
+                            Congrats, you earned all possible XP in this lesson.
                         </p>
                         <div style={{ background: '#1e1e28', padding: '1rem', borderRadius: '12px', marginBottom: '2rem' }}>
                             <p style={{ color: '#666', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase' }}>
@@ -272,7 +272,7 @@ export default function SpeakingExercise() {
                                 +{result?.xp_earned}
                             </p>
                         </div>
-                        {btn('Continuar →', () => {
+                        {btn('Continuar  -', () => {
                             setLessonCompleted(false);
                             fetchQuestion();
                         }, true)}
@@ -282,3 +282,4 @@ export default function SpeakingExercise() {
         </div>
     );
 }
+

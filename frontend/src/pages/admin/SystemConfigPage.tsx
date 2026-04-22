@@ -116,7 +116,7 @@ export default function SystemConfigPage() {
   const handleSaveThresholds = async () => {
     const up   = parseFloat(thresholdUp);
     const down = parseFloat(thresholdDown);
-    if (isNaN(up) || isNaN(down)) return setError('Los umbrales deben ser números.');
+    if (isNaN(up) || isNaN(down)) return setError('Thresholds must be numbers.');
     if (down >= up) return setError('El umbral inferior debe ser menor que el superior.');
     setSaving(true);
     setError(null);
@@ -130,7 +130,7 @@ export default function SystemConfigPage() {
       setTimeout(() => setSuccess(false), 2500);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
-      setError(err?.response?.data?.error ?? 'Error al guardar.');
+      setError(err?.response?.data?.error ?? 'Error while saving.');
     } finally {
       setSaving(false);
     }
@@ -139,7 +139,7 @@ export default function SystemConfigPage() {
   const handleSaveXpLevels = async () => {
     const vals = [xpA1, xpA2, xpB1, xpB2].map(Number);
     if (vals.some(isNaN) || vals.some(v => v <= 0))
-      return setXpError('Todos los valores deben ser enteros positivos.');
+      return setXpError('All values must be positive integers.');
     for (let i = 0; i < vals.length - 1; i++) {
       if (vals[i] >= vals[i + 1])
         return setXpError('Los XP deben ser estrictamente ascendentes: A1 < A2 < B1 < B2.');
@@ -157,7 +157,7 @@ export default function SystemConfigPage() {
       setTimeout(() => setXpSuccess(false), 2500);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
-      setXpError(err?.response?.data?.error ?? 'Error al guardar.');
+      setXpError(err?.response?.data?.error ?? 'Error while saving.');
     } finally {
       setSavingXp(false);
     }
@@ -174,7 +174,7 @@ export default function SystemConfigPage() {
       setConfig(updated);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
-      setError(err?.response?.data?.error ?? 'Error al guardar.');
+      setError(err?.response?.data?.error ?? 'Error while saving.');
     } finally {
       setToggling(false);
     }
@@ -264,7 +264,7 @@ export default function SystemConfigPage() {
                   <p className="text-[12px] text-red-400 mb-3">{error}</p>
                 )}
                 {success && (
-                  <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>
+                  <p className="text-[12px] text-emerald-400 mb-3">Saved correctamente.</p>
                 )}
 
                 <button
@@ -273,11 +273,11 @@ export default function SystemConfigPage() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  {saving ? 'Guardando…' : 'Guardar umbrales'}
+                  {saving ? 'Saving...' : 'Save thresholds'}
                 </button>
               </motion.div>
 
-              {/* ── XP por nivel ── */}
+              {/* ── XP per level ── */}
               <motion.div
                 variants={reveal}
                 initial="hidden"
@@ -287,10 +287,10 @@ export default function SystemConfigPage() {
               >
                 <div className="flex items-center gap-2.5 mb-1">
                   <TrendingUp className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">XP por Nivel CEFR</h2>
+                  <h2 className="text-sm font-semibold text-white/80">XP por CEFR Level</h2>
                 </div>
                 <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  XP total necesario para completar cada nivel y desbloquear el siguiente.
+                  Total XP required to complete each level and unlock the next one.
                   Deben ser valores positivos estrictamente ascendentes.
                 </p>
 
@@ -312,7 +312,7 @@ export default function SystemConfigPage() {
                 </div>
 
                 {xpError && <p className="text-[12px] text-red-400 mb-3">{xpError}</p>}
-                {xpSuccess && <p className="text-[12px] text-emerald-400 mb-3">Guardado correctamente.</p>}
+                {xpSuccess && <p className="text-[12px] text-emerald-400 mb-3">Saved correctamente.</p>}
 
                 <button
                   onClick={handleSaveXpLevels}
@@ -320,7 +320,7 @@ export default function SystemConfigPage() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 rounded-xl text-[13px] font-semibold text-white transition-colors"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  {savingXp ? 'Guardando…' : 'Guardar XP de niveles'}
+                  {savingXp ? 'Saving...' : 'Save level XP'}
                 </button>
               </motion.div>
 
@@ -334,21 +334,21 @@ export default function SystemConfigPage() {
               >
                 <div className="flex items-center gap-2.5 mb-1">
                   <Users className="h-4 w-4 text-violet-400" />
-                  <h2 className="text-sm font-semibold text-white/80">Registro de Usuarios</h2>
+                  <h2 className="text-sm font-semibold text-white/80">User Registration</h2>
                 </div>
                 <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  Controla si nuevos usuarios pueden crear cuentas en la plataforma.
+                  Control whether new users can create accounts on the platform.
                 </p>
 
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-white/70">
-                      {config.registration_enabled ? 'Registro activo' : 'Registro desactivado'}
+                      {config.registration_enabled ? 'Registration enabled' : 'Registration disabled'}
                     </p>
                     <p className="text-[11px] text-white/30 mt-0.5">
                       {config.registration_enabled
-                        ? 'Nuevos usuarios pueden registrarse.'
-                        : 'El registro está bloqueado temporalmente.'}
+                        ? 'New users can register.'
+                        : 'Registration is temporarily blocked.'}
                     </p>
                   </div>
                   <button
@@ -379,7 +379,7 @@ export default function SystemConfigPage() {
                   <h2 className="text-sm font-semibold text-white/80">Error Logs</h2>
                 </div>
                 <p className="text-[12px] text-white/30 mb-5 leading-relaxed">
-                  Últimas entradas del log de errores, filtradas por servicio.
+                  Latest error log entries filtered by service.
                 </p>
 
                 <div className="flex items-center gap-3 mb-4">

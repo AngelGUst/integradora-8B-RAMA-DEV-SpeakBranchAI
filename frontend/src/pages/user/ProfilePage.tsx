@@ -13,7 +13,7 @@ import apiClient from '@/shared/api/client';
 import type { Gender } from '@/features/auth/types/auth.types';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 
-// ── Constants ──────────────────────────────────────────────────
+// -- Constants --------------------------------------------------
 
 const GENDER_LABELS: Record<Gender, string> = {
   M: 'Masculino', F: 'Femenino', NB: 'No binario', P: 'Prefiero no decirlo',
@@ -34,7 +34,7 @@ const SKILL_META = [
 type PageTab = 'profile' | 'history' | 'security';
 type AttemptTab = 'speaking' | 'reading' | 'listening' | 'writing';
 
-// ── API helpers ────────────────────────────────────────────────
+// -- API helpers ------------------------------------------------
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
@@ -50,14 +50,14 @@ async function fetchAttempts(tab: AttemptTab) {
   return res.json() as Promise<{ tab: string; results: unknown[] }>;
 }
 
-// ── Attempt row types ──────────────────────────────────────────
+// -- Attempt row types ------------------------------------------
 
 interface SpeakingRow { id: number; question: string; difficulty: string; score: number | null; xp_earned: number; transcribed: string; created_at: string; }
 interface ReadingRow { id: number; question: string; difficulty: string; score: number | null; xp_earned: number; correct: boolean; created_at: string; }
 interface ListeningRow { id: number; question: string; listening_type: string; difficulty: string; score: number | null; xp_earned: number; replays_used: number; correct: boolean; created_at: string; }
 interface WritingRow { id: number; question: string; difficulty: string; score: number | null; score_grammar: number | null; score_vocab: number | null; score_coherence: number | null; score_spelling: number | null; xp_earned: number; ai_feedback: string; created_at: string; }
 
-// ── Shared sub-components ──────────────────────────────────────
+// -- Shared sub-components --------------------------------------
 
 function Avatar({ name, url, size = 'lg' }: { name: string; url: string | null; size?: 'sm' | 'lg' }) {
   const dim = size === 'lg' ? 'w-20 h-20 text-2xl' : 'w-10 h-10 text-sm';
@@ -81,7 +81,7 @@ function StatCard({ icon: Icon, label, value, color }: { icon: React.ElementType
 }
 
 function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-zinc-600">—</span>;
+  if (score === null) return <span className="text-zinc-600">-</span>;
   const color = score >= 80 ? 'text-emerald-400' : score >= 50 ? 'text-amber-400' : 'text-red-400';
   return <span className={`font-semibold tabular-nums ${color}`}>{score.toFixed(0)}</span>;
 }
@@ -101,7 +101,7 @@ function AttemptCard({ children, date, score, xp }: { children: React.ReactNode;
   );
 }
 
-// ── History tab panel ──────────────────────────────────────────
+// -- History tab panel ------------------------------------------
 
 function HistoryPanel() {
   const [activeTab, setActiveTab] = useState<AttemptTab>('speaking');
@@ -148,7 +148,7 @@ function HistoryPanel() {
             <Loader2 size={20} className="animate-spin text-zinc-600" />
           </div>
         ) : data.length === 0 ? (
-          <p className="text-center text-[13px] text-zinc-600 py-12">Sin intentos registrados para esta habilidad.</p>
+          <p className="text-center text-[13px] text-zinc-600 py-12">No recorded attempts para esta habilidad.</p>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {activeTab === 'speaking' && (data as SpeakingRow[]).map(r => (
@@ -163,7 +163,7 @@ function HistoryPanel() {
                 <p className="text-zinc-300 truncate">{r.question}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <span className={`text-[11px] font-medium ${r.correct ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {r.correct ? '✓ Correcto' : '✗ Incorrecto'}
+                    {r.correct ? ' Correcto' : 'S× Incorrecto'}
                   </span>
                   <span className="text-[10px] bg-zinc-800 rounded px-1.5 py-0.5 text-zinc-400">{r.difficulty}</span>
                 </div>
@@ -174,7 +174,7 @@ function HistoryPanel() {
                 <p className="text-zinc-300 truncate">{r.question}</p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-[10px] bg-zinc-800 rounded px-1.5 py-0.5 text-zinc-400">
-                    {r.listening_type === 'LISTENING_SHADOWING' ? 'Shadowing' : 'Comprensión'}
+                    {r.listening_type === 'LISTENING_SHADOWING' ? 'Shadowing' : 'Comprehension'}
                   </span>
                   <span className="text-[10px] bg-zinc-800 rounded px-1.5 py-0.5 text-zinc-400">{r.difficulty}</span>
                   {r.replays_used > 0 && <span className="text-[10px] text-zinc-500">{r.replays_used} replay{r.replays_used !== 1 ? 's' : ''}</span>}
@@ -204,7 +204,7 @@ function HistoryPanel() {
   );
 }
 
-// ── Security panel ─────────────────────────────────────────────
+// -- Security panel ---------------------------------------------
 
 function SecurityPanel() {
   const { logout, user } = useAuth();
@@ -226,9 +226,9 @@ function SecurityPanel() {
   async function handlePasswordChange() {
     setPwdError('');
     setPwdSuccess(false);
-    if (!currentPwd) { setPwdError('Ingresa tu contraseña actual.'); return; }
-    if (newPwd.length < 8) { setPwdError('La nueva contraseña debe tener al menos 8 caracteres.'); return; }
-    if (newPwd !== confirmPwd) { setPwdError('Las contraseñas no coinciden.'); return; }
+    if (!currentPwd) { setPwdError('Enter your current password.'); return; }
+    if (newPwd.length < 8) { setPwdError('The new password must be at least 8 characters.'); return; }
+    if (newPwd !== confirmPwd) { setPwdError('Passwords do not match.'); return; }
 
     setSavingPwd(true);
     try {
@@ -241,7 +241,7 @@ function SecurityPanel() {
       setTimeout(() => setPwdSuccess(false), 4000);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      setPwdError(msg ?? 'No se pudo cambiar la contraseña. Intenta de nuevo.');
+      setPwdError(msg ?? 'Could not change password. Try again.');
     } finally {
       setSavingPwd(false);
     }
@@ -255,7 +255,7 @@ function SecurityPanel() {
       await logout();
       navigate('/login', { replace: true });
     } catch {
-      setDeleteError('No se pudo eliminar la cuenta. Intenta de nuevo.');
+      setDeleteError('Could not delete the account. Try again.');
       setDeleting(false);
       setShowConfirm(false);
     }
@@ -268,12 +268,12 @@ function SecurityPanel() {
       <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
         <div className="flex items-center gap-2 mb-5">
           <KeyRound size={16} className="text-zinc-400" />
-          <h3 className="font-semibold text-zinc-100">Cambiar Contraseña</h3>
+          <h3 className="font-semibold text-zinc-100">Change Password</h3>
         </div>
 
         <div className="space-y-3 max-w-sm">
           <div>
-            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">Contraseña actual</label>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">Current password</label>
             <input
               type="password"
               value={currentPwd}
@@ -282,17 +282,17 @@ function SecurityPanel() {
             />
           </div>
           <div>
-            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">Nueva contraseña</label>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">New password</label>
             <input
               type="password"
               value={newPwd}
               onChange={e => setNewPwd(e.target.value)}
-              placeholder="Mínimo 8 caracteres"
+              placeholder="Minimum 8 characters"
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50 transition-colors"
             />
           </div>
           <div>
-            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">Confirmar nueva contraseña</label>
+            <label className="text-[11px] text-zinc-500 uppercase tracking-wider block mb-1.5">Confirm new password</label>
             <input
               type="password"
               value={confirmPwd}
@@ -304,7 +304,7 @@ function SecurityPanel() {
           {pwdError && <p className="text-sm text-red-400">{pwdError}</p>}
           {pwdSuccess && (
             <p className="text-sm text-emerald-400 flex items-center gap-1.5">
-              <Check size={13} /> Contraseña actualizada correctamente.
+              <Check size={13} /> Current passwordizada correctamente.
             </p>
           )}
 
@@ -314,7 +314,7 @@ function SecurityPanel() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-50 mt-1"
           >
             {savingPwd ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
-            {savingPwd ? 'Guardando…' : 'Cambiar contraseña'}
+            {savingPwd ? 'Saving...' : 'Change password'}
           </button>
         </div>
       </section>
@@ -326,7 +326,7 @@ function SecurityPanel() {
           <h3 className="font-semibold text-red-500/70 text-sm uppercase tracking-wider">Zona de Peligro</h3>
         </div>
         <p className="text-sm text-zinc-500 mb-4">
-          Eliminar tu cuenta borra permanentemente todo tu progreso, XP, rachas, vocabulario diario e historial de intentos. Esta acción es irreversible.
+          Deleting your account permanently removes all your progress, XP, streaks, daily vocabulary, and attempt history. This action is irreversible.
         </p>
 
         {deleteError && <p className="text-sm text-red-400 mb-3">{deleteError}</p>}
@@ -337,11 +337,11 @@ function SecurityPanel() {
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 text-sm font-medium transition-colors"
           >
             <Trash2 size={14} />
-            Eliminar mi cuenta
+            Delete my account
           </button>
         ) : (
           <div className="bg-red-900/10 border border-red-900/30 rounded-xl p-4 space-y-3">
-            <p className="text-sm text-red-300 font-medium">¿Estás seguro? Esta acción no se puede deshacer.</p>
+            <p className="text-sm text-red-300 font-medium">Are you sure? This action cannot be undone.</p>
             <div className="flex gap-2">
               <button
                 onClick={handleDeleteAccount}
@@ -349,7 +349,7 @@ function SecurityPanel() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-700 hover:bg-red-600 text-white text-sm font-medium transition-colors disabled:opacity-50"
               >
                 {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                {deleting ? 'Eliminando…' : 'Sí, eliminar'}
+                {deleting ? 'Deleting...' : 'Yes, delete'}
               </button>
               <button
                 onClick={() => setShowConfirm(false)}
@@ -357,7 +357,7 @@ function SecurityPanel() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
               >
                 <X size={13} />
-                Cancelar
+                Cancel
               </button>
             </div>
           </div>
@@ -367,7 +367,7 @@ function SecurityPanel() {
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────
+// -- Main page --------------------------------------------------
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
@@ -396,10 +396,10 @@ export default function ProfilePage() {
   function cancelEdit() { setEditing(false); setError(null); }
 
   async function save() {
-    if (!firstName.trim()) { setError('El nombre no puede estar vacío.'); return; }
+    if (!firstName.trim()) { setError('Name cannot be empty.'); return; }
     const parsedAge = age === '' ? null : Number(age);
     if (age !== '' && (isNaN(parsedAge!) || parsedAge! < 1 || parsedAge! > 120)) {
-      setError('Ingresa una edad válida (1–120).'); return;
+      setError('Ingresa una edad válida (1-120).'); return;
     }
     setSaving(true); setError(null);
     try {
@@ -412,7 +412,7 @@ export default function ProfilePage() {
       await refreshUser();
       setEditing(false);
     } catch {
-      setError('No se pudo guardar. Intenta de nuevo.');
+      setError('Could not save. Try again.');
     } finally {
       setSaving(false);
     }
@@ -421,9 +421,9 @@ export default function ProfilePage() {
   if (!user) return null;
 
   const PAGE_TABS: { key: PageTab; label: string }[] = [
-    { key: 'profile', label: 'Perfil & Stats' },
-    { key: 'history', label: 'Historial' },
-    { key: 'security', label: 'Seguridad' },
+    { key: 'profile', label: 'Profile & Stats' },
+    { key: 'history', label: 'History' },
+    { key: 'security', label: 'Security' },
   ];
 
   return (
@@ -435,7 +435,7 @@ export default function ProfilePage() {
 
           {/* Header */}
           <header className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">Mi Perfil</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">My Profile</h1>
           </header>
 
           {/* Profile card (always visible) */}
@@ -460,17 +460,17 @@ export default function ProfilePage() {
                         <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">Edad</label>
                         <input
                           type="number" min={1} max={120} value={age}
-                          onChange={e => setAge(e.target.value)} placeholder="—"
+                          onChange={e => setAge(e.target.value)} placeholder="-"
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50"
                         />
                       </div>
                       <div>
-                        <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">Género</label>
+                        <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">Gender</label>
                         <select
                           value={gender} onChange={e => setGender(e.target.value as Gender | '')}
                           className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-emerald-500/50"
                         >
-                          <option value="">— No indicar —</option>
+                          <option value="">- No indicar -</option>
                           {(Object.entries(GENDER_LABELS) as [Gender, string][]).map(([val, lbl]) => (
                             <option key={val} value={val}>{lbl}</option>
                           ))}
@@ -478,7 +478,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">URL de foto de perfil</label>
+                      <label className="text-[10px] text-zinc-500 uppercase tracking-wider block mb-1">Profile picture URL</label>
                       <div className="flex items-center gap-2">
                         <Link size={14} className="text-zinc-500 shrink-0" />
                         <input
@@ -495,14 +495,14 @@ export default function ProfilePage() {
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
                       >
                         <Save size={14} />
-                        {saving ? 'Guardando…' : 'Guardar cambios'}
+                        {saving ? 'Saving...' : 'Save changes'}
                       </button>
                       <button
                         onClick={cancelEdit} disabled={saving}
                         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium transition-colors"
                       >
                         <X size={14} />
-                        Cancelar
+                        Cancel
                       </button>
                     </div>
                   </div>
@@ -518,7 +518,7 @@ export default function ProfilePage() {
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs font-medium transition-colors shrink-0"
                       >
                         <Pencil size={12} />
-                        Editar
+                        Edit
                       </button>
                     </div>
 
@@ -528,18 +528,18 @@ export default function ProfilePage() {
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-800 text-zinc-400 text-xs">
                         {user.role === 'ADMIN'
-                          ? <><ShieldCheck size={11} className="text-amber-400" /> Administrador</>
-                          : 'Estudiante'}
+                          ? <><ShieldCheck size={11} className="text-amber-400" /> Administrator</>
+                          : 'Student'}
                       </span>
                     </div>
 
                     <div className="flex flex-wrap gap-4 mt-3 text-sm text-zinc-500">
                       <span className="flex items-center gap-1.5"><Mail size={13} />{user.email}</span>
-                      {user.age != null && <span className="flex items-center gap-1.5"><Calendar size={13} />{user.age} años</span>}
+                      {user.age != null && <span className="flex items-center gap-1.5"><Calendar size={13} />{user.age} years</span>}
                       {user.gender && <span className="flex items-center gap-1.5"><Venus size={13} />{GENDER_LABELS[user.gender]}</span>}
                       {!user.age && !user.gender && (
                         <span className="flex items-center gap-1.5 text-zinc-600 italic">
-                          <UserIcon size={13} /> Información personal no completada
+                          <UserIcon size={13} /> Personal information incomplete
                         </span>
                       )}
                     </div>
@@ -572,14 +572,14 @@ export default function ProfilePage() {
                 {/* Stats row */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <StatCard icon={Zap} label="XP Total" value={`${totalXP} XP`} color="text-emerald-400" />
-                  <StatCard icon={Flame} label="Racha" value={`${streakDays} días`} color="text-amber-400" />
-                  <StatCard icon={UserIcon} label="Nivel" value={user.level} color="text-sky-400" />
-                  <StatCard icon={UserIcon} label="Precisión" value={`${Math.round(user.average_precision)}%`} color="text-violet-400" />
+                  <StatCard icon={Flame} label="Streak" value={`${streakDays} days`} color="text-amber-400" />
+                  <StatCard icon={UserIcon} label="Level" value={user.level} color="text-sky-400" />
+                  <StatCard icon={UserIcon} label="Accuracy" value={`${Math.round(user.average_precision)}%`} color="text-violet-400" />
                 </div>
 
                 {/* Skill precision */}
                 <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6">
-                  <h3 className="font-semibold text-zinc-100 mb-5">Precisión por Habilidad</h3>
+                  <h3 className="font-semibold text-zinc-100 mb-5">Accuracy por Habilidad</h3>
                   <div className="space-y-4">
                     {SKILL_META.map(skill => {
                       const score = Math.round(
@@ -621,3 +621,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+

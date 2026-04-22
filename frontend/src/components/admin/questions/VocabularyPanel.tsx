@@ -30,7 +30,7 @@ export default function VocabularyPanel({ questionId }: Props) {
       const items = await questionsService.getQuestionVocabulary(questionId);
       setLinked(items);
     } catch {
-      setError('No se pudo cargar el vocabulario.');
+      setError('Could not load vocabulary.');
     } finally {
       setLoadingLinked(false);
     }
@@ -38,7 +38,7 @@ export default function VocabularyPanel({ questionId }: Props) {
 
   useEffect(() => { loadLinked(); }, [loadLinked]);
 
-  // Load full vocabulary bank once (no level filter — admin can link any word)
+  // Load full vocabulary bank once (no level filter - admin can link any word)
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
     const token = localStorage.getItem('sb_access_token');
@@ -78,7 +78,7 @@ export default function VocabularyPanel({ questionId }: Props) {
       });
       setLinked((prev) => [...prev, item]);
     } catch {
-      setError('No se pudo agregar la palabra.');
+      setError('Could not add the word.');
     } finally {
       setAdding(null);
     }
@@ -91,7 +91,7 @@ export default function VocabularyPanel({ questionId }: Props) {
       await questionsService.removeVocabularyFromQuestion(questionId, item.vocabulary.id);
       setLinked((prev) => prev.filter((l) => l.id !== item.id));
     } catch {
-      setError('No se pudo eliminar la palabra.');
+      setError('Could not delete the word.');
     } finally {
       setRemoving(null);
     }
@@ -107,7 +107,7 @@ export default function VocabularyPanel({ questionId }: Props) {
       });
       setLinked((prev) => prev.map((l) => (l.id === item.id ? updated : l)));
     } catch {
-      setError('No se pudo actualizar la palabra.');
+      setError('Could not update the word.');
     }
   };
 
@@ -115,7 +115,7 @@ export default function VocabularyPanel({ questionId }: Props) {
     <div className="space-y-5">
       {/* Linked vocabulary */}
       <div>
-        <label className={LABEL}>Palabras vinculadas</label>
+        <label className={LABEL}>Linked words</label>
 
         {loadingLinked ? (
           <div className="flex items-center justify-center py-8">
@@ -123,7 +123,7 @@ export default function VocabularyPanel({ questionId }: Props) {
           </div>
         ) : linked.length === 0 ? (
           <p className="text-[12px] text-white/20 py-4 text-center">
-            Ninguna palabra vinculada todavía.
+            No linked words yet.
           </p>
         ) : (
           <div className="space-y-2">
@@ -184,14 +184,14 @@ export default function VocabularyPanel({ questionId }: Props) {
 
       {/* Search to add */}
       <div>
-        <label className={LABEL}>Agregar del banco de vocabulario</label>
+        <label className={LABEL}>Add from vocabulary bank</label>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            placeholder="Buscar por palabra o significado…"
+            placeholder="Search by word or meaning..."
             className={`${INPUT} pl-9`}
           />
           {loadingBank && (
@@ -220,7 +220,7 @@ export default function VocabularyPanel({ questionId }: Props) {
                   {adding === word.id
                     ? <Loader2 className="h-3 w-3 animate-spin" />
                     : <Plus className="h-3 w-3" />}
-                  Añadir
+                  Add
                 </button>
               </div>
             ))}
@@ -228,7 +228,7 @@ export default function VocabularyPanel({ questionId }: Props) {
             {/* Pagination */}
             <div className="flex items-center justify-between pt-1">
               <p className="text-[10px] text-white/20">
-                {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, searchResults.length)} de {searchResults.length}
+                {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, searchResults.length)} de {searchResults.length}
               </p>
               <div className="flex items-center gap-1">
                 <button
@@ -255,13 +255,13 @@ export default function VocabularyPanel({ questionId }: Props) {
 
         {!loadingBank && searchQuery.trim() && searchResults.length === 0 && (
           <p className="text-[11px] text-white/20 mt-2 text-center">
-            No se encontraron palabras con "{searchQuery}".
+            No words found matching "{searchQuery}".
           </p>
         )}
 
         {!loadingBank && !searchQuery.trim() && allWords.length === 0 && (
           <p className="text-[11px] text-white/20 mt-2 text-center">
-            El banco de vocabulario está vacío.
+            The vocabulary bank is empty.
           </p>
         )}
       </div>
@@ -272,3 +272,4 @@ export default function VocabularyPanel({ questionId }: Props) {
     </div>
   );
 }
+

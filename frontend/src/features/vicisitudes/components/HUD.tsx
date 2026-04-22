@@ -3,9 +3,9 @@ import { Heart, Zap } from 'lucide-react';
 import { useGame } from '../store/GameContext';
 
 const ZONE_LABEL: Record<string, string> = {
-  atmosfera: 'ATMÓSFERA · A1',
-  orbita:    'ÓRBITA · A2',
-  vacio:     'EL VACÍO · B1+',
+  atmosfera: 'ATM-SFERA · A1',
+  orbita:    '-RBITA · A2',
+  vacio:     'THE VOID · B1+',
 };
 
 const ZONE_COLOR: Record<string, string> = {
@@ -31,7 +31,7 @@ export function HUD() {
 
   return (
     <>
-      {/* ── TOP BAR ────────────────────────────────────────────────── */}
+      {/* -- TOP BAR -------------------------------------------------- */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-5 py-3">
         {/* Zone name */}
         <motion.span
@@ -56,7 +56,7 @@ export function HUD() {
               className="font-mono text-[10px] font-bold tracking-widest"
               style={{ color: '#FCD34D' }}
             >
-              ×{streak} RACHA
+              ×{streak} STREAK
             </motion.span>
           )}
         </div>
@@ -74,7 +74,7 @@ export function HUD() {
         </div>
       </div>
 
-      {/* ── LEFT VERTICAL BAR — FUEL ───────────────────────────────── */}
+      {/* -- LEFT VERTICAL BAR - FUEL --------------------------------- */}
       <div className="pointer-events-none absolute left-4 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1.5">
         <Zap size={12} color="#FCD34D" />
         <div
@@ -94,7 +94,7 @@ export function HUD() {
         <span className="font-mono text-[8px] tracking-widest text-slate-600 uppercase">fuel</span>
       </div>
 
-      {/* ── RIGHT VERTICAL BAR — ALTITUDE ─────────────────────────── */}
+      {/* -- RIGHT VERTICAL BAR - ALTITUDE --------------------------- */}
       <div className="pointer-events-none absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-1.5">
         <span className="font-mono text-[9px] font-bold text-slate-400">ALT</span>
         <div
@@ -113,7 +113,7 @@ export function HUD() {
         </span>
       </div>
 
-      {/* ── BOTTOM CHECKPOINT DOTS ─────────────────────────────────── */}
+      {/* -- BOTTOM CHECKPOINT DOTS ----------------------------------- */}
       <div className="pointer-events-none absolute inset-x-0 bottom-6 z-30 flex flex-col items-center gap-2">
         <div className="flex items-center gap-2">
           {checkpoints.map(cp => {
@@ -142,3 +142,4 @@ export function HUD() {
     </>
   );
 }
+

@@ -5,8 +5,8 @@ import type { Skill } from '../types/game.types';
 import { useGame } from '../store/GameContext';
 
 const SKILL_META: Record<Skill, { label: string; Icon: typeof BookOpen; color: string }> = {
-  grammar:    { label: 'Gramática',   Icon: AlignLeft,  color: '#818CF8' },
-  vocabulary: { label: 'Vocabulario', Icon: Languages,  color: '#34D399' },
+  grammar:    { label: 'Grammar',   Icon: AlignLeft,  color: '#818CF8' },
+  vocabulary: { label: 'Vocabulary', Icon: Languages,  color: '#34D399' },
   reading:    { label: 'Lectura',     Icon: BookOpen,   color: '#38BDF8' },
   listening:  { label: 'Escucha',     Icon: Headphones, color: '#FB923C' },
 };

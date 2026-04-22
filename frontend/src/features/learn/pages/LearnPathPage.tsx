@@ -1,5 +1,5 @@
 /**
- * LearnPathPage — SpeakBranch AI
+ * LearnPathPage - SpeakBranch AI
  *
  * Adaptive curriculum map. Node states are computed dynamically from
  * localStorage (completed exercises + accumulated XP). Clicking a node
@@ -28,7 +28,7 @@ import { LEARN_PATH } from '../data/pathData';
 import type { LessonNode, CEFRSection, SkillType, NodeState, PosX } from '../data/pathData';
 import VocabularyGameDrawer from '../components/VocabularyGameDrawer';
 
-// ─── Skill / Accent config ────────────────────────────────────────────────────
+// --- Skill / Accent config ----------------------------------------------------
 
 const SKILL_CFG: Record<SkillType, {
   Icon: React.ElementType;
@@ -50,7 +50,7 @@ const CEFR_ORDER = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 function userCanAccessSection(userLevel: string, sectionLevel: string): boolean {
   const userIdx = CEFR_ORDER.indexOf(userLevel);
   const sectionIdx = CEFR_ORDER.indexOf(sectionLevel);
-  if (userIdx === -1) return sectionIdx === 0; // unknown level → only first section
+  if (userIdx === -1) return sectionIdx === 0; // unknown level  - only first section
   return userIdx >= sectionIdx;
 }
 
@@ -76,7 +76,7 @@ const ACCENT_CFG = {
   pink: { text: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/20', progress: 'bg-pink-500', hex: '#ec4899' },
 } as const;
 
-// ─── Dynamic node state computation ──────────────────────────────────────────
+// --- Dynamic node state computation ------------------------------------------
 
 /**
  * Computes live NodeState for each node based on:
@@ -106,15 +106,15 @@ function computeNodes(
     return { ...node, state: 'locked' as NodeState };
   });
 
-  // All exercises completed → mark the one with score < 80 as 'replay' (if any)
+  // All exercises completed  - mark the one with score < 80 as 'replay' (if any)
   if (!foundCurrent) {
     let worstIdx = -1;
-    let worstScore = 80;  // ★ Threshold mínimo de aprobación
+    let worstScore = 80;  // & Minimum passing threshold
     result.forEach((node, i) => {
       const s = questionScores[node.id] ?? 0;
       if (s < worstScore) { worstScore = s; worstIdx = i; }
     });
-    // ★ Solo marcar como 'replay' si hay algo con score < 80
+    // & Solo marcar como 'replay' si hay algo con score < 80
     if (worstIdx >= 0) {
       result[worstIdx] = { ...result[worstIdx], state: 'replay' };
     }
@@ -122,7 +122,7 @@ function computeNodes(
 
   return result;
 }
-// ─── Path geometry ────────────────────────────────────────────────────────────
+// --- Path geometry ------------------------------------------------------------
 
 const NODE_SIZE = 72;
 const SPACING_Y = 116;
@@ -143,7 +143,7 @@ function buildPath(nodes: (LessonNode & { state: NodeState })[]): string {
   }).join(' ');
 }
 
-// ─── Node Circle ──────────────────────────────────────────────────────────────
+// --- Node Circle --------------------------------------------------------------
 
 function NodeCircle({
   node,
@@ -226,7 +226,7 @@ function NodeCircle({
   );
 }
 
-// ─── Path Section ─────────────────────────────────────────────────────────────
+// --- Path Section -------------------------------------------------------------
 
 function PathSection({
   section,
@@ -273,7 +273,7 @@ function PathSection({
 
   return (
     <div ref={sectionRef} className={sectionLocked ? 'opacity-50 pointer-events-none' : ''}>
-      {/* Section banner — always visible, clickable to collapse/expand */}
+      {/* Section banner - always visible, clickable to collapse/expand */}
       <div
         className={`mx-6 mt-8 mb-1 rounded-xl border ${accent.border} ${accent.bg} overflow-hidden ${!sectionLocked ? 'cursor-pointer select-none' : ''}`}
         onClick={sectionLocked ? undefined : onToggle}
@@ -297,7 +297,7 @@ function PathSection({
               <div className="text-right hidden sm:block">
                 <p className="text-[10px] uppercase tracking-wider text-zinc-600">XP requerido</p>
                 {xpMax > 0 ? (
-                  <p className={`text-sm font-semibold ${accent.text}`}>{xpMin.toLocaleString()} – {xpMax.toLocaleString()}</p>
+                  <p className={`text-sm font-semibold ${accent.text}`}>{xpMin.toLocaleString()} - {xpMax.toLocaleString()}</p>
                 ) : (
                   <div className="h-4 w-24 rounded bg-white/[0.06] animate-pulse mt-0.5" />
                 )}
@@ -321,7 +321,7 @@ function PathSection({
         )}
       </div>
 
-      {/* Node path — only when expanded */}
+      {/* Node path - only when expanded */}
       {!collapsed && (
         loading ? (
           <div className="flex justify-center py-10">
@@ -362,7 +362,7 @@ function PathSection({
                         onClick={(e) => { e.stopPropagation(); onNodeClick(node.id); }}
                         className="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white text-xs font-bold px-5 py-2 rounded-full shadow-lg shadow-emerald-500/30 whitespace-nowrap transition-all flex items-center gap-1.5"
                       >
-                        ▶ COMENZAR
+                         COMENZAR
                       </button>
                       <div className="w-px h-2.5 bg-emerald-500/40 mt-0.5" />
                     </motion.div>
@@ -384,7 +384,7 @@ function PathSection({
                           <RefreshCw size={11} /> REPASAR
                         </button>
                         <span className="text-[9px] text-amber-500/60 font-medium whitespace-nowrap">
-                          score bajo · gana más XP
+                          low score · earn more XP
                         </span>
                       </div>
                       <div className="w-px h-2 bg-amber-500/30 mt-0.5" />
@@ -426,7 +426,7 @@ function PathSection({
   );
 }
 
-// ─── Right Panel ──────────────────────────────────────────────────────────────
+// --- Right Panel --------------------------------------------------------------
 
 function RightPanel({
   totalXP,
@@ -456,7 +456,7 @@ function RightPanel({
 
         {/* Daily goal */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Meta del Día</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Daily goal</p>
           <div className="bg-zinc-900/60 rounded-xl p-4 border border-zinc-800">
             <div className="flex items-center gap-4">
               <div className="relative w-[72px] h-[72px] shrink-0">
@@ -546,7 +546,7 @@ function RightPanel({
 
         {/* Next unlock */}
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Próximo Desbloqueo</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 mb-3">Next unlock</p>
           <div className="bg-cyan-500/[0.04] border border-cyan-500/15 rounded-xl p-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-cyan-500/10 rounded-lg">
@@ -554,7 +554,7 @@ function RightPanel({
               </div>
               <div>
                 <p className="text-sm font-medium text-zinc-200">
-                  {nextSection ? `Nivel ${nextSection.level}` : 'Nivel máximo'}
+                  {nextSection ? `Level ${nextSection.level}` : 'Maximum level'}
                 </p>
                 <p className="text-xs text-zinc-500">{nextSection?.label ?? 'Completado'}</p>
               </div>
@@ -562,9 +562,9 @@ function RightPanel({
             <p className="text-xs text-zinc-500 leading-relaxed">
               {nextSection
                 ? (
-                  <>Necesitas <span className="text-cyan-400 font-semibold">{Math.max(0, nextSection.xpRange[0] - totalXP)} XP más</span> para desbloquear {nextSection.level}.</>
+                  <>You need <span className="text-cyan-400 font-semibold">{Math.max(0, nextSection.xpRange[0] - totalXP)} more XP</span> to unlock {nextSection.level}.</>
                 )
-                : 'Has completado el nivel más alto.'}
+                : 'You have completed the highest level.'}
             </p>
           </div>
         </div>
@@ -574,7 +574,7 @@ function RightPanel({
           <div className="flex-1 bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
             <Flame size={15} className="text-amber-500 mx-auto mb-1" />
             <p className="text-lg font-bold leading-none">{streakDays}</p>
-            <p className="text-[9px] text-zinc-600 mt-0.5 uppercase tracking-wider">Racha</p>
+            <p className="text-[9px] text-zinc-600 mt-0.5 uppercase tracking-wider">Streak</p>
           </div>
           <div className="flex-1 bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
             <Zap size={15} className="text-emerald-400 mx-auto mb-1" />
@@ -588,9 +588,9 @@ function RightPanel({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
-// ── Module-level caches (per-level, survive re-mounts) ────────────────────────
+// -- Module-level caches (per-level, survive re-mounts) ------------------------
 const _cachedByLevel: Record<string, Question[]> = {};
 
 export default function LearnPathPage() {
@@ -604,7 +604,7 @@ export default function LearnPathPage() {
   const [vocabDrawer, setVocabDrawer] = useState(false);
   const [availableExams, setAvailableExams] = useState<Exam[]>([]);
 
-  // Current level — from the user's actual earned level (advances only after passing LEVEL_UP exam)
+  // Current level - from the user's actual earned level (advances only after passing LEVEL_UP exam)
   const currentLevel = user?.level ?? 'A1';
 
   // Only current level is expanded by default
@@ -615,7 +615,7 @@ export default function LearnPathPage() {
   // Ref for auto-scroll to active section
   const activeRef = useRef<HTMLDivElement>(null);
 
-  // ── Fetch a single level (with cache) ───────────────────────────────────────
+  // -- Fetch a single level (with cache) ---------------------------------------
   const fetchLevel = useCallback(async (level: string) => {
     if (_cachedByLevel[level]) {
       setQuestionsByLevel(prev => ({ ...prev, [level]: _cachedByLevel[level] }));
@@ -632,7 +632,7 @@ export default function LearnPathPage() {
     }
   }, []);
 
-  // ── Toggle expand / collapse ─────────────────────────────────────────────────
+  // -- Toggle expand / collapse -------------------------------------------------
   const toggleLevel = useCallback((level: string) => {
     setExpandedLevels(prev => {
       const next = new Set(prev);
@@ -660,7 +660,7 @@ export default function LearnPathPage() {
     }
   }, [currentLevel, questionsByLevel]);
 
-  // XP ranges from backend — always fetch fresh on mount (lightweight call)
+  // XP ranges from backend - always fetch fresh on mount (lightweight call)
   useEffect(() => {
     const token = localStorage.getItem('sb_access_token');
     fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:8000'}/system/levels/`, {
@@ -679,13 +679,13 @@ export default function LearnPathPage() {
       .catch(() => { /* usa defaults */ });
   }, []);
 
-  // Build sections — all LEARN_PATH sections, nodes only when loaded
+  // Build sections - all LEARN_PATH sections, nodes only when loaded
   const dynamicPath = useMemo((): CEFRSection[] => {
     const sections = LEARN_PATH.map(section => {
       const qs = questionsByLevel[section.level] ?? [];
       const nodes: LessonNode[] = qs.map((q, i) => ({
         id: String(q.id),
-        title: q.text.length > 55 ? q.text.slice(0, 55) + '…' : q.text,
+        title: q.text.length > 55 ? q.text.slice(0, 55) + '...' : q.text,
         skill: questionToSkill(q),
         state: 'locked' as const,
         xpMax: q.xp_max,
@@ -756,7 +756,7 @@ export default function LearnPathPage() {
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <Flame size={13} className="text-amber-500" />
                 <span className="text-sm font-semibold">{streakDays}</span>
-                <span className="text-[11px] text-zinc-500">días</span>
+                <span className="text-[11px] text-zinc-500">days</span>
               </div>
               <div className="flex items-center gap-1.5 bg-zinc-900/70 border border-zinc-800 px-3 py-1.5 rounded-full">
                 <Zap size={13} className="text-emerald-400" />
@@ -795,14 +795,14 @@ export default function LearnPathPage() {
                         </div>
                         <div className="flex-1">
                           <h3 className={`font-semibold ${canTakeExam ? 'text-emerald-300' : 'text-zinc-400'}`}>
-                            Examen de Nivel {section.level} → {nextLevel}
+                            Level Exam {section.level}  - {nextLevel}
                           </h3>
                           <p className="text-xs text-zinc-500 mt-0.5">
                             {examPassed
-                              ? '¡Examen aprobado! Ya subiste de nivel.'
+                              ? 'Exam passed! You already leveled up.'
                               : canTakeExam
-                                ? '¡Has alcanzado el XP necesario! Demuestra tus conocimientos para avanzar.'
-                                : `Requiere ${requiredForLevel ?? 0} XP acumulado para desbloquear el examen.`
+                                ? 'You reached the required XP! Show your knowledge to move forward.'
+                                : `Requires ${requiredForLevel ?? 0} accumulated XP to unlock the exam.`
                             }
                           </p>
                         </div>
@@ -815,7 +815,7 @@ export default function LearnPathPage() {
                               : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
                               }`}
                           >
-                            {canTakeExam ? 'Comenzar Examen' : 'Bloqueado'}
+                            {canTakeExam ? 'Start Exam' : 'Locked'}
                           </button>
                         )}
                       </div>
@@ -845,7 +845,7 @@ export default function LearnPathPage() {
             <div className="p-3 rounded-full border border-indigo-500/20 bg-indigo-500/5">
               <Trophy size={20} className="text-indigo-400" />
             </div>
-            <p className="text-xs text-zinc-600 font-medium">TOEFL · Certificación Final</p>
+            <p className="text-xs text-zinc-600 font-medium">TOEFL · Final certification</p>
           </div>
         </div>
       </main>
@@ -856,3 +856,4 @@ export default function LearnPathPage() {
     </div>
   );
 }
+

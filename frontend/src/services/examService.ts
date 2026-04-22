@@ -27,22 +27,22 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const examService = {
   /**
-   * Obtiene todos los exámenes de nivel disponibles
+   * Gets all available level exams
    */
   getExams(): Promise<Exam[]> {
     return apiFetch<Exam[]>('/exams/');
   },
 
   /**
-   * Obtiene detalles de un examen específico
+   * Gets details for a specific exam
    */
   getExam(examId: number): Promise<Exam> {
     return apiFetch<Exam>(`/exams/${examId}/`);
   },
 
   /**
-   * Inicia un intento de examen
-   * Retorna las preguntas y el intento creado
+   * Starts an exam attempt
+   * Retorna las questions y el intento creado
    */
   startExam(examId: number): Promise<ExamStartResponse> {
     return apiFetch<ExamStartResponse>(`/exams/${examId}/start/`, {
@@ -51,7 +51,7 @@ export const examService = {
   },
 
   /**
-   * Envía las respuestas de un examen
+   * Submits exam answers
    */
   submitExam(attemptId: number, answers: Record<string, any>, timeSpentSeconds: number): Promise<ExamSubmitResponse> {
     return apiFetch<ExamSubmitResponse>('/exam-attempts/submit/', {
@@ -65,14 +65,14 @@ export const examService = {
   },
 
   /**
-   * Obtiene todos los intentos del usuario
+   * Gets all user attempts
    */
   getAttempts(): Promise<ExamAttempt[]> {
     return apiFetch<ExamAttempt[]>('/exam-attempts/');
   },
 
   /**
-   * Obtiene un intento específico
+   * Gets a specific attempt
    */
   getAttempt(attemptId: number): Promise<ExamAttempt> {
     return apiFetch<ExamAttempt>(`/exam-attempts/${attemptId}/`);

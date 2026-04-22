@@ -12,9 +12,9 @@ const TYPE_ICONS: Record<QuestionType, LucideIcon> = {
 };
 
 const CATEGORY_LABEL: Record<string, string> = {
-  DIAGNOSTIC: 'Diagnóstico',
+  DIAGNOSTIC: 'Diagnostic',
   PRACTICE:   'Ejercicio',
-  LEVEL_UP:   'Subir nivel',
+  LEVEL_UP:   'Level up',
 };
 
 interface Props {

@@ -9,7 +9,7 @@ import CreateQuestionModal from '../../components/admin/questions/CreateQuestion
 import EditQuestionModal from '../../components/admin/questions/EditQuestionModal';
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 
-// ── Animation (matches LandingPage) ───────────────────────────
+// -- Animation (matches LandingPage) ---------------------------
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -28,7 +28,7 @@ function useReveal() {
   return { ref, inView };
 }
 
-// ── Skeleton ──────────────────────────────────────────────────
+// -- Skeleton --------------------------------------------------
 
 function SkeletonRow() {
   return (
@@ -47,7 +47,7 @@ function SkeletonRow() {
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────
+// -- Page ------------------------------------------------------
 
 const INITIAL_FILTERS: FilterState = {
   type: '', level: '', difficulty: '', category: '', search: '',
@@ -88,7 +88,7 @@ export default function QuestionsPage() {
       };
       setQuestions(await questionsService.getQuestions(apiFilters));
     } catch {
-      // silent — keep existing list
+      // silent - keep existing list
     } finally {
       setLoading(false);
     }
@@ -133,7 +133,7 @@ export default function QuestionsPage() {
       <div className="flex-1 overflow-y-auto">
       <div className="mx-auto px-6 py-5">
 
-        {/* ── Section header ── */}
+        {/* -- Section header -- */}
         <motion.div
           ref={ref}
           variants={reveal}
@@ -185,7 +185,7 @@ export default function QuestionsPage() {
           </div>
         </motion.div>
 
-        {/* ── Question list ── */}
+        {/* -- Question list -- */}
         <motion.div
           variants={reveal}
           initial="hidden"
@@ -225,7 +225,7 @@ export default function QuestionsPage() {
             className="mt-4 flex items-center justify-between"
           >
             <p className="text-[12px] text-white/20">
-              {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, visible.length)} de {visible.length} pregunta{visible.length !== 1 ? 's' : ''}
+              {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, visible.length)} of {visible.length} question{visible.length !== 1 ? 's' : ''}
             </p>
 
             <div className="flex items-center gap-1">
@@ -239,14 +239,14 @@ export default function QuestionsPage() {
 
               {Array.from({ length: totalPages }, (_, i) => i + 1)
                 .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
                   acc.push(p);
                   return acc;
                 }, [])
                 .map((p, i) =>
-                  p === '…' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                  p === '...' ? (
+                    <span key={`ellipsis-${i}`} className="px-1 text-[12px] text-white/20">...</span>
                   ) : (
                     <button
                       key={p}
@@ -274,7 +274,7 @@ export default function QuestionsPage() {
         )}
       </div>
 
-      {/* ── Modals ── */}
+      {/* -- Modals -- */}
       {showCreate && (
         <CreateQuestionModal
           onClose={() => setShowCreate(false)}
@@ -294,7 +294,7 @@ export default function QuestionsPage() {
         />
       )}
 
-      {/* ── Confirm delete ── */}
+      {/* -- Confirm delete -- */}
       {confirmDeleteId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl p-6 max-w-sm w-full">
@@ -316,7 +316,7 @@ export default function QuestionsPage() {
                 disabled={deleting}
                 className="px-4 py-2 bg-red-500/[0.12] hover:bg-red-500/[0.22] border border-red-500/20 text-red-400/80 hover:text-red-400 text-[13px] font-semibold rounded-xl transition-colors disabled:opacity-50"
               >
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
@@ -326,3 +326,4 @@ export default function QuestionsPage() {
     </div>
   );
 }
+

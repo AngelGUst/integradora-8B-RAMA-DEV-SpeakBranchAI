@@ -9,7 +9,7 @@ import type { DiagnosticQuestion, DiagnosticSubmitResponse } from '@/types/diagn
 import { questionsService } from '@/services/questionsService';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
-// ── Constants ─────────────────────────────────────────────────
+// -- Constants -------------------------------------------------
 
 export const PLACEMENT_KEY = 'sb_placement_done';
 const PLACEMENT_RESULT_LEVEL_KEY = 'sb_placement_result_level';
@@ -18,7 +18,7 @@ const DIAGNOSTIC_LIMIT = 15;
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-// ── CEFR metadata ─────────────────────────────────────────────
+// -- CEFR metadata ---------------------------------------------
 
 const CEFR_META: Record<CefrLevel, {
   color: string;
@@ -34,7 +34,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(52,211,153,0.25)',
     title: 'Beginner',
     description: 'You know basic words and phrases. Every journey starts with the first step.',
-    icon: '🌱',
+    icon: '🌊',
   },
   A2: {
     color: '#6ee7b7',
@@ -42,7 +42,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(110,231,183,0.25)',
     title: 'Elementary',
     description: 'You can handle simple conversations and understand familiar topics.',
-    icon: '🌿',
+    icon: '🌊',
   },
   B1: {
     color: '#38bdf8',
@@ -50,7 +50,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(56,189,248,0.25)',
     title: 'Intermediate',
     description: 'You can communicate in most everyday situations and express opinions.',
-    icon: '🌊',
+    icon: '🌊`',
   },
   B2: {
     color: '#818cf8',
@@ -58,7 +58,7 @@ const CEFR_META: Record<CefrLevel, {
     border: 'rgba(129,140,248,0.25)',
     title: 'Upper-Intermediate',
     description: 'You communicate with fluency and ease on a wide range of topics.',
-    icon: '⚡',
+    icon: 'a',
   },
   C1: {
     color: '#a78bfa',
@@ -78,7 +78,7 @@ const CEFR_META: Record<CefrLevel, {
   },
 };
 
-// ── Type icons ────────────────────────────────────────────────
+// -- Type icons ------------------------------------------------
 
 const TYPE_ICONS: Record<QuestionType, ReactNode> = {
   SPEAKING: <BookOpen size={12} />,
@@ -88,14 +88,14 @@ const TYPE_ICONS: Record<QuestionType, ReactNode> = {
   WRITING: <BookOpen size={12} />,
 };
 
-// ── Sub-screens ───────────────────────────────────────────────
+// -- Sub-screens -----------------------------------------------
 
 type Screen = 'welcome' | 'quiz' | 'result';
 
 const FEATURES = [
-  { icon: <CheckCheck size={14} />, label: '15 preguntas' },
+  { icon: <CheckCheck size={14} />, label: '15 questions' },
   { icon: <Headphones size={14} />, label: '~8 minutos' },
-  { icon: <Trophy size={14} />, label: 'Resultado CEFR' },
+  { icon: <Trophy size={14} />, label: 'Result CEFR' },
 ];
 
 function WelcomeScreen({ onStart }: { onStart: () => void }) {
@@ -124,17 +124,17 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
       >
         <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/[0.08] px-4 py-1.5 text-xs font-semibold text-emerald-400">
           <BookOpen size={12} />
-          Evaluación de Nivel · CEFR
+          Level Assessment · CEFR
         </div>
 
         <h1 className="text-4xl font-black tracking-tight text-white leading-tight">
-          Descubre tu nivel<br />
-          <span className="text-emerald-400">de inglés</span>
+          Discover your level<br />
+          <span className="text-emerald-400">of English</span>
         </h1>
 
         <p className="text-sm leading-relaxed text-slate-400">
-          Responde 15 preguntas cuidadosamente diseñadas para determinar
-          tu posición en el Marco Europeo de Referencia para las Lenguas.
+          Answer 15 carefully designed questions to determine
+          your position in the Common European Framework of Reference for Languages.
         </p>
       </motion.div>
 
@@ -164,7 +164,7 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.97 }}
       >
-        Comenzar evaluación
+        Start assessment
         <ChevronRight size={16} className="transition-transform group-hover:translate-x-0.5" />
       </motion.button>
 
@@ -174,13 +174,13 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
-        Sin límite de tiempo · Puedes repetirla después
+        No time limit · You can retake it later
       </motion.p>
     </motion.div>
   );
 }
 
-// ── Quiz Screen ───────────────────────────────────────────────
+// -- Quiz Screen -----------------------------------------------
 
 interface QuizScreenProps {
   question: DiagnosticQuestion;
@@ -289,7 +289,7 @@ function QuizScreen({
               )}
               {resources?.requires_microphone && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-violet-400/30 bg-violet-400/10 px-2 py-1 text-[10px] font-semibold text-violet-300">
-                  <Mic size={11} /> Micrófono
+                  <Mic size={11} /> Microphone
                 </span>
               )}
             </div>
@@ -378,7 +378,7 @@ function QuizScreen({
                 whileHover={canContinue ? { scale: 1.02 } : {}}
                 whileTap={canContinue ? { scale: 0.97 } : {}}
               >
-                {isLast ? 'Ver resultado' : 'Siguiente'}
+                {isLast ? 'See result' : 'Next'}
                 <ArrowRight size={15} />
               </motion.button>
             </motion.div>
@@ -398,7 +398,7 @@ function QuizLoading() {
       transition={{ duration: 0.3 }}
     >
       <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
-      <p className="text-xs text-slate-500">Cargando evaluación…</p>
+      <p className="text-xs text-slate-500">Loading assessment...</p>
     </motion.div>
   );
 }
@@ -412,12 +412,12 @@ function SubmittingOverlay() {
       transition={{ duration: 0.3 }}
     >
       <div className="h-12 w-12 animate-spin rounded-full border-2 border-white/[0.06] border-t-emerald-500" />
-      <p className="text-xs text-slate-500">Evaluando tus respuestas…</p>
+      <p className="text-xs text-slate-500">Evaluando tus respuestas...</p>
     </motion.div>
   );
 }
 
-// ── Result Screen ─────────────────────────────────────────────
+// -- Result Screen ---------------------------------------------
 
 interface ResultScreenProps {
   level: CefrLevel;
@@ -469,7 +469,7 @@ function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScree
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.5, ease: EASE }}
         >
-          Tu nivel de inglés es
+          Your English level is
         </motion.p>
 
         <motion.div
@@ -484,7 +484,7 @@ function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScree
           </span>
           <div className="text-left">
             <div className="text-base font-bold text-white">{meta.title}</div>
-            <div className="text-xs text-slate-500">Marco CEFR</div>
+            <div className="text-xs text-slate-500">CEFR framework</div>
           </div>
         </motion.div>
 
@@ -558,7 +558,7 @@ function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScree
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
         >
-          Comenzar mi ruta de aprendizaje
+          Start mi ruta de aprendizaje
           <ArrowRight size={15} />
         </motion.button>
       </div>
@@ -566,7 +566,7 @@ function ResultScreen({ level, correct, total, accuracy, onFinish }: ResultScree
   );
 }
 
-// ── Main export ───────────────────────────────────────────────
+// -- Main export -----------------------------------------------
 
 export default function PlacementTestPage() {
   const navigate = useNavigate();
@@ -596,14 +596,14 @@ export default function PlacementTestPage() {
         if (!valid.length) {
           setQuestions([]);
           setAnswers([]);
-          setError('No hay preguntas de diagnóstico disponibles.');
+          setError('No diagnostic questions available.');
           return;
         }
         setQuestions(valid);
         setAnswers(new Array(valid.length).fill(null));
       } catch (err: unknown) {
         if (!isMounted) return;
-        const message = err instanceof Error ? err.message : 'Error al cargar las preguntas.';
+        const message = err instanceof Error ? err.message : 'Error loading questions.';
         setQuestions([]);
         setAnswers([]);
         setError(message);
@@ -668,7 +668,7 @@ export default function PlacementTestPage() {
 
       setScreen('result');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Error al enviar el diagnóstico.';
+      const message = err instanceof Error ? err.message : 'Error submitting diagnostic.';
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -705,14 +705,14 @@ export default function PlacementTestPage() {
         )}
         {screen === 'quiz' && !isLoading && !isSubmitting && error && (
           <div className="mx-auto mt-28 max-w-xl rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
-            <p className="text-lg font-semibold">No pudimos cargar el diagnóstico.</p>
+            <p className="text-lg font-semibold">Could not load the diagnostic.</p>
             <p className="mt-2 text-sm">{error}</p>
             <button
               type="button"
               onClick={() => setReloadKey((prev) => prev + 1)}
               className="mt-5 rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-semibold"
             >
-              Reintentar
+              Retry
             </button>
           </div>
         )}
@@ -742,3 +742,4 @@ export default function PlacementTestPage() {
     </div>
   );
 }
+

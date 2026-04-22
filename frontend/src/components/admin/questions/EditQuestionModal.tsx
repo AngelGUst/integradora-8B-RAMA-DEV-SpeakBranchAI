@@ -86,8 +86,8 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
           {/* Tabs */}
           <div className="flex border-b border-white/[0.05]">
             {([
-              { key: 'question',   label: 'Pregunta',    Icon: BookOpen   },
-              { key: 'vocabulary', label: 'Vocabulario', Icon: BookMarked },
+              { key: 'question',   label: 'Question',    Icon: BookOpen   },
+              { key: 'vocabulary', label: 'Vocabulary', Icon: BookMarked },
             ] as { key: Tab; label: string; Icon: LucideIcon }[]).map(({ key, label: tabLabel, Icon: TabIcon }) => (
               <button
                 key={key}
@@ -154,7 +154,7 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
 
             {tab === 'vocabulary' && (
               <p className="text-[11px] text-white/20">
-                Los cambios de vocabulario se guardan automáticamente.
+                Vocabulary changes are saved automatically.
               </p>
             )}
           </div>

@@ -4,14 +4,14 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import Logo from '@/shared/components/ui/Logo';
 
 const NAV_ITEMS = [
-  { label: 'Panel de Control',    icon: BarChart2,  path: '/dashboard',        adminOnly: false },
-  { label: 'Ruta de Aprendizaje', icon: Route,      path: '/learn',            adminOnly: false },
-  { label: 'Mi Vocabulario',      icon: Library,    path: '/vocabulary',       adminOnly: false },
+  { label: 'Control Panel',    icon: BarChart2,  path: '/dashboard',        adminOnly: false },
+  { label: 'Learning Path', icon: Route,      path: '/learn',            adminOnly: false },
+  { label: 'Mi Vocabulary',      icon: Library,    path: '/vocabulary',       adminOnly: false },
   { label: 'Dashboard',           icon: LayoutDashboard, path: '/admin/dashboard', adminOnly: true  },
-  { label: 'Preguntas',           icon: BookOpen,   path: '/admin/questions',  adminOnly: true  },
-  { label: 'Vocabulario',         icon: BookMarked, path: '/admin/vocabulary', adminOnly: true  },
-  { label: 'Usuarios',            icon: Users,      path: '/admin/users',      adminOnly: true  },
-  { label: 'Configuración',       icon: Settings,   path: '/admin/system',     adminOnly: true  },
+  { label: 'Questions',           icon: BookOpen,   path: '/admin/questions',  adminOnly: true  },
+  { label: 'Vocabulary',         icon: BookMarked, path: '/admin/vocabulary', adminOnly: true  },
+  { label: 'Users',            icon: Users,      path: '/admin/users',      adminOnly: true  },
+  { label: 'Settings',       icon: Settings,   path: '/admin/system',     adminOnly: true  },
 ];
 
 function UserAvatar({ name, url }: { name: string; url: string | null }) {
@@ -67,7 +67,7 @@ export default function AppSidebar() {
             <div className="flex-1 min-w-0 text-left">
               <p className="text-sm font-medium text-zinc-200 truncate">{user.first_name}</p>
               <p className="text-[10px] text-zinc-500 truncate">
-                {user.level} · {user.role === 'ADMIN' ? 'Admin' : 'Estudiante'}
+                {user.level} · {user.role === 'ADMIN' ? 'Admin' : 'Student'}
               </p>
             </div>
           </button>
@@ -78,7 +78,7 @@ export default function AppSidebar() {
           className="w-full flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
         >
           <LogOut size={16} />
-          Cerrar Sesión
+          Sign out
         </button>
       </div>
     </aside>

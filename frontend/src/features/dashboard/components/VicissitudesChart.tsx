@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── Types ─────────────────────────────────────────────────────
+// -- Types -----------------------------------------------------
 
 interface SessionPoint {
   session: number;
@@ -15,17 +15,17 @@ interface VicissitudesChartProps {
   subtitle?: string;
 }
 
-// ── Chart constants ───────────────────────────────────────────
+// -- Chart constants -------------------------------------------
 
 const VB_W = 1000;
 const VB_H = 300;
 const C = { x: 72, y: 24, w: 888, h: 240 } as const; // chart area
 
 // Zone thresholds (score)
-const HARD_THRESHOLD = 68; // score >= 68 → Difícil zone
-const EASY_THRESHOLD = 32; // score <= 32 → Fácil zone
+const HARD_THRESHOLD = 68; // score >= 68  - Hard zone
+const EASY_THRESHOLD = 32; // score <= 32  - Easy zone
 
-// Default mock data — dramatic learning journey
+// Default mock data - dramatic learning journey
 const DEFAULT_DATA: SessionPoint[] = [
   { session: 1,  score: 48 },
   { session: 2,  score: 79 },
@@ -47,7 +47,7 @@ const DEFAULT_DATA: SessionPoint[] = [
   { session: 18, score: 71 },
 ];
 
-// ── SVG math helpers ──────────────────────────────────────────
+// -- SVG math helpers ------------------------------------------
 
 function scoreToY(score: number): number {
   return C.y + (1 - score / 100) * C.h;
@@ -83,7 +83,7 @@ function buildAreaPath(pts: Pt[]): string {
   return `${line} L ${pts[pts.length - 1].x.toFixed(2)} ${bottomY} L ${pts[0].x.toFixed(2)} ${bottomY} Z`;
 }
 
-// ── Tooltip ───────────────────────────────────────────────────
+// -- Tooltip ---------------------------------------------------
 
 interface TooltipData {
   x: number;
@@ -95,17 +95,17 @@ interface TooltipData {
 }
 
 function getZoneLabel(score: number): { label: string; color: string } {
-  if (score >= HARD_THRESHOLD) return { label: 'Difícil', color: '#ef4444' };
-  if (score <= EASY_THRESHOLD) return { label: 'Fácil', color: '#60a5fa' };
-  return { label: 'Medio', color: '#10b981' };
+  if (score >= HARD_THRESHOLD) return { label: 'Hard', color: '#ef4444' };
+  if (score <= EASY_THRESHOLD) return { label: 'Easy', color: '#60a5fa' };
+  return { label: 'Medium', color: '#10b981' };
 }
 
-// ── Main component ────────────────────────────────────────────
+// -- Main component --------------------------------------------
 
 export default function VicissitudesChart({
   data = DEFAULT_DATA,
-  title = 'Tu travesía de aprendizaje',
-  subtitle = 'Rendimiento por sesión',
+  title = 'Your learning journey',
+  subtitle = 'Performance by session',
 }: VicissitudesChartProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -174,9 +174,9 @@ export default function VicissitudesChart({
         <div className="flex items-center gap-3">
           {/* Zone legend */}
           {[
-            { label: 'Difícil', color: 'bg-red-500/70' },
-            { label: 'Medio', color: 'bg-emerald-500/70' },
-            { label: 'Fácil', color: 'bg-blue-500/70' },
+            { label: 'Hard', color: 'bg-red-500/70' },
+            { label: 'Medium', color: 'bg-emerald-500/70' },
+            { label: 'Easy', color: 'bg-blue-500/70' },
           ].map(({ label, color }) => (
             <div key={label} className="flex items-center gap-1.5">
               <span className={`h-1.5 w-1.5 rounded-full ${color}`} />
@@ -199,7 +199,7 @@ export default function VicissitudesChart({
           onMouseLeave={() => setTooltip(null)}
         >
           <defs>
-            {/* Line gradient: violet → emerald */}
+            {/* Line gradient: violet  - emerald */}
             <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%"   stopColor="#7c3aed" />
               <stop offset="50%"  stopColor="#0ea5e9" />
@@ -236,49 +236,49 @@ export default function VicissitudesChart({
             </clipPath>
           </defs>
 
-          {/* ── Zone backgrounds ── */}
-          {/* Difícil (top) */}
+          {/* -- Zone backgrounds -- */}
+          {/* Hard (top) */}
           <rect
             x={C.x} y={C.y}
             width={C.w} height={hardY - C.y}
             fill="rgba(239,68,68,0.05)"
             rx="0"
           />
-          {/* Fácil (bottom) */}
+          {/* Easy (bottom) */}
           <rect
             x={C.x} y={easyY}
             width={C.w} height={C.y + C.h - easyY}
             fill="rgba(96,165,250,0.05)"
           />
 
-          {/* ── Zone threshold lines ── */}
-          {/* Difícil line */}
+          {/* -- Zone threshold lines -- */}
+          {/* Hard line */}
           <line
             x1={C.x} y1={hardY} x2={C.x + C.w} y2={hardY}
             stroke="rgba(239,68,68,0.35)" strokeWidth="1"
             strokeDasharray="6 4"
           />
-          {/* Medio line (center reference) */}
+          {/* Medium line (center reference) */}
           <line
             x1={C.x} y1={middleY} x2={C.x + C.w} y2={middleY}
             stroke="rgba(16,185,129,0.2)" strokeWidth="1"
           />
-          {/* Fácil line */}
+          {/* Easy line */}
           <line
             x1={C.x} y1={easyY} x2={C.x + C.w} y2={easyY}
             stroke="rgba(96,165,250,0.35)" strokeWidth="1"
             strokeDasharray="6 4"
           />
 
-          {/* ── Zone labels (right side) ── */}
-          <text x={C.x + C.w + 10} y={hardY - 6} fontSize="11" fill="rgba(239,68,68,0.7)" fontFamily="Inter,sans-serif" fontWeight="600">Difícil</text>
-          <text x={C.x + C.w + 10} y={middleY + 4}  fontSize="11" fill="rgba(16,185,129,0.6)" fontFamily="Inter,sans-serif" fontWeight="600">Medio</text>
-          <text x={C.x + C.w + 10} y={easyY + 14}  fontSize="11" fill="rgba(96,165,250,0.7)" fontFamily="Inter,sans-serif" fontWeight="600">Fácil</text>
+          {/* -- Zone labels (right side) -- */}
+          <text x={C.x + C.w + 10} y={hardY - 6} fontSize="11" fill="rgba(239,68,68,0.7)" fontFamily="Inter,sans-serif" fontWeight="600">Hard</text>
+          <text x={C.x + C.w + 10} y={middleY + 4}  fontSize="11" fill="rgba(16,185,129,0.6)" fontFamily="Inter,sans-serif" fontWeight="600">Medium</text>
+          <text x={C.x + C.w + 10} y={easyY + 14}  fontSize="11" fill="rgba(96,165,250,0.7)" fontFamily="Inter,sans-serif" fontWeight="600">Easy</text>
 
           {/* "0" marker on medio line */}
           <text x={C.x + C.w + 10} y={middleY + 16} fontSize="10" fill="rgba(255,255,255,0.2)" fontFamily="Inter,sans-serif">0</text>
 
-          {/* ── Vertical hover line ── */}
+          {/* -- Vertical hover line -- */}
           {tooltip && (
             <line
               x1={tooltip.svgX} y1={C.y}
@@ -288,7 +288,7 @@ export default function VicissitudesChart({
             />
           )}
 
-          {/* ── Area fill (clipped) ── */}
+          {/* -- Area fill (clipped) -- */}
           <g clipPath="url(#chartClip)">
             <motion.path
               d={areaPath}
@@ -299,7 +299,7 @@ export default function VicissitudesChart({
             />
           </g>
 
-          {/* ── Main line (animated draw) ── */}
+          {/* -- Main line (animated draw) -- */}
           <g clipPath="url(#chartClip)" filter="url(#lineGlow)">
             <motion.path
               d={linePath}
@@ -314,7 +314,7 @@ export default function VicissitudesChart({
             />
           </g>
 
-          {/* ── Session dots (appear after line drawn) ── */}
+          {/* -- Session dots (appear after line drawn) -- */}
           {animated && pts.map((p, i) => {
             const isHovered = tooltip?.session === data[i].session;
             return (
@@ -332,7 +332,7 @@ export default function VicissitudesChart({
             );
           })}
 
-          {/* ── Current position pulsating dot ── */}
+          {/* -- Current position pulsating dot -- */}
           {animated && lastPt && (
             <>
               {/* Outer pulse ring */}
@@ -379,7 +379,7 @@ export default function VicissitudesChart({
             </>
           )}
 
-          {/* ── X-axis session markers ── */}
+          {/* -- X-axis session markers -- */}
           {data.map((d, i) => {
             const x = indexToX(i, data.length);
             const showLabel = i === 0 || i === data.length - 1 || i % 3 === 0;
@@ -404,7 +404,7 @@ export default function VicissitudesChart({
             ) : null;
           })}
 
-          {/* ── Tooltip hover dot (active point) ── */}
+          {/* -- Tooltip hover dot (active point) -- */}
           {tooltip && (
             <>
               <circle
@@ -421,7 +421,7 @@ export default function VicissitudesChart({
           )}
         </svg>
 
-        {/* ── HTML Tooltip ── */}
+        {/* -- HTML Tooltip -- */}
         <AnimatePresence>
           {tooltip && (
             <motion.div
@@ -461,3 +461,4 @@ export default function VicissitudesChart({
     </div>
   );
 }
+

@@ -4,7 +4,7 @@ import { Search, Volume2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } fr
 import AppSidebar from '@/shared/components/layout/AppSidebar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
-// ── API ────────────────────────────────────────────────────────
+// -- API --------------------------------------------------------
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
@@ -22,7 +22,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── Types ──────────────────────────────────────────────────────
+// -- Types ------------------------------------------------------
 
 interface VocabWord {
   id: number;
@@ -47,16 +47,16 @@ interface UserVocabEntry {
   last_reviewed_at: string | null;
 }
 
-// ── Constants ──────────────────────────────────────────────────
+// -- Constants --------------------------------------------------
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
 const MASTERY = [
   { value: 0, label: 'No visto',   color: 'bg-zinc-700 text-zinc-400'           },
   { value: 1, label: 'Visto',      color: 'bg-sky-900/60 text-sky-300'           },
-  { value: 2, label: 'Practicando',color: 'bg-amber-900/60 text-amber-300'       },
-  { value: 3, label: 'Aprendido',  color: 'bg-emerald-900/60 text-emerald-300'   },
-  { value: 4, label: 'Dominado',   color: 'bg-violet-900/60 text-violet-300'     },
+  { value: 2, label: 'Practicing',color: 'bg-amber-900/60 text-amber-300'       },
+  { value: 3, label: 'Learned',  color: 'bg-emerald-900/60 text-emerald-300'   },
+  { value: 4, label: 'Mastered',   color: 'bg-violet-900/60 text-violet-300'     },
 ] as const;
 
 const MASTERY_DOT: Record<number, string> = {
@@ -67,7 +67,7 @@ const MASTERY_DOT: Record<number, string> = {
   4: 'bg-violet-400',
 };
 
-// ── Animation ─────────────────────────────────────────────────
+// -- Animation -------------------------------------------------
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const reveal: Variants = {
@@ -84,7 +84,7 @@ function useReveal() {
   return { ref, inView };
 }
 
-// ── Skeleton ──────────────────────────────────────────────────
+// -- Skeleton --------------------------------------------------
 
 function SkeletonCard() {
   return (
@@ -102,7 +102,7 @@ function SkeletonCard() {
   );
 }
 
-// ── Word Card ─────────────────────────────────────────────────
+// -- Word Card -------------------------------------------------
 
 function WordCard({
   entry,
@@ -173,7 +173,7 @@ function WordCard({
         </div>
       </div>
 
-      {/* Meaning — always visible */}
+      {/* Meaning - always visible */}
       <div className="px-5 pb-4">
         <p className="text-[13px] text-white/50 leading-snug line-clamp-2">{w.meaning}</p>
       </div>
@@ -192,13 +192,13 @@ function WordCard({
             <div className="px-5 pb-5 pt-1 border-t border-white/[0.05] space-y-3">
               {w.example_sentence && (
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/20 font-semibold mb-1">Ejemplo</p>
+                  <p className="text-[10px] uppercase tracking-widest text-white/20 font-semibold mb-1">Example</p>
                   <p className="text-[13px] text-white/40 italic leading-snug">"{w.example_sentence}"</p>
                 </div>
               )}
               {w.category && (
                 <div>
-                  <p className="text-[10px] uppercase tracking-widest text-white/20 font-semibold mb-1">Categoría</p>
+                  <p className="text-[10px] uppercase tracking-widest text-white/20 font-semibold mb-1">Category</p>
                   <span className="text-[11px] text-white/30 bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 rounded-md">
                     {w.category}
                   </span>
@@ -211,14 +211,14 @@ function WordCard({
                   disabled={entry.mastery_level >= 4}
                   className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-emerald-900/40 text-emerald-300 border border-emerald-700/30 hover:bg-emerald-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  ✓ Lo sé
+                   I know it
                 </button>
                 <button
                   onClick={() => onPractice(entry.id, false)}
                   disabled={entry.mastery_level <= 0}
                   className="flex-1 py-1.5 rounded-lg text-[12px] font-semibold bg-amber-900/40 text-amber-300 border border-amber-700/30 hover:bg-amber-800/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
-                  Repasar
+                  Review
                 </button>
               </div>
 
@@ -227,7 +227,7 @@ function WordCard({
                   Repasado {entry.times_reviewed} vez{entry.times_reviewed !== 1 ? 'es' : ''}
                 </span>
                 <span className="text-[11px] text-white/20">
-                  Añadida {new Date(entry.date_assigned).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
+                  Added {new Date(entry.date_assigned).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
                 </span>
               </div>
             </div>
@@ -238,7 +238,7 @@ function WordCard({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────
+// -- Page ------------------------------------------------------
 
 export default function VocabularyCollectionPage() {
   const { ref, inView } = useReveal();
@@ -268,7 +268,7 @@ export default function VocabularyCollectionPage() {
       );
       setEntries(res.data);
     } catch {
-      setError('No se pudo cargar el vocabulario.');
+      setError('Could not load vocabulary.');
     } finally {
       setLoading(false);
     }
@@ -279,7 +279,7 @@ export default function VocabularyCollectionPage() {
     return () => clearTimeout(t);
   }, [load, search]);
 
-  // Fuerza número par: si impar → resta 1. Mínimo 2.
+  // Fuerza número par: si impar  - resta 1. Minimum 2.
   const toEven = (n: number) => Math.max(2, n % 2 === 0 ? n : n - 1);
 
   const handlePageSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,10 +294,10 @@ export default function VocabularyCollectionPage() {
     setPage(1);
   };
 
-  // Reset page cuando cambian filtros o tamaño de página
+  // Reset page when filters or page size change
   useEffect(() => { setPage(1); }, [levelFilter, masteryFilter, search, pageSize]);
 
-  // Paginación
+  // Pagination
   const totalPages      = Math.max(1, Math.ceil(entries.length / pageSize));
   const safePage        = Math.min(page, totalPages);
   const paginatedEntries = useMemo(
@@ -330,7 +330,7 @@ export default function VocabularyCollectionPage() {
         method: 'POST',
         body: JSON.stringify({ success }),
       });
-    } catch { /* silent — optimistic state stays */ }
+    } catch { /* silent - optimistic state stays */ }
   };
 
   // Stats
@@ -344,7 +344,7 @@ export default function VocabularyCollectionPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto px-6 py-5">
 
-          {/* ── Section header ── */}
+          {/* -- Section header -- */}
           <motion.div
             ref={ref}
             variants={reveal}
@@ -364,7 +364,7 @@ export default function VocabularyCollectionPage() {
               My vocabulary collection.
             </h1>
             <p className="text-[14px] text-white/25 mb-8">
-              Cada palabra que encuentras en los ejercicios queda aquí guardada.
+              Each word you find in exercises is saved here.
             </p>
 
             {/* Stats pills */}
@@ -392,7 +392,7 @@ export default function VocabularyCollectionPage() {
                   type="text"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar palabra…"
+                  placeholder="Search word..."
                   className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
                 />
               </div>
@@ -403,7 +403,7 @@ export default function VocabularyCollectionPage() {
                 onChange={e => setLevel(e.target.value)}
                 className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
               >
-                <option value="">Todos los niveles</option>
+                <option value="">All levels</option>
                 {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
 
@@ -413,7 +413,7 @@ export default function VocabularyCollectionPage() {
                 onChange={e => setMastery(e.target.value)}
                 className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
               >
-                <option value="">Todos los estados</option>
+                <option value="">All statuses</option>
                 {MASTERY.map(m => (
                   <option key={m.value} value={String(m.value)}>{m.label}</option>
                 ))}
@@ -421,7 +421,7 @@ export default function VocabularyCollectionPage() {
 
               {/* Page size */}
               <div className="flex items-center gap-2">
-                <label className="text-[11px] text-white/30 whitespace-nowrap">Por página</label>
+                <label className="text-[11px] text-white/30 whitespace-nowrap">Per page</label>
                 <input
                   type="number"
                   value={rawPageSize}
@@ -434,7 +434,7 @@ export default function VocabularyCollectionPage() {
             </div>
           </motion.div>
 
-          {/* ── Content ── */}
+          {/* -- Content -- */}
           <motion.div
             variants={reveal}
             initial="hidden"
@@ -449,15 +449,15 @@ export default function VocabularyCollectionPage() {
               <p className="text-center py-16 text-[13px] text-red-400/70">{error}</p>
             ) : entries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <p className="text-[32px] mb-3">📚</p>
+                <p className="text-[32px] mb-3">x-a</p>
                 <p className="text-[15px] font-semibold text-white/40 mb-1">
                   {search || levelFilter || masteryFilter
                     ? 'No hay palabras con esos filtros.'
-                    : 'Tu colección está vacía.'}
+                    : 'Your collection is empty.'}
                 </p>
                 <p className="text-[13px] text-white/20">
                   {!(search || levelFilter || masteryFilter) &&
-                    'Completa ejercicios para acumular vocabulario.'}
+                    'Complete exercises to build vocabulary.'}
                 </p>
               </div>
             ) : (
@@ -492,7 +492,7 @@ export default function VocabularyCollectionPage() {
               </button>
 
               <span className="text-[12px] text-white/30 tabular-nums">
-                Página <span className="text-white/60 font-semibold">{safePage}</span> de{' '}
+                Page <span className="text-white/60 font-semibold">{safePage}</span> de{' '}
                 <span className="text-white/60 font-semibold">{totalPages}</span>
               </span>
 
@@ -515,8 +515,8 @@ export default function VocabularyCollectionPage() {
               custom={3}
               className="mt-3 text-center text-[12px] text-white/20"
             >
-              Mostrando {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, entries.length)} de{' '}
-              {entries.length} palabra{entries.length !== 1 ? 's' : ''}
+              Showing {(safePage - 1) * pageSize + 1}-{Math.min(safePage * pageSize, entries.length)} de{' '}
+              {entries.length} word{entries.length !== 1 ? 's' : ''}
             </motion.p>
           )}
         </div>
@@ -524,3 +524,4 @@ export default function VocabularyCollectionPage() {
     </div>
   );
 }
+

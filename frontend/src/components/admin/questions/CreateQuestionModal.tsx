@@ -25,12 +25,8 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const setOption = (idx: number) => (e: ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => {
-      const opts = [...prev.options] as [string, string, string, string];
-      opts[idx] = e.target.value;
-      return { ...prev, options: opts };
-    });
+  const setValue = (key: keyof FormState, value: FormState[keyof FormState]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async () => {
     if (!selectedType) return;
@@ -49,15 +45,15 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
   };
 
   const STEP_LABELS: Record<1 | 2 | 3, string> = {
-    1: 'Tipo de pregunta',
+    1: 'Question type',
     2: 'Contenido',
-    3: 'Vocabulario',
+    3: 'Vocabulary',
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-start justify-center px-4 pt-20 pb-10 bg-black/60 backdrop-blur-sm">
-        <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl max-w-xl w-full">
+        <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl max-w-3/5 w-full">
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.05]">
@@ -66,7 +62,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 Paso {step} de 3 · {STEP_LABELS[step]}
               </p>
               <h2 className="text-[16px] font-black tracking-[-0.02em] text-white/90">
-                Nueva pregunta
+                New question
               </h2>
             </div>
             <button
@@ -82,7 +78,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
             {step === 1 && (
               <>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30 mb-4">
-                  Selecciona el tipo de pregunta
+                  Select question type
                 </p>
                 <QuestionTypePicker selected={selectedType} onSelect={setSelectedType} />
               </>
@@ -93,7 +89,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 type={selectedType!}
                 form={form}
                 set={set}
-                setOption={setOption}
+                setValue={setValue}
                 onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
               />
             )}
@@ -103,7 +99,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                 <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/20">
                   <Check className="h-4 w-4 text-emerald-400 shrink-0" />
                   <p className="text-[12px] text-emerald-300/80">
-                    Pregunta creada. Ahora puedes vincular vocabulario (opcional).
+                    Question created. You can now link vocabulary (optional).
                   </p>
                 </div>
                 <VocabularyPanel
@@ -117,7 +113,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
           <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.05]">
             {step === 3 ? (
               <>
-                <p className="text-[11px] text-white/20">Los cambios se guardan automáticamente.</p>
+                <p className="text-[11px] text-white/20">Changes are saved automatically.</p>
                 <button
                   onClick={onClose}
                   className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors"
@@ -132,7 +128,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                   onClick={onClose}
                   className="text-[13px] text-white/30 hover:text-white/60 transition-colors px-3 py-2 rounded-xl"
                 >
-                  Cancelar
+                  Cancel
                 </button>
 
                 <div className="flex items-center gap-3">
@@ -152,7 +148,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                       disabled={!selectedType}
                       className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl text-[13px] font-semibold text-white transition-colors"
                     >
-                      Siguiente
+                      Next
                       <ArrowRight className="h-4 w-4" />
                     </button>
                   )}
@@ -169,7 +165,7 @@ export default function CreateQuestionModal({ onClose, onCreate }: Props) {
                       >
                         {submitting ? 'Creando…' : (
                           <>
-                            Crear pregunta
+                            Create question
                             <BookMarked className="h-4 w-4" />
                           </>
                         )}

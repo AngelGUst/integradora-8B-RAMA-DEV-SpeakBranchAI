@@ -1,16 +1,16 @@
 /**
- * VicissitudesEngine — Campo Atmosférico v3
+ * VicissitudesEngine - Atmospheric Field v3
  *
  * Un solo plano. Sin secciones. Sin estructura de dashboard.
  * Los datos flotan sobre el canvas.
- * La línea es el protagonista. El alien vive en ella.
+ * The line is the protagonist. The alien lives on it.
  */
 
 import { useState, useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Headphones, AlignLeft, Languages } from 'lucide-react';
 
-// ─── Types ──────────────────────────────────────────────────────────────────────
+// --- Types ----------------------------------------------------------------------
 type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 type Skill = 'grammar' | 'vocabulary' | 'reading' | 'listening';
 interface Attempt { xp: number; difficulty: Difficulty; score: number; correct?: boolean }
@@ -30,7 +30,7 @@ const EXERCISES: Exercise[] = [
   { skill: 'vocabulary', prompt: 'What is "perro" in English?', options: ['Cat', 'Dog', 'Bird', 'Fish'], correct: 1 },
   { skill: 'grammar', prompt: 'She ___ to school every day.', options: ['go', 'goes', 'going', 'gone'], correct: 1 },
   { skill: 'reading', prompt: '"The sky is clear tonight." The weather is:', options: ['Rainy', 'Cloudy', 'Clear', 'Stormy'], correct: 2 },
-  { skill: 'vocabulary', prompt: '"Ambitious" in Spanish:', options: ['Tímido', 'Ambicioso', 'Curioso', 'Paciente'], correct: 1 },
+  { skill: 'vocabulary', prompt: '"Ambitious" in Spanish:', options: ['Shy', 'Ambitious', 'Curious', 'Patient'], correct: 1 },
   { skill: 'grammar', prompt: 'Which is Past Simple?', options: ['I have visited.', 'I visited.', 'I was visit.', "I'm visiting."], correct: 1 },
   { skill: 'listening', prompt: '"Could you pass the salt?" is a:', options: ['Statement', 'Order', 'Request', 'Complaint'], correct: 2 },
   { skill: 'grammar', prompt: '"If I ___ more time, I would study."', options: ['have', 'will have', 'had', 'has'], correct: 2 },
@@ -39,14 +39,14 @@ const EXERCISES: Exercise[] = [
 ];
 
 const SKILL_CFG: Record<Skill, { label: string; color: string; Icon: typeof BookOpen }> = {
-  grammar: { label: 'Gramática', color: '#818CF8', Icon: AlignLeft },
-  vocabulary: { label: 'Vocabulario', color: '#34D399', Icon: Languages },
+  grammar: { label: 'Grammar', color: '#818CF8', Icon: AlignLeft },
+  vocabulary: { label: 'Vocabulary', color: '#34D399', Icon: Languages },
   reading: { label: 'Lectura', color: '#38BDF8', Icon: BookOpen },
   listening: { label: 'Escucha', color: '#FB923C', Icon: Headphones },
 };
 
-// ─── SVG Universe ───────────────────────────────────────────────────────────────
-// Viewbox amplio. La línea viaja de extremo a extremo.
+// --- SVG Universe ---------------------------------------------------------------
+// Wide viewBox. The line travels edge to edge.
 // Margen generoso a la derecha para que el alien no quede cortado.
 
 const VW = 1000, VH = 320;
@@ -67,7 +67,7 @@ const Y_B2 = toY(B2_S);
 
 const ZONE_COLOR = { HARD: '#A78BFA', MEDIUM: '#38BDF8', EASY: '#34D399' } as const;
 
-// ─── Catmull-Rom ─────────────────────────────────────────────────────────────────
+// --- Catmull-Rom -----------------------------------------------------------------
 function catmull(pts: [number, number][]): string {
   if (pts.length < 2) return '';
   const n = pts.length;
@@ -87,7 +87,7 @@ function trailFill(pts: [number, number][]): string {
   return `${line} L${last[0]},${Y_BOT} L${first[0]},${Y_BOT} Z`;
 }
 
-// ─── SVG Definitions (defs only, no visible elements) ────────────────────────────
+// --- SVG Definitions (defs only, no visible elements) ----------------------------
 function Defs({ uid }: { uid: string }) {
   return (
     <defs>
@@ -119,7 +119,7 @@ function Defs({ uid }: { uid: string }) {
         <stop offset="100%" stopColor="#38BDF8" stopOpacity="0" />
       </linearGradient>
 
-      {/* Line glow filter — two passes for depth */}
+      {/* Line glow filter - two passes for depth */}
       <filter id={`glow-${uid}`} x="-15%" y="-200%" width="130%" height="500%">
         <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur6" />
         <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur2" />
@@ -144,16 +144,16 @@ function Defs({ uid }: { uid: string }) {
   );
 }
 
-// ─── Zone Atmosphere ─────────────────────────────────────────────────────────────
+// --- Zone Atmosphere -------------------------------------------------------------
 function Atmosphere({ uid }: { uid: string }) {
   return (
     <g>
-      {/* Zone fogs — full width bleed */}
+      {/* Zone fogs - full width bleed */}
       <rect x={0} y={0} width={VW} height={Y_HARD} fill={`url(#zh-${uid})`} />
       <rect x={0} y={Y_HARD} width={VW} height={Y_EASY - Y_HARD} fill={`url(#zm-${uid})`} />
       <rect x={0} y={Y_EASY} width={VW} height={Y_BOT - Y_EASY} fill={`url(#ze-${uid})`} />
 
-      {/* Zone boundary whiskers — ultra subtle */}
+      {/* Zone boundary whiskers - ultra subtle */}
       <line x1={PL} y1={Y_HARD} x2={PL + CW} y2={Y_HARD}
         stroke={ZONE_COLOR.HARD} strokeOpacity="0.07" strokeWidth="0.7" strokeDasharray="2 14" />
       <line x1={PL} y1={Y_EASY} x2={PL + CW} y2={Y_EASY}
@@ -175,11 +175,11 @@ function Atmosphere({ uid }: { uid: string }) {
         </text>
       </g>
 
-      {/* Zone ghost labels — pure atmosphere, barely visible */}
+      {/* Zone ghost labels - pure atmosphere, barely visible */}
       <text x={VW - PR - 6} y={(Y_TOP + Y_HARD) / 2 + 3.5}
         textAnchor="end" fill={ZONE_COLOR.HARD} fillOpacity="0.16"
         fontSize="8" fontFamily="monospace" fontWeight="800" letterSpacing="2.5">
-        DIFÍCIL
+        HARD
       </text>
       <text x={VW - PR - 6} y={(Y_HARD + Y_EASY) / 2 + 3.5}
         textAnchor="end" fill={ZONE_COLOR.MEDIUM} fillOpacity="0.14"
@@ -189,13 +189,13 @@ function Atmosphere({ uid }: { uid: string }) {
       <text x={VW - PR - 6} y={(Y_EASY + Y_BOT) / 2 + 3.5}
         textAnchor="end" fill={ZONE_COLOR.EASY} fillOpacity="0.14"
         fontSize="8" fontFamily="monospace" fontWeight="800" letterSpacing="2.5">
-        FÁCIL
+        EASY
       </text>
     </g>
   );
 }
 
-// ─── Trajectory Line ─────────────────────────────────────────────────────────────
+// --- Trajectory Line -------------------------------------------------------------
 function Trayectoria({ pts, attempts, uid }: {
   pts: [number, number][]; attempts: Attempt[]; uid: string
 }) {
@@ -223,7 +223,7 @@ function Trayectoria({ pts, attempts, uid }: {
           transition={{ duration: 2, ease: [0.16, 1, 0.3, 1] }} />
       </g>
 
-      {/* Checkpoint nodes — only past points */}
+      {/* Checkpoint nodes - only past points */}
       {pts.slice(0, -1).map(([cx, cy], i) => {
         const ok = attempts[i].correct !== false;
         const color = ok ? ZONE_COLOR[attempts[i].difficulty] : '#F87171';
@@ -240,13 +240,13 @@ function Trayectoria({ pts, attempts, uid }: {
   );
 }
 
-// ─── AlienPilot — posicionado EXACTAMENTE en el endpoint de la línea ─────────────
+// --- AlienPilot - positioned exactly at the line endpoint -------------
 function AlienPilot({ cx, cy, color, mood }: {
   cx: number; cy: number; color: string; mood: 'neutral' | 'up' | 'down'
 }) {
   if (!Number.isFinite(cx) || !Number.isFinite(cy)) return null;
   // La nave mide 28 × 50 unidades SVG.
-  // `cy` es el punto donde el nozzle de la nave toca la línea.
+  // `cy` is the point where the ship nozzle touches the line.
   // Desplazamos el grupo para que el fondo del cuerpo quede en cy.
 
   const tilt = mood === 'up' ? -5 : mood === 'down' ? 6 : 0;
@@ -270,7 +270,7 @@ function AlienPilot({ cx, cy, color, mood }: {
           animate={{ rx: [24, 34, 24], ry: [17, 24, 17], opacity: [0.04, 0.13, 0.04] }}
           transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }} />
 
-        {/* ── Hull ── */}
+        {/* -- Hull -- */}
         <path d="M14 2 C8 2 5 8 5 15 L5 40 Q5 46 9.5 46 L18.5 46 Q23 46 23 40 L23 15 C23 8 20 2 14 2 Z"
           fill="#060C1A" stroke={color} strokeWidth="0.9" />
         {/* Hull accents */}
@@ -289,7 +289,7 @@ function AlienPilot({ cx, cy, color, mood }: {
         <rect x={9} y={45} width={10} height={5.5} rx={2}
           fill="#030812" stroke={color} strokeWidth="0.6" />
 
-        {/* ── Marcianito ── */}
+        {/* -- Marcianito -- */}
         {/* Body */}
         <ellipse cx={14} cy={30} rx={4} ry={4.5} fill="#1DA870" />
         {/* Head */}
@@ -317,7 +317,7 @@ function AlienPilot({ cx, cy, color, mood }: {
         {mood === 'down' && <path d="M12 22 Q14 20.5 16 22" stroke="#030812" strokeWidth="0.7" fill="none" strokeLinecap="round" />}
         {mood === 'neutral' && <path d="M12 21.5 Q14 21.8 16 21.5" stroke="#030812" strokeWidth="0.7" fill="none" strokeLinecap="round" />}
 
-        {/* ── Engine flame ── */}
+        {/* -- Engine flame -- */}
         <motion.ellipse cx={14} cy={53} rx={4.5} ry={0}
           fill="#FCD34D"
           animate={{ ry: flame.ry, opacity: [0.95, 0.5, 0.95] }}
@@ -337,7 +337,7 @@ function AlienPilot({ cx, cy, color, mood }: {
   );
 }
 
-// ─── Floating stats — posicionados sobre el canvas SVG como texto ─────────────────
+// --- Floating stats - posicionados sobre el canvas SVG como texto -----------------
 // Todo en el mismo layer: nada por encima, nada por debajo.
 
 function FloatingStats({ attempts, uid: _uid }: {
@@ -361,7 +361,7 @@ function FloatingStats({ attempts, uid: _uid }: {
 
   return (
     <g fontFamily="monospace">
-      {/* ── TOP LEFT: XP ── */}
+      {/* -- TOP LEFT: XP -- */}
       <text x={PL} y={PT - 28}
         fontSize="8.5" fontWeight="700" fill="rgba(255,255,255,0.22)"
         letterSpacing="2">XP ACUMULADO</text>
@@ -371,17 +371,17 @@ function FloatingStats({ attempts, uid: _uid }: {
         {totalXP}
       </text>
 
-      {/* ── TOP RIGHT: Racha ── */}
+      {/* -- TOP RIGHT: Streak -- */}
       <text x={VW - PR} y={PT - 28} textAnchor="end"
         fontSize="8.5" fontWeight="700" fill="rgba(255,255,255,0.22)"
-        letterSpacing="2">RACHA</text>
+        letterSpacing="2">STREAK</text>
       <text x={VW - PR} y={PT - 10} textAnchor="end"
         fontSize="26" fontWeight="900" fill="#FB923C"
         style={{ filter: 'drop-shadow(0 0 12px rgba(251,146,60,0.55))' }}>
         {streak}
       </text>
 
-      {/* ── BOTTOM LEFT: intentos + zona ── */}
+      {/* -- BOTTOM LEFT: attempts + zona -- */}
       <text x={PL} y={VH - 26}
         fontSize="8" fontWeight="700" fill="rgba(255,255,255,0.2)"
         letterSpacing="2">INTENTOS</text>
@@ -399,7 +399,7 @@ function FloatingStats({ attempts, uid: _uid }: {
         {lastDiff}
       </text>
 
-      {/* ── BOTTOM CENTER: B2 progress bar ── */}
+      {/* -- BOTTOM CENTER: B2 progress bar -- */}
       <text x={barX + 62} y={barY - 12} textAnchor="middle"
         fontSize="7.5" fontWeight="700" fill="rgba(255,255,255,0.2)"
         letterSpacing="2">HACIA B2</text>
@@ -414,7 +414,7 @@ function FloatingStats({ attempts, uid: _uid }: {
         {b2Pct}%
       </text>
 
-      {/* ── BOTTOM RIGHT: mejor score ── */}
+      {/* -- BOTTOM RIGHT: mejor score -- */}
       <text x={VW - PR} y={VH - 26} textAnchor="end"
         fontSize="8" fontWeight="700" fill="rgba(255,255,255,0.2)"
         letterSpacing="2">MEJOR</text>
@@ -426,7 +426,7 @@ function FloatingStats({ attempts, uid: _uid }: {
   );
 }
 
-// ─── ExerciseSheet ─────────────────────────────────────────────────────────────
+// --- ExerciseSheet -------------------------------------------------------------
 function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
   exercise: Exercise; index: number;
   onAnswer: (c: boolean, s: number) => void;
@@ -519,7 +519,7 @@ function ExerciseSheet({ exercise, index, onAnswer, onClose }: {
   );
 }
 
-// ─── Main ────────────────────────────────────────────────────────────────────────
+// --- Main ------------------------------------------------------------------------
 export default function VicissitudesEngine() {
   const uid = useId().replace(/:/g, '');
   const [attempts, setAttempts] = useState<Attempt[]>(SEED);
@@ -557,7 +557,7 @@ export default function VicissitudesEngine() {
         zIndex: 1,
       }} />
 
-      {/* ── Single SVG universe — EVERYTHING lives here ── */}
+      {/* -- Single SVG universe - EVERYTHING lives here -- */}
       <svg
         viewBox={`0 0 ${VW} ${VH}`}
         width="100%"
@@ -577,7 +577,7 @@ export default function VicissitudesEngine() {
         )}
       </svg>
 
-      {/* ── Vocabulary — fluye bajo el canvas sin separación de sección ── */}
+      {/* Vocabulary flows below the canvas without a separate section break */}
       <motion.div
         className="flex flex-wrap gap-1.5 px-5 pb-5 pt-3"
         style={{
@@ -647,7 +647,7 @@ export default function VicissitudesEngine() {
         </motion.button>
       </motion.div>
 
-      {/* ── Exercise sheet overlay ── */}
+      {/* -- Exercise sheet overlay -- */}
       <AnimatePresence>
         {practicing && (
           <ExerciseSheet
@@ -662,3 +662,4 @@ export default function VicissitudesEngine() {
     </div>
   );
 }
+

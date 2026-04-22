@@ -7,13 +7,13 @@ POST /api/auth/progress/complete/ → registra completion de un ejercicio
 import json
 
 from django.http import JsonResponse
-from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from attempts.models import SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt
 from users.models import UserProgress, UserWeakCategory
+from system_config.services import LevelProgressionService
 
 
 def _require_auth(request):
@@ -47,9 +47,9 @@ def _get_best_scores(user):
     from django.db.models import Max
     scores = {}
 
-    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+    for model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
         qs = (
-            Model.objects
+            model.objects
             .filter(user=user, score__isnull=False)
             .values('question_id')
             .annotate(best=Max('score'))
@@ -71,6 +71,7 @@ _SKILL_FIELD = {
 }
 
 
+
 @method_decorator(csrf_exempt, name='dispatch')
 class ProgressView(View):
 
@@ -80,6 +81,7 @@ class ProgressView(View):
             return auth_error
 
         progress, _ = UserProgress.objects.get_or_create(user=request.user)
+        level_progress = LevelProgressionService.get_user_level_progress(request.user, progress=progress)
 
         return JsonResponse({
             'total_xp':             progress.total_xp,
@@ -91,12 +93,13 @@ class ProgressView(View):
             'average_writing':      progress.average_writing,
             'completed_question_ids': _get_completed_ids(request.user),
             'question_scores':        _get_best_scores(request.user),
+            'level_progress':         level_progress,
         })
 
     def post(self, request):
         """
-        Body: { "question_id": int, "question_type": str, "score": float, "xp_earned": int }
-        Crea el Attempt correspondiente, actualiza UserProgress y UserWeakCategory.
+        Body: { "question_type": str, "score": float, "xp_earned": int }
+        Actualiza UserProgress y UserWeakCategory.
         """
         auth_error = _require_auth(request)
         if auth_error:
@@ -104,72 +107,26 @@ class ProgressView(View):
 
         try:
             body = json.loads(request.body)
-            question_id = int(body.get('question_id', 0))
             score       = float(body.get('score', 0))
             xp_earned   = int(body.get('xp_earned', 0))
             q_type      = body.get('question_type', '')
-        except (json.JSONDecodeError, ValueError, TypeError):
+        except (TypeError, json.JSONDecodeError):
             return JsonResponse({'error': 'Invalid body.'}, status=400)
 
-        # ── Create Attempt record ──────────────────────────────────────────────
-        if question_id:
-            try:
-                from questions.models import Question
-                question = Question.objects.get(id=question_id)
-                difficulty = question.difficulty or 'EASY'
-
-                if q_type == 'SPEAKING':
-                    SpeakingAttempt.objects.create(
-                        user=request.user,
-                        question=question,
-                        expected_text=question.text,
-                        score=score,
-                        xp_earned=xp_earned,
-                        difficulty=difficulty,
-                    )
-
-                elif q_type == 'LISTENING_SHADOWING':
-                    ListeningAttempt.objects.create(
-                        user=request.user,
-                        question=question,
-                        listening_type='LISTENING_SHADOWING',
-                        score=score,
-                        xp_earned=xp_earned,
-                        difficulty=difficulty,
-                    )
-
-                elif q_type == 'LISTENING_COMPREHENSION':
-                    ListeningAttempt.objects.create(
-                        user=request.user,
-                        question=question,
-                        listening_type='LISTENING_COMPREHENSION',
-                        correct=(score >= 50),
-                        score=score,
-                        xp_earned=xp_earned,
-                        difficulty=difficulty,
-                    )
-
-                elif q_type == 'READING':
-                    ReadingAttempt.objects.create(
-                        user=request.user,
-                        question=question,
-                        selected_answer='',
-                        correct=(score >= 50),
-                        score=score,
-                        xp_earned=xp_earned,
-                        difficulty=difficulty,
-                    )
-
-                # WRITING attempts are already created by the evaluate_writing endpoint.
-
-            except Exception:
-                pass  # Never block XP update if attempt creation fails
-
         # ── Update UserProgress ───────────────────────────────────────────────
-        progress, _ = UserProgress.objects.get_or_create(user=request.user)
+        # NOTE: Attempt records are already created by each skill's evaluate
+        # endpoint (speaking/evaluate, reading/evaluate, etc.). This endpoint
+        # only updates UserProgress (total_xp, streak, skill averages).
+        # We trust xp_earned from the frontend — it was returned by the
+        # evaluate endpoint which already handles the "already completed"
+        # deduplication logic.
+        xp_delta = max(0, xp_earned)
 
-        progress.add_xp(xp_earned)
+        progress, _ = UserProgress.objects.get_or_create(user=request.user)
+        progress.add_xp(xp_delta)
         progress.update_streak()
+
+        level_progress = LevelProgressionService.get_user_level_progress(request.user, progress=progress)
 
         skill_field = _SKILL_FIELD.get(q_type)
         if skill_field:
@@ -188,4 +145,7 @@ class ProgressView(View):
         return JsonResponse({
             'total_xp':    progress.total_xp,
             'streak_days': progress.streak_days,
+            'xp_delta':    xp_delta,
+            'current_score': score,
+            'level_progress': level_progress,
         })

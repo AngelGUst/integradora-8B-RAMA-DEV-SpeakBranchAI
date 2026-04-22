@@ -1,6 +1,7 @@
 import axios from 'axios';
 import apiClient from '@/shared/api/client';
 import type {
+  Gender,
   LoginCredentials,
   LoginResponse,
   GoogleOAuthResponse,
@@ -8,6 +9,13 @@ import type {
   RegisterResponse,
   User,
 } from '../types/auth.types';
+
+export interface ProfileUpdatePayload {
+  first_name?: string;
+  age?: number | null;
+  gender?: Gender | null;
+  avatar_url?: string | null;
+}
 
 // ── Dev mock (used when backend is unreachable) ───────────────
 
@@ -180,11 +188,39 @@ export const authApi = {
   },
 
   /**
-   * Handle Google OAuth credential response
+   * Complete Google OAuth using a One Tap ID token (credential JWT).
+   * Distinct from googleCallback which uses an authorization code.
+   */
+  googleOneTap: async (credential: string): Promise<GoogleOAuthResponse> => {
+    const { data } = await apiClient.post<{ access_token: string; refresh_token: string; is_new_user: boolean }>(
+      '/auth/google/callback/',
+      { credential },
+    );
+    const { data: user } = await apiClient.get<User>('/auth/me/', {
+      headers: { Authorization: `Bearer ${data.access_token}` },
+    });
+    return {
+      access: data.access_token,
+      refresh: data.refresh_token,
+      user,
+      isNewUser: data.is_new_user,
+    };
+  },
+
+  /**
+   * Update the authenticated user's editable profile fields.
+   */
+  updateProfile: async (payload: ProfileUpdatePayload): Promise<User> => {
+    const { data } = await apiClient.patch<User>('/auth/me/', payload);
+    return data;
+  },
+
+  /**
+   * Handle Google OAuth credential response (One Tap flow)
    */
   handleGoogleResponse: async (credential: string): Promise<GoogleOAuthResponse> => {
     try {
-      const response = await authApi.googleCallback(credential);
+      const response = await authApi.googleOneTap(credential);
       localStorage.setItem('sb_access_token', response.access);
       localStorage.setItem('sb_refresh_token', response.refresh);
       return response;

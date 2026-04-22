@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/vocabulary/', include('vocabulary.urls')),
     path('api/', include('attempts.urls')),
     path('api/', include('questions.urls')),
+    path('api/', include('exams.urls')),
     path('api/system/', include('system_config.url')),
-
+    path('api/', include('dashboard.urls')),
 ]

@@ -48,6 +48,62 @@ class GoogleOAuthRedirectView(APIView):
         return redirect(f"{GOOGLE_AUTH_URL}?{urlencode(params)}")
 
 
+def _verify_one_tap_credential(credential):
+    """Verify Google One Tap ID token and return user info or error response"""
+    tokeninfo_resp = http_requests.get(
+        'https://oauth2.googleapis.com/tokeninfo',
+        params={'id_token': credential},
+        timeout=10,
+    )
+    if not tokeninfo_resp.ok:
+        return None, Response(
+            {'error': 'Failed to verify Google ID token.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    tokeninfo = tokeninfo_resp.json()
+    if tokeninfo.get('aud') != settings.GOOGLE_CLIENT_ID:
+        return None, Response(
+            {'error': 'Google token audience mismatch.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    
+    return tokeninfo, None
+
+
+def _exchange_oauth_code(code):
+    """Exchange OAuth code for access token and fetch user info"""
+    token_resp = http_requests.post(GOOGLE_TOKEN_URL, data={
+        'code': code,
+        'client_id': settings.GOOGLE_CLIENT_ID,
+        'client_secret': settings.GOOGLE_CLIENT_SECRET,
+        'redirect_uri': settings.GOOGLE_REDIRECT_URI,
+        'grant_type': 'authorization_code',
+    }, timeout=10)
+
+    if not token_resp.ok:
+        return None, Response(
+            {'error': 'Failed to exchange authorization code with Google.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    google_access_token = token_resp.json().get('access_token')
+
+    userinfo_resp = http_requests.get(
+        GOOGLE_USERINFO_URL,
+        headers={'Authorization': f'Bearer {google_access_token}'},
+        timeout=10,
+    )
+
+    if not userinfo_resp.ok:
+        return None, Response(
+            {'error': 'Failed to retrieve user info from Google.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return userinfo_resp.json(), None
+
+
 class GoogleOAuthCallbackView(APIView):
     permission_classes = [AllowAny]
 
@@ -75,57 +131,37 @@ class GoogleOAuthCallbackView(APIView):
         tags=['Auth — Google OAuth'],
     )
     def post(self, request):
-        code = request.data.get('code')
-        if not code:
+        credential = request.data.get('credential')  # Google One Tap ID token
+        code = request.data.get('code')              # OAuth authorization code (redirect flow)
+
+        if not credential and not code:
             return Response(
-                {'error': 'Authorization code is required.'},
+                {'error': 'Either credential (One Tap) or code (OAuth) is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # --- Step 1: exchange code → Google access token ---
-        token_resp = http_requests.post(GOOGLE_TOKEN_URL, data={
-            'code': code,
-            'client_id': settings.GOOGLE_CLIENT_ID,
-            'client_secret': settings.GOOGLE_CLIENT_SECRET,
-            'redirect_uri': settings.GOOGLE_REDIRECT_URI,
-            'grant_type': 'authorization_code',
-        }, timeout=10)
+        # Verify credential or exchange code for user info
+        if credential:
+            google_user, error = _verify_one_tap_credential(credential)
+            if error:
+                return error
+        else:
+            google_user, error = _exchange_oauth_code(code)
+            if error:
+                return error
 
-        if not token_resp.ok:
-            return Response(
-                {'error': 'Failed to exchange authorization code with Google.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        google_access_token = token_resp.json().get('access_token')
-
-        # --- Step 2: fetch user profile from Google ---
-        userinfo_resp = http_requests.get(
-            GOOGLE_USERINFO_URL,
-            headers={'Authorization': f'Bearer {google_access_token}'},
-            timeout=10,
-        )
-
-        if not userinfo_resp.ok:
-            return Response(
-                {'error': 'Failed to retrieve user info from Google.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        google_user = userinfo_resp.json()
         email = google_user.get('email', '').lower()
-
         if not email:
             return Response(
                 {'error': 'Could not retrieve email from Google account.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Extract user info
         first_name = google_user.get('given_name') or google_user.get('name', 'User')
         avatar_url = google_user.get('picture')
 
-        # --- Step 3: find or create user ---
-        # is_active=True: Google already verified this email address
+        # Find or create user
         user, created = User.objects.get_or_create(
             email=email,
             defaults={
@@ -136,15 +172,13 @@ class GoogleOAuthCallbackView(APIView):
         )
 
         if created:
-            # Google users have no password — mark it explicitly unusable
             user.set_unusable_password()
             user.save(update_fields=['password'])
         elif avatar_url and not user.avatar_url:
-            # Backfill avatar for existing users who haven't set one yet
             user.avatar_url = avatar_url
             user.save(update_fields=['avatar_url'])
 
-        # --- Step 4: issue JWT tokens ---
+        # Issue JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             'access_token': str(refresh.access_token),

@@ -96,6 +96,28 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users_created',
+        verbose_name='creado por'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        null=True,
+        blank=True,
+        verbose_name='última actualización'
+    )
+    updated_by = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users_updated',
+        verbose_name='actualizado por'
+    )
     
     # Campos requeridos por Django
     is_staff = models.BooleanField(default=False)

@@ -38,7 +38,7 @@ export function useAudioRecorder(): UseAudioRecorderReturn {
             mediaRecorderRef.current = mediaRecorder;
             mediaRecorder.start();
         } catch {
-            setError('No se pudo acceder al micrófono.');
+            setError('Could not access the microphone.');
         }
     }, []);
 

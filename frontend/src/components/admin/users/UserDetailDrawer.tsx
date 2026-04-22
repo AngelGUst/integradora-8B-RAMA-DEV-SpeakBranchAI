@@ -25,7 +25,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-// ── Types ─────────────────────────────────────────────────────────────────
+// -- Types -----------------------------------------------------------------
 
 interface UserDetail extends UserRow {
   average_speaking:  number;
@@ -41,7 +41,7 @@ interface WritingRow   { id: number; question: string; difficulty: string; score
 
 type AttemptTab = 'speaking' | 'reading' | 'listening' | 'writing';
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// -- Constants --------------------------------------------------------------
 
 const LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'] as const;
 
@@ -58,7 +58,7 @@ const BTN_GHOST =
 const BTN_DANGER =
   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-400 text-[12px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
-// ── Skill bar ──────────────────────────────────────────────────────────────
+// -- Skill bar --------------------------------------------------------------
 
 function SkillBar({ label, icon: Icon, value, color }: { label: string; icon: React.ElementType; value: number; color: string }) {
   const pct = Math.min(100, Math.max(0, value));
@@ -81,17 +81,17 @@ function SkillBar({ label, icon: Icon, value, color }: { label: string; icon: Re
   );
 }
 
-// ── Score badge ────────────────────────────────────────────────────────────
+// -- Score badge ------------------------------------------------------------
 
 function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-white/20">—</span>;
+  if (score === null) return <span className="text-white/20">-</span>;
   const color =
     score >= 80 ? 'text-emerald-400' :
     score >= 50 ? 'text-amber-400'   : 'text-red-400';
   return <span className={`font-semibold tabular-nums ${color}`}>{score.toFixed(0)}</span>;
 }
 
-// ── Attempts tabs ──────────────────────────────────────────────────────────
+// -- Attempts tabs ----------------------------------------------------------
 
 function AttemptsPanel({ userId }: { userId: number }) {
   const [activeTab, setActiveTab] = useState<AttemptTab>('speaking');
@@ -101,7 +101,7 @@ function AttemptsPanel({ userId }: { userId: number }) {
   useEffect(() => {
     setLoading(true);
     setData([]);
-    apiFetch<{ tab: string; results: unknown[] }>(`/api/auth/users/${userId}/attempts/?tab=${activeTab}`)
+    apiFetch<{ tab: string; results: unknown[] }>(`/auth/users/${userId}/attempts/?tab=${activeTab}`)
       .then(r => setData(r.results))
       .catch(() => setData([]))
       .finally(() => setLoading(false));
@@ -138,7 +138,7 @@ function AttemptsPanel({ userId }: { userId: number }) {
           <Loader2 size={18} className="animate-spin text-white/20" />
         </div>
       ) : data.length === 0 ? (
-        <p className="text-center text-[12px] text-white/20 py-10">Sin intentos registrados</p>
+        <p className="text-center text-[12px] text-white/20 py-10">No recorded attempts</p>
       ) : (
         <div className="space-y-2 max-h-72 overflow-y-auto pr-1 custom-scroll">
           {activeTab === 'speaking'  && (data as SpeakingRow[]).map(r  => <SpeakingRow  key={r.id} r={r} />)}
@@ -182,7 +182,7 @@ function ReadingRow({ r }: { r: ReadingRow }) {
       <p className="text-white/60 truncate">{r.question}</p>
       <div className="flex items-center gap-2 mt-1">
         <span className={`text-[10px] font-medium ${r.correct ? 'text-emerald-400' : 'text-red-400'}`}>
-          {r.correct ? '✓ Correcto' : '✗ Incorrecto'}
+          {r.correct ? ' Correcto' : 'S× Incorrecto'}
         </span>
         <span className="text-[10px] bg-white/[0.05] rounded px-1.5 py-0.5 text-white/30">{r.difficulty}</span>
       </div>
@@ -196,7 +196,7 @@ function ListeningRow({ r }: { r: ListeningRow }) {
       <p className="text-white/60 truncate">{r.question}</p>
       <div className="flex items-center gap-2 mt-1 flex-wrap">
         <span className="text-[10px] bg-white/[0.05] rounded px-1.5 py-0.5 text-white/30">
-          {r.listening_type === 'LISTENING_SHADOWING' ? 'Shadowing' : 'Comprensión'}
+          {r.listening_type === 'LISTENING_SHADOWING' ? 'Shadowing' : 'Comprehension'}
         </span>
         <span className="text-[10px] bg-white/[0.05] rounded px-1.5 py-0.5 text-white/30">{r.difficulty}</span>
         {r.replays_used > 0 && (
@@ -226,7 +226,7 @@ function WritingRow({ r }: { r: WritingRow }) {
   );
 }
 
-// ── Confirmation dialog ────────────────────────────────────────────────────
+// -- Confirmation dialog ----------------------------------------------------
 
 function ConfirmDialog({
   message,
@@ -247,15 +247,15 @@ function ConfirmDialog({
           <p className="text-[13px] text-white/70 leading-relaxed">{message}</p>
         </div>
         <div className="flex gap-2 justify-end">
-          <button onClick={onCancel} className={BTN_GHOST}>Cancelar</button>
-          <button onClick={onConfirm} className={BTN_DANGER}>Eliminar</button>
+          <button onClick={onCancel} className={BTN_GHOST}>Cancel</button>
+          <button onClick={onConfirm} className={BTN_DANGER}>Delete</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main drawer ────────────────────────────────────────────────────────────
+// -- Main drawer ------------------------------------------------------------
 
 export default function UserDetailDrawer({
   user: initialUser,
@@ -295,7 +295,7 @@ export default function UserDetailDrawer({
 
   useEffect(() => {
     setLD(true);
-    apiFetch<UserDetail>(`/api/auth/users/${initialUser.id}/`)
+    apiFetch<UserDetail>(`/auth/users/${initialUser.id}/`)
       .then(d => {
         setDetail(d);
         setLevel(d.level);
@@ -311,7 +311,7 @@ export default function UserDetailDrawer({
     setSaveError('');
     setSaved(false);
     try {
-      const updated = await apiFetch<UserDetail>(`/api/auth/users/${detail.id}/`, {
+      const updated = await apiFetch<UserDetail>(`/auth/users/${detail.id}/`, {
         method: 'PATCH',
         body: JSON.stringify({ level, role }),
       });
@@ -322,7 +322,7 @@ export default function UserDetailDrawer({
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: unknown) {
-      setSaveError(e instanceof Error ? e.message : 'Error al guardar');
+      setSaveError(e instanceof Error ? e.message : 'Error while saving');
     } finally {
       setSaving(false);
     }
@@ -332,12 +332,12 @@ export default function UserDetailDrawer({
     setPwdError('');
     setPwdSuccess(false);
     if (newPassword.length < 8) {
-      setPwdError('Mínimo 8 caracteres');
+      setPwdError('Minimum 8 characters');
       return;
     }
     setSavingPwd(true);
     try {
-      await apiFetch(`/api/auth/users/${initialUser.id}/reset-password/`, {
+      await apiFetch(`/auth/users/${initialUser.id}/reset-password/`, {
         method: 'POST',
         body: JSON.stringify({ new_password: newPassword }),
       });
@@ -345,7 +345,7 @@ export default function UserDetailDrawer({
       setPwdSuccess(true);
       setTimeout(() => setPwdSuccess(false), 3000);
     } catch (e: unknown) {
-      setPwdError(e instanceof Error ? e.message : 'Error al cambiar contraseña');
+      setPwdError(e instanceof Error ? e.message : 'Error changing password');
     } finally {
       setSavingPwd(false);
     }
@@ -354,7 +354,7 @@ export default function UserDetailDrawer({
   async function handleDelete() {
     setDeleting(true);
     try {
-      await apiFetch(`/api/auth/users/${initialUser.id}/`, { method: 'DELETE' });
+      await apiFetch(`/auth/users/${initialUser.id}/`, { method: 'DELETE' });
       onDeleted(initialUser.id);
     } catch {
       setDeleting(false);
@@ -368,7 +368,7 @@ export default function UserDetailDrawer({
     <>
       {confirmDelete && (
         <ConfirmDialog
-          message={`¿Eliminar la cuenta de ${user.first_name}? Esta acción es irreversible y borrará todos sus intentos y progreso.`}
+          message={`Delete account for ${user.first_name}? This action is irreversible and will delete all attempts and progress.`}
           onConfirm={handleDelete}
           onCancel={() => setConfirmDelete(false)}
         />
@@ -404,8 +404,8 @@ export default function UserDetailDrawer({
         <div className="grid grid-cols-3 gap-px bg-white/[0.04] border-b border-white/[0.06] shrink-0">
           {[
             { label: 'XP Total',  value: user.total_xp.toLocaleString(), icon: Zap,   color: 'text-amber-400' },
-            { label: 'Racha',     value: `${user.streak_days}d`,         icon: Flame, color: 'text-orange-400' },
-            { label: 'Nivel',     value: user.level,                     icon: User,  color: 'text-indigo-400' },
+            { label: 'Streak',     value: `${user.streak_days}d`,         icon: Flame, color: 'text-orange-400' },
+            { label: 'Level',     value: user.level,                     icon: User,  color: 'text-indigo-400' },
           ].map(s => (
             <div key={s.label} className="bg-zinc-950 flex flex-col items-center py-3 gap-1">
               <s.icon size={14} className={s.color} />
@@ -424,7 +424,7 @@ export default function UserDetailDrawer({
               className={`flex-1 py-2.5 text-[12px] font-medium border-b-2 -mb-px transition-colors
                 ${section === s ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-white/30 hover:text-white/60'}`}
             >
-              {s === 'profile' ? 'Perfil & Progreso' : 'Historial'}
+              {s === 'profile' ? 'Profile & Progress' : 'History'}
             </button>
           ))}
         </div>
@@ -437,12 +437,12 @@ export default function UserDetailDrawer({
             </div>
           ) : section === 'profile' ? (
             <>
-              {/* ── Profile edit ── */}
+              {/* -- Profile edit -- */}
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Ajustes de cuenta</p>
                 <div className="space-y-3">
                   <div>
-                    <label className={LABEL}>Nivel CEFR</label>
+                    <label className={LABEL}>CEFR Level</label>
                     <select value={level} onChange={e => setLevel(e.target.value)} className={SELECT}>
                       {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
                     </select>
@@ -450,8 +450,8 @@ export default function UserDetailDrawer({
                   <div>
                     <label className={LABEL}>Rol</label>
                     <select value={role} onChange={e => setRole(e.target.value as 'ADMIN' | 'STUDENT')} className={SELECT}>
-                      <option value="STUDENT">Estudiante</option>
-                      <option value="ADMIN">Administrador</option>
+                      <option value="STUDENT">Student</option>
+                      <option value="ADMIN">Administrator</option>
                     </select>
                   </div>
                 </div>
@@ -460,11 +460,11 @@ export default function UserDetailDrawer({
 
                 <button onClick={handleSave} disabled={saving} className={`${BTN_PRIMARY} mt-3`}>
                   {saving ? <Loader2 size={12} className="animate-spin" /> : saved ? <Check size={12} /> : null}
-                  {saved ? 'Guardado' : 'Guardar cambios'}
+                  {saved ? 'Saved' : 'Save changes'}
                 </button>
               </div>
 
-              {/* ── Skill averages ── */}
+              {/* -- Skill averages -- */}
               {detail && (
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Promedios por habilidad</p>
@@ -477,15 +477,15 @@ export default function UserDetailDrawer({
                 </div>
               )}
 
-              {/* ── Password reset ── */}
+              {/* -- Password reset -- */}
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">Nueva contraseña</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/25 mb-3">New password</p>
                 <div className="flex gap-2">
                   <input
                     type="password"
                     value={newPassword}
                     onChange={e => setNewPwd(e.target.value)}
-                    placeholder="Mín. 8 caracteres"
+                    placeholder="Min. 8 characters"
                     className={INPUT}
                   />
                   <button onClick={handlePasswordReset} disabled={savingPwd} className={BTN_GHOST}>
@@ -494,14 +494,14 @@ export default function UserDetailDrawer({
                   </button>
                 </div>
                 {pwdError   && <p className="mt-1.5 text-[11px] text-red-400">{pwdError}</p>}
-                {pwdSuccess && <p className="mt-1.5 text-[11px] text-emerald-400 flex items-center gap-1"><Check size={11} /> Contraseña actualizada</p>}
+                {pwdSuccess && <p className="mt-1.5 text-[11px] text-emerald-400 flex items-center gap-1"><Check size={11} /> Current passwordizada</p>}
               </div>
 
-              {/* ── Danger zone ── */}
+              {/* -- Danger zone -- */}
               <div className="border border-red-900/30 rounded-xl p-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-red-500/60 mb-2">Zona de peligro</p>
                 <p className="text-[12px] text-white/30 mb-3">
-                  Eliminar la cuenta borra permanentemente todos los intentos, progreso y vocabulario diario del usuario.
+                  Deleting the account permanently removes all attempts, progress, and daily vocabulary for this user.
                 </p>
                 <button
                   onClick={() => setConfirmDelete(true)}
@@ -509,21 +509,21 @@ export default function UserDetailDrawer({
                   className={BTN_DANGER}
                 >
                   {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                  Eliminar cuenta
+                  Delete account
                 </button>
               </div>
 
               {/* Role badge info */}
               <div className="flex items-center gap-2 text-[11px] text-white/20">
                 {user.role === 'ADMIN' ? (
-                  <><ShieldCheck size={12} className="text-amber-400/60" /> Cuenta de administrador</>
+                  <><ShieldCheck size={12} className="text-amber-400/60" /> Administrator account</>
                 ) : (
-                  <><GraduationCap size={12} /> Creado el {user.created_at ?? '—'}</>
+                  <><GraduationCap size={12} /> Created on {user.created_at ?? '-'}</>
                 )}
               </div>
             </>
           ) : (
-            /* ── History ── */
+            /* -- History -- */
             <AttemptsPanel userId={initialUser.id} />
           )}
         </div>
@@ -531,3 +531,4 @@ export default function UserDetailDrawer({
     </>
   );
 }
+

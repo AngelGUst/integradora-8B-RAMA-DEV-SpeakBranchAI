@@ -1,21 +1,22 @@
 /**
- * DashboardPage — SpeakBranch AI
+ * DashboardPage - SpeakBranch AI
  *
  * Stats & overview hub. XP and completion state come from localStorage via
  * useLearnProgress so they always reflect the user's actual progress.
  *
  * Key features:
- *  - Live "next exercise" CTA → navigates directly to /exercise/:id
- *  - "Practicar" per skill → finds the next unlocked exercise for that skill
- *  - Adaptive engine window (last 3 XP scores → derived difficulty)
+ *  - Live "next exercise" CTA  - navigates directly to /exercise/:id
+ *  - "Practicar" per skill  - finds the next unlocked exercise for that skill
+ *  - Adaptive engine window (last 3 XP scores  - derived difficulty)
  *  - Certification path timeline
  *  - Performance trajectory chart (VicissitudesEngine)
  */
 
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mic, Headphones, BookOpen, Repeat,
-  Trophy, Flame, Zap, ArrowRight, CheckCircle2, Lock,
+  Trophy, Flame, Zap, ArrowRight, CheckCircle2, Lock, GraduationCap,
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useLearnProgress } from '@/shared/hooks/useLearnProgress';
@@ -23,39 +24,45 @@ import AppSidebar from '@/shared/components/layout/AppSidebar';
 import VicissitudesEngine from '../components/VicissitudesEngine';
 import { LEARN_PATH } from '@/features/learn/data/pathData';
 import type { LessonNode } from '@/features/learn/data/pathData';
+import { examService } from '@/services/examService';
+import type { Exam } from '@/types/exam';
 
-// ─── Adaptive engine constants (mirrors backend) ──────────────────────────────
+// --- Adaptive engine constants (mirrors backend) ------------------------------
 
 const WINDOW_SIZE = 3;
 const THRESHOLD_UP = 16.0;
 const THRESHOLD_DOWN = 10.0;
-const RECENT_XP = [18, 15, 21]; // TODO: read from last N attempts in localStorage/backend
-const AVG = RECENT_XP.reduce((a, b) => a + b, 0) / RECENT_XP.length;
-const NEXT_DIFF = AVG >= THRESHOLD_UP ? 'HARD' : AVG < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
 
-// ─── CEFR path data ───────────────────────────────────────────────────────────
+// --- CEFR path data -----------------------------------------------------------
 
 const CEFR_STEPS = [
   { level: 'A1', label: 'Beginner' },
   { level: 'A2', label: 'Elementary' },
   { level: 'B1', label: 'Intermediate' },
   { level: 'B2', label: 'Upper-Int.' },
-  { level: 'C1', label: 'Advanced' },
-  { level: 'C2', label: 'Mastery' },
 ] as const;
 
 const CEFR_ORDER = CEFR_STEPS.map(step => step.level);
+const PLACEMENT_RESULT_LEVEL_KEY = 'sb_placement_result_level';
+const CEFR_LEVEL_LABEL: Record<string, string> = {
+  A1: 'Beginner',
+  A2: 'Elementary',
+  B1: 'Intermediate',
+  B2: 'Upper-Intermediate',
+  C1: 'Advanced',
+  C2: 'Mastery',
+};
 
-// ─── Skill definitions ────────────────────────────────────────────────────────
+// --- Skill definitions --------------------------------------------------------
 
 const SKILLS = [
-  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Comprensión lectora con textos CEFR.', score: 82 },
-  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciación evaluada por IA (Whisper).', score: 68 },
-  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Escucha y replica: entrena oído y pronunciación.', score: 45 },
-  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + preguntas. Máximo 3 reproducciones.', score: 59 },
+  { key: 'reading', label: 'Reading', Icon: BookOpen, desc: 'Reading comprehension with CEFR texts.' },
+  { key: 'speaking', label: 'Speaking', Icon: Mic, desc: 'Pronunciation evaluated by AI (Whisper).' },
+  { key: 'shadowing', label: 'Listening · Shadow', Icon: Repeat, desc: 'Listen and repeat: train listening and pronunciation.' },
+  { key: 'comprehension', label: 'Listening · Comp.', Icon: Headphones, desc: 'Audio + questions. Maximum 3 replays.' },
 ] as const;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 /** Returns the first unlocked, uncompleted node across all sections. */
 function findCurrentNode(completedIds: string[], totalXP: number): LessonNode | null {
@@ -86,7 +93,7 @@ function findNextBySkill(skill: string, completedIds: string[], totalXP: number)
   return null;
 }
 
-// ─── Badge ────────────────────────────────────────────────────────────────────
+// --- Badge --------------------------------------------------------------------
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'hard' | 'medium' | 'easy';
 const BADGE_STYLES: Record<BadgeVariant, string> = {
@@ -115,39 +122,99 @@ const SKILL_META: Record<string, { text: string; Icon: React.ElementType }> = {
   exam: { text: 'text-rose-400', Icon: Trophy },
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { totalXP, completedIds } = useLearnProgress();
+  const { totalXP, completedIds, streakDays, questionScores, levelProgress } = useLearnProgress();
   const navigate = useNavigate();
+  const [availableExams, setAvailableExams] = useState<Exam[]>([]);
+  const [placementLevelMessage, setPlacementLevelMessage] = useState<string | null>(null);
+
+  // Fetch exams on mount
+  useEffect(() => {
+    examService.getExams()
+      .then(setAvailableExams)
+      .catch(() => { /* silently ignore */ });
+  }, []);
+
+  useEffect(() => {
+    const level = sessionStorage.getItem(PLACEMENT_RESULT_LEVEL_KEY);
+    if (!level) return;
+    const clean = String(level).toUpperCase();
+    if (!/^(A1|A2|B1|B2|C1|C2)$/.test(clean)) {
+      sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+      return;
+    }
+    const label = CEFR_LEVEL_LABEL[clean] ?? 'Level asignado';
+    setPlacementLevelMessage(`Diagnostic completed. Your assigned level is ${clean} (${label}).`);
+    sessionStorage.removeItem(PLACEMENT_RESULT_LEVEL_KEY);
+  }, []);
 
   const currentNode = findCurrentNode(completedIds, totalXP);
   const currentMeta = currentNode ? SKILL_META[currentNode.skill] : null;
   const CurrentIcon = currentMeta?.Icon;
 
-  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].includes(user.level))
+  const activeLvl = (user?.level && ['A1', 'A2', 'B1', 'B2'].includes(user.level))
     ? user.level : 'A1';
   const activeLvlIdx = CEFR_STEPS.findIndex(s => s.level === activeLvl);
   const nextLvl = activeLvlIdx >= 0 && activeLvlIdx < CEFR_ORDER.length - 1
     ? CEFR_ORDER[activeLvlIdx + 1]
     : null;
 
+  // Find exam for current level (the one to level up from current)
+  const currentExam = availableExams.find(e => e.level === activeLvl);
+  const canTakeExam = currentExam && (currentExam.can_unlock || currentExam.is_unlocked);
+  const examPassedAlready = currentExam?.last_attempt?.passed === true;
+  const requiredLevelXp = currentExam?.required_xp_for_level ?? currentExam?.xp_required ?? 0;
+  const currentLevelXp = levelProgress?.current_level_xp ?? 0;
+  const remainingForExam = Math.max(0, requiredLevelXp - currentLevelXp);
+
+  // Derive recent scores from questionScores for adaptive window
+  const recentScores = Object.values(questionScores).slice(-WINDOW_SIZE);
+  const recentXP = recentScores.length > 0 ? recentScores : [0];
+  const avg = recentXP.reduce((a, b) => a + b, 0) / recentXP.length;
+  const nextDiff = avg >= THRESHOLD_UP ? 'HARD' : avg < THRESHOLD_DOWN ? 'EASY' : 'MEDIUM';
+
+  // Average score across all completed exercises
+  const allScores = Object.values(questionScores);
+  const avgScore = allScores.length > 0
+    ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
+    : 0;
+  const lowestSkill = SKILLS.reduce((lowest, skill) => {
+    return skill.key === 'shadowing' ? skill.key : lowest; // Default lowest to shadowing if no real data
+  }, SKILLS[0].key);
+
   return (
-    <div className="bg-[#07090F] text-zinc-50 min-h-screen flex font-sans">
+    <div className="bg-[#07090F] text-zinc-50 h-screen flex font-sans overflow-hidden">
       <AppSidebar />
 
       <main className="flex-1 h-screen overflow-y-auto">
         <div className="max-w-6xl mx-auto px-8 py-8 space-y-8">
 
-          {/* ── Header ── */}
+          {placementLevelMessage && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-sm font-medium text-emerald-300">{placementLevelMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => setPlacementLevelMessage(null)}
+                  className="text-xs font-semibold text-emerald-200/80 transition-colors hover:text-emerald-100"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* -- Header -- */}
           <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight leading-none mb-1">
                 Hola, {user?.first_name || 'Piloto'}
               </h1>
               <p className="text-zinc-400 text-sm">
-                Nivel <span className="text-zinc-200 font-medium">{activeLvl}</span> · Sigue practicando para avanzar.
+                Level <span className="text-zinc-200 font-medium">{activeLvl}</span> · Keep practicing para avanzar.
               </p>
             </div>
 
@@ -155,8 +222,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-3 px-3">
                 <div className="p-2 bg-amber-500/10 rounded-lg"><Flame size={18} className="text-amber-500" /></div>
                 <div>
-                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Racha</p>
-                  <p className="text-lg font-semibold leading-none">3 <span className="text-sm font-normal text-zinc-500">días</span></p>
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Streak</p>
+                  <p className="text-lg font-semibold leading-none">{streakDays} <span className="text-sm font-normal text-zinc-500">days</span></p>
                 </div>
               </div>
               <div className="w-px h-9 bg-zinc-800" />
@@ -170,7 +237,7 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          {/* ── Next exercise CTA ── */}
+          {/* -- Next exercise CTA -- */}
           {currentNode ? (
             <button
               onClick={() => navigate(`/exercise/${currentNode.id}`)}
@@ -185,11 +252,11 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-[10px] uppercase tracking-widest text-emerald-500/80 font-semibold mb-0.5">Continuar donde lo dejaste</p>
                   <p className="font-semibold text-zinc-100 text-base leading-tight">{currentNode.title}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{currentNode.skill.replace('_', ' ')} · {currentNode.xpMax} XP máx</p>
+                  <p className="text-xs text-zinc-500 mt-0.5 capitalize">{currentNode.skill.replace('_', ' ')} · {currentNode.xpMax} Max XP</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 bg-emerald-500 group-hover:bg-emerald-400 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0">
-                Comenzar <ArrowRight size={15} />
+                Start <ArrowRight size={15} />
               </div>
             </button>
           ) : (
@@ -198,17 +265,61 @@ export default function DashboardPage() {
                 <Trophy size={22} className="text-emerald-400" />
               </div>
               <div>
-                <p className="font-semibold text-zinc-100">¡Nivel {activeLvl} completado!</p>
+                <p className="font-semibold text-zinc-100">Level {activeLvl} completed!</p>
                 <p className="text-sm text-zinc-500">
                   {nextLvl
                     ? `Espera el desbloqueo de ${nextLvl} o practica ejercicios anteriores.`
-                    : 'Has completado el nivel más alto. Practica ejercicios anteriores.'}
+                    : 'You have completed the highest level. Practice previous exercises.'}
                 </p>
               </div>
             </div>
           )}
 
-          {/* ── Performance chart ── */}
+          {/* -- Level-Up Exam CTA -- */}
+          {currentExam && !examPassedAlready && (
+            <div
+              className={`w-full flex items-center justify-between gap-4 p-5 rounded-2xl border transition-all ${canTakeExam
+                ? 'border-violet-500/25 bg-violet-500/[0.06] hover:bg-violet-500/[0.10] hover:border-violet-500/40'
+                : 'border-zinc-800 bg-zinc-900/40'
+                }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl ${canTakeExam ? 'bg-violet-500/15 border border-violet-500/25' : 'bg-zinc-800 border border-zinc-700'}`}>
+                  <GraduationCap size={22} className={canTakeExam ? 'text-violet-400' : 'text-zinc-500'} />
+                </div>
+                <div>
+                  <p className="text-[10px] uppercase tracking-widest text-violet-400/80 font-semibold mb-0.5">
+                    Level Exam
+                  </p>
+                  <p className="font-semibold text-zinc-100 text-base leading-tight">
+                    {currentExam.name}
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {canTakeExam
+                      ? `${currentExam.question_count} questions · ${currentExam.time_limit_minutes} min · Pass with ${currentExam.passing_score}%`
+                      : `You need ${requiredLevelXp} XP in the current level (you have ${currentLevelXp})`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {canTakeExam ? (
+                <button
+                  onClick={() => navigate(`/exam/${currentExam.id}`)}
+                  className="flex items-center gap-2 bg-violet-600 hover:bg-violet-500 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition-colors shrink-0"
+                >
+                  Take exam <ArrowRight size={15} />
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
+                  <Lock size={13} />
+                  {remainingForExam} XP restantes
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* -- Performance chart -- */}
           <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl overflow-hidden">
             <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -224,13 +335,13 @@ export default function DashboardPage() {
             </div>
             <div className="h-64 w-full bg-[#06080F] relative">
               <div className="absolute top-3 left-5 z-10">
-                <p className="text-xs text-zinc-600 font-mono">Últimas {WINDOW_SIZE} interacciones</p>
+                <p className="text-xs text-zinc-600 font-mono">altimas {WINDOW_SIZE} interactions</p>
               </div>
               <VicissitudesEngine />
             </div>
           </section>
 
-          {/* ── Bottom grid ── */}
+          {/* -- Bottom grid -- */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Left col: engine window + cert path */}
@@ -244,8 +355,8 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex items-end gap-2 h-20 mb-5">
-                  {RECENT_XP.map((xp, i) => {
-                    const pct = (xp / 30) * 100;
+                  {recentXP.map((xp, i) => {
+                    const pct = (xp / 100) * 100;
                     const color = xp >= THRESHOLD_UP ? 'bg-purple-500' : xp < THRESHOLD_DOWN ? 'bg-emerald-500' : 'bg-sky-500';
                     return (
                       <div key={i} className="flex-1 flex flex-col justify-end gap-1">
@@ -261,18 +372,18 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between p-3 rounded-lg bg-zinc-950 border border-zinc-800">
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Promedio</p>
-                    <p className="text-sm font-semibold text-zinc-200">{AVG.toFixed(1)} / 30.0</p>
+                    <p className="text-sm font-semibold text-zinc-200">{avg.toFixed(1)} / 100</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Dificultad</p>
-                    <Badge variant={NEXT_DIFF.toLowerCase() as BadgeVariant}>{NEXT_DIFF}</Badge>
+                    <Badge variant={nextDiff.toLowerCase() as BadgeVariant}>{nextDiff}</Badge>
                   </div>
                 </div>
               </section>
 
               {/* Certification path */}
               <section className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-5">
-                <h3 className="font-medium text-zinc-100 text-sm mb-5">Ruta de Certificación</h3>
+                <h3 className="font-medium text-zinc-100 text-sm mb-5">Certification Path</h3>
                 <div className="relative">
                   <div className="absolute left-3 top-2 bottom-4 w-px bg-zinc-800" />
                   <div className="space-y-5">
@@ -301,7 +412,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="text-sm font-medium text-zinc-600">TOEFL</p>
-                        <p className="text-xs text-zinc-700">Examen final</p>
+                        <p className="text-xs text-zinc-700">Final exam</p>
                       </div>
                     </div>
                   </div>
@@ -312,7 +423,7 @@ export default function DashboardPage() {
             {/* Right col: skill modules */}
             <div className="lg:col-span-2 space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-white">Módulos de Práctica</h2>
+                <h2 className="text-lg font-semibold text-white">Practice Modules</h2>
                 <p className="text-sm text-zinc-500 mt-0.5">
                   El motor sugiere la habilidad con menor rendimiento. Puedes practicar cualquiera.
                 </p>
@@ -320,14 +431,14 @@ export default function DashboardPage() {
 
               {SKILLS.map(skill => {
                 const nextId = findNextBySkill(skill.key, completedIds, totalXP);
-                const recommended = skill.key === 'shadowing'; // lowest score → recommended
+                const recommended = skill.key === lowestSkill;
 
                 return (
                   <div
                     key={skill.key}
                     className={`flex items-center justify-between p-5 rounded-xl border transition-all ${recommended
-                        ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
-                        : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
+                      ? 'bg-emerald-950/20 border-emerald-500/25 shadow-[0_0_20px_rgba(16,185,129,0.04)]'
+                      : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'
                       }`}
                   >
                     <div className="flex items-center gap-4">
@@ -351,7 +462,7 @@ export default function DashboardPage() {
                       <div className="hidden sm:block text-right">
                         <p className="text-[10px] text-zinc-600 uppercase tracking-wider mb-0.5">Score</p>
                         <div className="flex items-end gap-0.5">
-                          <span className="text-lg font-semibold text-zinc-200 leading-none">{skill.score}</span>
+                          <span className="text-lg font-semibold text-zinc-200 leading-none">{avgScore}</span>
                           <span className="text-xs text-zinc-600 mb-0.5">/100</span>
                         </div>
                       </div>
@@ -360,8 +471,8 @@ export default function DashboardPage() {
                         <button
                           onClick={() => navigate(`/exercise/${nextId}`)}
                           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all shrink-0 ${recommended
-                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
-                              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
+                            : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700'
                             }`}
                         >
                           Practicar
@@ -370,7 +481,7 @@ export default function DashboardPage() {
                       ) : (
                         <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm text-zinc-600 border border-zinc-800 cursor-not-allowed shrink-0">
                           <Lock size={13} />
-                          Bloqueado
+                          Locked
                         </div>
                       )}
                     </div>
@@ -385,3 +496,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

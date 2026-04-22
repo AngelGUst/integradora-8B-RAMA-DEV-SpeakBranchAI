@@ -1,3 +1,5 @@
+from django.db.models import Prefetch
+
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -9,12 +11,12 @@ from questions.models import Question, QuestionVocabulary
 from questions.permissions import IsAdminRole
 from questions.serializers import (
     BaseQuestionSerializer,
+    QuestionListSerializer,
     ListeningComprehensionSerializer,
     ListeningShadowingSerializer,
     ReadingQuestionSerializer,
     SpeakingQuestionSerializer,
     WritingQuestionSerializer,
-    QuestionVocabularyDetailSerializer,
 )
 
 TYPE_SERIALIZER_MAP = {
@@ -36,8 +38,33 @@ class QuestionViewSet(ModelViewSet):
         return [IsAdminRole()]
 
     def get_queryset(self):
-        qs = Question.objects.select_related('created_by').filter(is_active=True)
+        vocab_prefetch = Prefetch(
+            'vocabulary_items',
+            queryset=QuestionVocabulary.objects
+                .select_related('vocabulary')
+                .order_by('-is_key', '-order'),
+        )
+        qs = (
+            Question.objects
+            .select_related('created_by')
+            .prefetch_related(vocab_prefetch)
+            .filter(is_active=True)
+        )
         return QuestionFilter.apply(qs, self.request.query_params)
+
+    def list(self, request, *args, **kwargs):
+        """
+        Allow fetching all questions in a single request with ?all=true.
+        Keeps paginated behavior by default.
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+        all_mode = request.query_params.get('all', 'false').lower() == 'true'
+
+        if all_mode:
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        return super().list(request, *args, **kwargs)
 
     def get_object(self):
         # Cache para evitar doble query en get_serializer_class + destroy
@@ -46,6 +73,9 @@ class QuestionViewSet(ModelViewSet):
         return self._question_obj
 
     def get_serializer_class(self):
+        # For list action, use lightweight serializer without nested vocabulary
+        if self.action == 'list':
+            return QuestionListSerializer
         # En create usamos el type del body
         if self.action == 'create':
             question_type = self.request.data.get('type')
@@ -74,17 +104,7 @@ class QuestionViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
-        data = serializer.data
-
-        # Attach vocabulary items to detail response
-        items = (
-            QuestionVocabulary.objects
-            .select_related('vocabulary')
-            .filter(question=instance)
-        )
-        data['vocabulary_items'] = QuestionVocabularyDetailSerializer(items, many=True).data
-
-        return Response(data)
+        return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
         from exams.models import ExamQuestion

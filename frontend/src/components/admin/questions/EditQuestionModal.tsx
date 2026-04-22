@@ -35,12 +35,8 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
     (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const setOption = (idx: number) => (e: ChangeEvent<HTMLInputElement>) =>
-    setForm((prev) => {
-      const opts = [...prev.options] as [string, string, string, string];
-      opts[idx] = e.target.value;
-      return { ...prev, options: opts };
-    });
+  const setValue = (key: keyof FormState, value: FormState[keyof FormState]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -64,7 +60,7 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-start justify-center px-4 pt-20 pb-10 bg-black/60 backdrop-blur-sm">
-        <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl max-w-xl w-full">
+        <div className="bg-[#0D0D12] border border-white/[0.08] rounded-2xl max-w-3/5 w-full">
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.05]">
@@ -90,8 +86,8 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
           {/* Tabs */}
           <div className="flex border-b border-white/[0.05]">
             {([
-              { key: 'question',   label: 'Pregunta',    Icon: BookOpen   },
-              { key: 'vocabulary', label: 'Vocabulario', Icon: BookMarked },
+              { key: 'question',   label: 'Question',    Icon: BookOpen   },
+              { key: 'vocabulary', label: 'Vocabulary', Icon: BookMarked },
             ] as { key: Tab; label: string; Icon: LucideIcon }[]).map(({ key, label: tabLabel, Icon: TabIcon }) => (
               <button
                 key={key}
@@ -115,7 +111,7 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
                 type={question.type}
                 form={form}
                 set={set}
-                setOption={setOption}
+                setValue={setValue}
                 onReadingQuestionsChange={(qs) => setForm((prev) => ({ ...prev, reading_questions: qs }))}
               />
             ) : (
@@ -158,7 +154,7 @@ export default function EditQuestionModal({ question, onClose, onUpdate }: Props
 
             {tab === 'vocabulary' && (
               <p className="text-[11px] text-white/20">
-                Los cambios de vocabulario se guardan automáticamente.
+                Vocabulary changes are saved automatically.
               </p>
             )}
           </div>

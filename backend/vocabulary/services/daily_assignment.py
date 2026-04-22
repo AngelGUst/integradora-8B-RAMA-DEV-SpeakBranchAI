@@ -50,9 +50,9 @@ def get_recent_question_ids(user, days=2):
     since = timezone.now().date() - timedelta(days=days)
     question_ids = set()
 
-    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+    for model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
         ids = (
-            Model.objects
+            model.objects
             .filter(user=user, created_at__date__gte=since)
             .values_list('question_id', flat=True)
         )
@@ -85,9 +85,9 @@ def _build_score_map(user, question_ids, since):
 
     score_map = {}
 
-    for Model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
+    for model in (SpeakingAttempt, ReadingAttempt, ListeningAttempt, WritingAttempt):
         rows = (
-            Model.objects
+            model.objects
             .filter(user=user, question_id__in=question_ids, created_at__date__gte=since)
             .values('question_id')
             .annotate(min_score=Min('score'))

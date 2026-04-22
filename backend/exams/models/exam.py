@@ -1,6 +1,7 @@
 # exams/models/exam.py
 from django.db import models
 from django.core.validators import MinValueValidator
+from system_config.services import LevelProgressionService
 
 class Exam(models.Model):
     """Modelo de exámenes"""
@@ -69,9 +70,25 @@ class Exam(models.Model):
         auto_now_add=True,
         verbose_name='fecha de creación'
     )
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exams_created',
+        verbose_name='creado por'
+    )
     updated_at = models.DateTimeField(
         auto_now=True,
         verbose_name='última actualización'
+    )
+    updated_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exams_updated',
+        verbose_name='actualizado por'
     )
     
     class Meta:
@@ -101,6 +118,9 @@ class Exam(models.Model):
     def can_unlock(self, user):
         """Verifica si un usuario puede desbloquear este examen"""
         from users.models import UserProgress
+
+        if self.type == 'LEVEL_UP':
+            return LevelProgressionService.can_take_level_up_exam(user, self.level)
         
         try:
             progress = UserProgress.objects.get(user=user)
@@ -111,25 +131,19 @@ class Exam(models.Model):
     @classmethod
     def get_available_for_user(cls, user):
         """Obtiene todos los exámenes disponibles para un usuario"""
-        from users.models import UserProgress
         from .unlocked_exam import UnlockedExam
-        
-        try:
-            progress = UserProgress.objects.get(user=user)
-            
-            # Exámenes que puede desbloquear por XP
-            available_by_xp = cls.objects.filter(
-                xp_required__lte=progress.total_xp,
-                is_active=True
-            )
-            
-            # Exámenes ya desbloqueados
-            unlocked = UnlockedExam.objects.filter(
-                user=user
-            ).values_list('exam_id', flat=True)
-            
-            # Exámenes no desbloqueados pero disponibles
-            return available_by_xp.exclude(id__in=unlocked)
-            
-        except UserProgress.DoesNotExist:
+
+        if not user.is_authenticated:
             return cls.objects.none()
+
+        unlocked = set(
+            UnlockedExam.objects.filter(user=user).values_list('exam_id', flat=True)
+        )
+
+        available_ids = [
+            exam.id
+            for exam in cls.objects.filter(is_active=True)
+            if exam.id not in unlocked and exam.can_unlock(user)
+        ]
+
+        return cls.objects.filter(id__in=available_ids)

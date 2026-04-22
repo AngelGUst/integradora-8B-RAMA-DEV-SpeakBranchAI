@@ -4,16 +4,20 @@ import LandingPage from '@/features/landing/pages/LandingPage';
 import LoginPage from '@/features/auth/pages/LoginPage';
 import RegisterPage from '@/features/auth/pages/RegisterPage';
 import GoogleCallbackPage from '@/features/auth/pages/GoogleCallbackPage';
+import ConfirmEmailPage from '@/features/auth/pages/ConfirmEmailPage';
 import PlacementTestPage from '@/features/onboarding/pages/PlacementTestPage';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import LearnPathPage from '@/features/learn/pages/LearnPathPage';
 import ExercisePage from '@/features/exercises/pages/ExercisePage';
+import LevelExamPage from '@/features/exams/pages/LevelExamPage';
 import QuestionsPage from '@/pages/admin/QuestionsPage';
 import VocabularyPage from '@/pages/admin/VocabularyPage';
 import UsersPage from '@/pages/admin/UsersPage';
 import SystemConfigPage from '@/pages/admin/SystemConfigPage';
+import AdminDashboardPage from '@/pages/admin/DashboardPage';
 import VocabularyCollectionPage from '@/pages/user/VocabularyCollectionPage';
 import SpeakingPage from '@/pages/user/SpeakingPage';
+import ProfilePage from '@/pages/user/ProfilePage';
 import Logo from '@/shared/components/ui/Logo';
 import type { UserRole } from '@/features/auth/types/auth.types';
 
@@ -22,14 +26,14 @@ import type { UserRole } from '@/features/auth/types/auth.types';
 const PLACEMENT_KEY = 'sb_placement_done';
 
 function isPlacementDone(value?: boolean): boolean {
-  const localFlag = localStorage.getItem(PLACEMENT_KEY) === 'true';
-  if (value === true) return true;
-  if (value === false) return localFlag;
-  return localFlag;
+  // Source of truth: backend (`diagnostic_completed`) when available.
+  // The local flag applies only while the user profile has not loaded yet.
+  if (typeof value === 'boolean') return value;
+  return localStorage.getItem(PLACEMENT_KEY) === 'true';
 }
 
 function getDefaultRoute(role?: UserRole, diagnosticCompleted?: boolean): string {
-  if (role === 'ADMIN') return '/admin/questions';
+  if (role === 'ADMIN') return '/admin/dashboard';
   return isPlacementDone(diagnosticCompleted) ? '/dashboard' : '/onboarding';
 }
 
@@ -134,6 +138,10 @@ export default function AppRouter() {
         path="/auth/google/callback"
         element={<PublicRoute><GoogleCallbackPage /></PublicRoute>}
       />
+      <Route
+        path="/auth/confirm-email/:token"
+        element={<ConfirmEmailPage />}
+      />
 
       {/* Onboarding — placement test (auth required, placement not done) */}
       <Route
@@ -145,7 +153,7 @@ export default function AppRouter() {
       <Route
         path="/dashboard"
         element={(
-          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT', 'ADMIN']}>
             <DashboardPage />
           </PrivateRoute>
         )}
@@ -171,6 +179,16 @@ export default function AppRouter() {
         )}
       />
 
+      {/* Level-up exam */}
+      <Route
+        path="/exam/:examId"
+        element={(
+          <PrivateRoute requiresPlacement allowedRoles={['STUDENT']}>
+            <LevelExamPage />
+          </PrivateRoute>
+        )}
+      />
+
       {/* Speaking practice */}
       <Route
         path="/speaking"
@@ -187,7 +205,18 @@ export default function AppRouter() {
         element={<PrivateRoute requiresPlacement><VocabularyCollectionPage /></PrivateRoute>}
       />
 
+      {/* User profile */}
+      <Route
+        path="/profile"
+        element={<PrivateRoute><ProfilePage /></PrivateRoute>}
+      />
+
       {/* Admin */}
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route
+        path="/admin/dashboard"
+        element={<AdminRoute><AdminDashboardPage /></AdminRoute>}
+      />
       <Route
         path="/admin/questions"
         element={<AdminRoute><QuestionsPage /></AdminRoute>}

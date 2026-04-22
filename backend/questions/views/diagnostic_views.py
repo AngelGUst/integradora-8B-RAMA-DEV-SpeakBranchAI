@@ -9,17 +9,24 @@ from rest_framework.views import APIView
 from questions.models import Question
 from questions.serializers import (
     DiagnosticQuestionSerializer,
+    DiagnosticQuestionPublicSerializer,
     DiagnosticSubmitRequestSerializer,
     DiagnosticSubmitResponseSerializer,
     AdaptiveNextRequestSerializer,
 )
 from questions.services import evaluate_diagnostic, get_next_adaptive_question
+from questions.services.adaptive_service import get_adaptive_session_questions
+from system_config.services import LevelProgressionService
 from users.models import UserProgress
 
 
 class DiagnosticQuestionsView(ListAPIView):
+    """
+    Returns diagnostic questions for placement tests.
+    Uses the public serializer that exposes MCQ options but NOT the correct answer.
+    """
     permission_classes = [IsAuthenticated]
-    serializer_class = DiagnosticQuestionSerializer
+    serializer_class = DiagnosticQuestionPublicSerializer
 
     def get_queryset(self):
         return (
@@ -27,8 +34,6 @@ class DiagnosticQuestionsView(ListAPIView):
                 is_active=True,
                 category=Question.Category.DIAGNOSTIC,
             )
-            .select_related('created_by')
-            .prefetch_related('vocabulary_items__vocabulary')
             .order_by('?')
         )
 
@@ -88,9 +93,20 @@ class DiagnosticSubmitView(APIView):
             request.user.diagnostic_completed = True
             request.user.save(update_fields=['level', 'diagnostic_completed'])
 
+            # Grant XP equal to the start of the assigned level so the user
+            # enters their section already unlocked and with the correct baseline.
+            # e.g. placed at A2 → grant xp_level_a1 XP (200).
+            level_ranges = LevelProgressionService.get_cumulative_level_ranges()
+            placement_xp = level_ranges.get(result.assigned_level, [0])[0]
+
             progress, _ = UserProgress.objects.get_or_create(user=request.user)
             progress.level = result.assigned_level
-            progress.save(update_fields=['level'])
+            # Only set XP if the placement grant is larger than what they already have
+            # (protects against running the diagnostic twice).
+            if placement_xp > progress.total_xp:
+                progress.total_xp = placement_xp
+            progress.level_start_xp = progress.total_xp
+            progress.save(update_fields=['level', 'total_xp', 'level_start_xp'])
 
         response_serializer = DiagnosticSubmitResponseSerializer({
             'assigned_level': result.assigned_level,
@@ -105,6 +121,50 @@ class DiagnosticSubmitView(APIView):
 class LevelExercisesView(ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = DiagnosticQuestionSerializer
+
+    def list(self, request, *args, **kwargs):
+        """
+        Sesión adaptativa de ejercicios:
+        - Tamaño variable por defecto (no fijo en 5)
+        - Selección aleatoria
+        - Dificultad balanceada según desempeño
+
+        Query params:
+        - level, type, category
+        - limit (opcional)
+        - strict_limit=true para respetar exactamente limit
+        - dynamic=false para usar el comportamiento clásico
+        """
+        level = request.query_params.get('level') or getattr(request.user, 'level', 'A1')
+        q_type = request.query_params.get('type')
+        category = request.query_params.get('category')
+        limit = request.query_params.get('limit')
+
+        dynamic = request.query_params.get('dynamic', 'true').lower() != 'false'
+        strict_limit = request.query_params.get('strict_limit', 'false').lower() == 'true'
+
+        parsed_limit = None
+        if limit is not None:
+            try:
+                parsed_limit = int(limit)
+            except (TypeError, ValueError):
+                parsed_limit = None
+
+        if dynamic:
+            questions = get_adaptive_session_questions(
+                user=request.user,
+                level=level,
+                q_type=q_type,
+                category=category,
+                limit=parsed_limit,
+                force_dynamic=not strict_limit,
+            )
+            serializer = self.get_serializer(questions, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def get_queryset(self):
         level = self.request.query_params.get('level') or getattr(self.request.user, 'level', 'A1')
@@ -122,7 +182,7 @@ class LevelExercisesView(ListAPIView):
 
         qs = (
             Question.objects.filter(is_active=True, level=level)
-            .exclude(category=Question.Category.DIAGNOSTIC)
+            .exclude(category__in=[Question.Category.DIAGNOSTIC, Question.Category.LEVEL_UP])
             .select_related('created_by')
             .prefetch_related('vocabulary_items__vocabulary')
             .annotate(difficulty_order=difficulty_order)
@@ -142,7 +202,7 @@ class LevelExercisesView(ListAPIView):
             except ValueError:
                 pass
 
-        return qs
+        return qs.order_by('?')
 
 
 class AdaptiveNextQuestionView(APIView):

@@ -14,6 +14,9 @@ from vocabulary.services import VocabularyAssignmentError, assign_daily_vocabula
 
 logger = logging.getLogger('speakbranch.vocabulary')
 
+# Constant to avoid string duplication
+MSG_NOT_FOUND = 'Not found.'
+
 
 def _require_auth(request):
     """
@@ -105,7 +108,7 @@ class MarkSeenView(View):
                 .get(pk=pk, user=request.user)
             )
         except DailyVocabulary.DoesNotExist:
-            return JsonResponse({'error': 'Not found.'}, status=404)
+            return JsonResponse({'error': MSG_NOT_FOUND}, status=404)
 
         daily_vocab.mark_as_seen()
 
@@ -201,7 +204,7 @@ class VocabularyDetailView(View):
         try:
             return Vocabulary.objects.get(pk=pk), None
         except Vocabulary.DoesNotExist:
-            return None, JsonResponse({'error': 'Not found.'}, status=404)
+            return None, JsonResponse({'error': MSG_NOT_FOUND}, status=404)
 
     def patch(self, request, pk):
         vocab, err = self._get_vocab(pk, request)
@@ -309,12 +312,12 @@ class PracticeVocabularyView(View):
                 .get(pk=pk, user=request.user)
             )
         except DailyVocabulary.DoesNotExist:
-            return JsonResponse({'error': 'Not found.'}, status=404)
+            return JsonResponse({'error': MSG_NOT_FOUND}, status=404)
 
         try:
             body = json.loads(request.body)
             success = bool(body.get('success', True))
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError:
             success = True
 
         daily_vocab.mark_as_practiced(success=success)
@@ -351,7 +354,7 @@ class ExerciseVocabularyView(View):
         try:
             body = json.loads(request.body)
             question_id = int(body.get('question_id', 0))
-        except (json.JSONDecodeError, ValueError, TypeError):
+        except (TypeError, json.JSONDecodeError):
             return JsonResponse({'error': 'Invalid request body.'}, status=400)
 
         if not question_id:

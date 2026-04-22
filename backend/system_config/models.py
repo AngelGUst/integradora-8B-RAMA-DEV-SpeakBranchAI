@@ -8,6 +8,12 @@ class SystemConfig(models.Model):
 
     registration_enabled = models.BooleanField(default=True)
 
+    # XP requerido para superar cada nivel CEFR (A1–B2)
+    xp_level_a1 = models.IntegerField(default=200)
+    xp_level_a2 = models.IntegerField(default=500)
+    xp_level_b1 = models.IntegerField(default=1000)
+    xp_level_b2 = models.IntegerField(default=2000)
+
     class Meta:
         db_table = 'system_config'
         verbose_name = 'Configuración del Sistema'

@@ -29,7 +29,7 @@ const INPUT =
   'w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors';
 const LABEL = 'block text-[11px] font-semibold uppercase tracking-[0.08em] text-white/30 mb-1.5';
 
-// ── Animation (matches QuestionsPage) ─────────────────────────
+// -- Animation (matches QuestionsPage) -------------------------
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -48,7 +48,7 @@ function useReveal() {
   return { ref, inView };
 }
 
-// ── Skeleton ──────────────────────────────────────────────────
+// -- Skeleton --------------------------------------------------
 
 function SkeletonRow() {
   return (
@@ -62,7 +62,7 @@ function SkeletonRow() {
   );
 }
 
-// ── Types ──────────────────────────────────────────────────────
+// -- Types ------------------------------------------------------
 
 interface FormState {
   word: string;
@@ -81,7 +81,7 @@ const EMPTY_FORM: FormState = {
   level: 'A1', category: '', image_url: '', audio_url: '', daily_flag: true,
 };
 
-// ── Word Form Modal ────────────────────────────────────────────
+// -- Word Form Modal --------------------------------------------
 
 function WordFormModal({
   initial,
@@ -116,7 +116,7 @@ function WordFormModal({
 
   const handleSubmit = async () => {
     if (!form.word.trim() || !form.meaning.trim()) {
-      setError('Palabra y significado son obligatorios.');
+      setError('Word and meaning are required.');
       return;
     }
     setSubmitting(true);
@@ -134,17 +134,17 @@ function WordFormModal({
         daily_flag: form.daily_flag,
       };
       const res = initial
-        ? await apiFetch<{ data: VocabularyWord }>(`/api/vocabulary/${initial.id}/`, {
+        ? await apiFetch<{ data: VocabularyWord }>(`/vocabulary/${initial.id}/`, {
             method: 'PATCH',
             body: JSON.stringify(payload),
           })
-        : await apiFetch<{ data: VocabularyWord }>('/api/vocabulary/', {
+        : await apiFetch<{ data: VocabularyWord }>('/vocabulary/', {
             method: 'POST',
             body: JSON.stringify(payload),
           });
       onSaved(res.data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al guardar.');
+      setError(e instanceof Error ? e.message : 'Error while saving.');
     } finally {
       setSubmitting(false);
     }
@@ -158,7 +158,7 @@ function WordFormModal({
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-5 border-b border-white/[0.05]">
             <h2 className="text-[16px] font-black tracking-[-0.02em] text-white/90">
-              {initial ? 'Editar palabra' : 'Nueva palabra'}
+              {initial ? 'Edit word' : 'New word'}
             </h2>
             <button
               onClick={onClose}
@@ -172,38 +172,38 @@ function WordFormModal({
           <div className="px-6 py-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className={LABEL}>Palabra *</label>
+                <label className={LABEL}>Word *</label>
                 <input className={INPUT} value={form.word} onChange={set('word')} placeholder="e.g. apple" />
               </div>
               <div>
-                <label className={LABEL}>Nivel *</label>
+                <label className={LABEL}>Level *</label>
                 <select className={INPUT} value={form.level} onChange={set('level')}>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
               <div>
-                <label className={LABEL}>Categoría</label>
+                <label className={LABEL}>Category</label>
                 <input className={INPUT} value={form.category} onChange={set('category')} placeholder="e.g. Food" />
               </div>
               <div className="col-span-2">
-                <label className={LABEL}>Significado *</label>
-                <textarea className={`${INPUT} resize-none`} rows={2} value={form.meaning} onChange={set('meaning')} placeholder="Definición o traducción" />
+                <label className={LABEL}>Meaning *</label>
+                <textarea className={`${INPUT} resize-none`} rows={2} value={form.meaning} onChange={set('meaning')} placeholder="Definition or translation" />
               </div>
               <div>
-                <label className={LABEL}>Pronunciación</label>
+                <label className={LABEL}>Pronunciation</label>
                 <input className={INPUT} value={form.pronunciation} onChange={set('pronunciation')} placeholder="/ˈæp.əl/" />
               </div>
               <div>
-                <label className={LABEL}>URL Audio <span className="normal-case font-normal text-white/20">(opcional)</span></label>
-                <input className={INPUT} value={form.audio_url} onChange={set('audio_url')} placeholder="https://… — o déjalo vacío para usar TTS" />
+                <label className={LABEL}>Audio URL <span className="normal-case font-normal text-white/20">(optional)</span></label>
+                <input className={INPUT} value={form.audio_url} onChange={set('audio_url')} placeholder="https://... or leave empty to use TTS" />
               </div>
               <div className="col-span-2">
-                <label className={LABEL}>Oración de ejemplo</label>
+                <label className={LABEL}>Example sentence</label>
                 <textarea className={`${INPUT} resize-none`} rows={2} value={form.example_sentence} onChange={set('example_sentence')} placeholder="I eat an apple every day." />
               </div>
               <div className="col-span-2">
                 <label className={LABEL}>URL Imagen</label>
-                <input className={INPUT} value={form.image_url} onChange={set('image_url')} placeholder="https://…" />
+                <input className={INPUT} value={form.image_url} onChange={set('image_url')} placeholder="https://..." />
               </div>
               <div className="col-span-2 flex items-center gap-2">
                 <input
@@ -214,7 +214,7 @@ function WordFormModal({
                   className="accent-violet-500 w-4 h-4"
                 />
                 <label htmlFor="daily_flag" className="text-[12px] text-white/50 cursor-pointer">
-                  Incluir en vocabulario diario
+                  Include in daily vocabulary
                 </label>
               </div>
             </div>
@@ -223,7 +223,7 @@ function WordFormModal({
           {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 border-t border-white/[0.05]">
             <button onClick={onClose} className="text-[13px] text-white/30 hover:text-white/60 transition-colors px-3 py-2 rounded-xl">
-              Cancelar
+              Cancel
             </button>
             <div className="flex flex-col items-end gap-1.5">
               {error && <p className="text-[11px] text-red-400/70 max-w-[240px] text-right">{error}</p>}
@@ -232,7 +232,7 @@ function WordFormModal({
                 disabled={submitting}
                 className="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-[13px] font-semibold text-white transition-colors"
               >
-                {submitting ? 'Guardando…' : 'Guardar'}
+                {submitting ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -243,7 +243,7 @@ function WordFormModal({
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────
+// -- Page ------------------------------------------------------
 
 export default function VocabularyPage() {
   const { ref, inView } = useReveal();
@@ -276,11 +276,11 @@ export default function VocabularyPage() {
       if (levelFilter) params.set('level', levelFilter);
       if (search.trim()) params.set('search', search.trim());
       const res = await apiFetch<{ data: VocabularyWord[] }>(
-        `/api/vocabulary/${params.toString() ? `?${params}` : ''}`
+        `/vocabulary/${params.toString() ? `?${params}` : ''}`
       );
       setWords(res.data);
     } catch {
-      setError('No se pudo cargar el vocabulario.');
+      setError('Could not load vocabulary.');
     } finally {
       setLoading(false);
     }
@@ -313,22 +313,22 @@ export default function VocabularyPage() {
   const handleDelete = async (id: number) => {
     setDeleting(id);
     try {
-      await apiFetch(`/api/vocabulary/${id}/`, { method: 'DELETE' });
+      await apiFetch(`/vocabulary/${id}/`, { method: 'DELETE' });
       setWords((prev) => prev.filter((w) => w.id !== id));
     } catch {
-      // silent — keep word in list
+      // silent - keep word in list
     } finally {
       setDeleting(null);
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-[#06060A] text-[#f5f3ff]">
+    <div className="flex h-screen bg-[#06060A] text-[#f5f3ff]">
       <AppSidebar />
       <div className="flex-1 overflow-y-auto">
         <div className="mx-auto px-6 py-5">
 
-          {/* ── Section header ── */}
+          {/* -- Section header -- */}
           <motion.div
             ref={ref}
             variants={reveal}
@@ -337,7 +337,7 @@ export default function VocabularyPage() {
             className="mb-10"
           >
             <div className="flex items-center gap-3 mb-3">
-              <span className="font-mono text-[11px] text-white/20 tracking-widest">002</span>
+              <span className="font-mono text-[11px] text-white/20 tracking-widest">005</span>
               <span className="h-px flex-1 max-w-[32px] bg-white/[0.06]" />
               <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/30">
                 Vocabulary Bank
@@ -358,7 +358,7 @@ export default function VocabularyPage() {
                     type="text"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Buscar palabra…"
+                    placeholder="Search word..."
                     className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl pl-9 pr-3 py-2 text-[13px] text-white/80 placeholder:text-white/20 focus:outline-none focus:border-violet-500/50 transition-colors"
                   />
                 </div>
@@ -368,7 +368,7 @@ export default function VocabularyPage() {
                   onChange={(e) => setLevel(e.target.value)}
                   className="bg-white/[0.03] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-white/60 focus:outline-none focus:border-violet-500/50 transition-colors"
                 >
-                  <option value="">Todos los niveles</option>
+                  <option value="">All levels</option>
                   {LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
                 </select>
               </div>
@@ -394,13 +394,13 @@ export default function VocabularyPage() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-[13px] font-semibold text-white transition-colors whitespace-nowrap"
                 >
                   <Plus className="h-4 w-4" />
-                  Nueva palabra
+                  New word
                 </button>
               </div>
             </div>
           </motion.div>
 
-          {/* ── Table ── */}
+          {/* -- Table -- */}
           <motion.div
             variants={reveal}
             initial="hidden"
@@ -410,10 +410,10 @@ export default function VocabularyPage() {
           >
             {/* Table header */}
             <div className="grid grid-cols-[2fr_3fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-white/[0.05] text-[10px] font-semibold uppercase tracking-[0.08em] text-white/25">
-              <span>Palabra</span>
-              <span>Significado</span>
-              <span>Nivel</span>
-              <span>Categoría</span>
+              <span>Word</span>
+              <span>Meaning</span>
+              <span>Level</span>
+              <span>Category</span>
               <span />
             </div>
 
@@ -428,7 +428,7 @@ export default function VocabularyPage() {
             {!loading && !error && words.length === 0 && (
               <div className="flex flex-col items-center justify-center py-24">
                 <p className="text-[14px] text-white/25 leading-relaxed">
-                  {search || levelFilter ? 'No se encontraron palabras.' : 'Aún no hay palabras de vocabulario.'}
+                  {search || levelFilter ? 'No words found.' : 'There are no vocabulary words yet.'}
                 </p>
               </div>
             )}
@@ -446,7 +446,7 @@ export default function VocabularyPage() {
                 </div>
                 <p className="text-[12px] text-white/40 truncate">{w.meaning}</p>
                 <span className="text-[11px] font-mono text-white/30">{w.level}</span>
-                <span className="text-[11px] text-white/25 truncate">{w.category || '—'}</span>
+                <span className="text-[11px] text-white/25 truncate">{w.category || '-'}</span>
                 <div className="flex items-center gap-1 shrink-0">
                   {w.audio_url && (
                     <span title="Tiene audio" className="text-violet-400/40">
@@ -457,14 +457,14 @@ export default function VocabularyPage() {
                     onClick={() => setEditing(w)}
                     className="px-2.5 py-1 rounded-lg text-[11px] text-white/30 hover:text-white/60 hover:bg-white/[0.05] transition-colors"
                   >
-                    Editar
+                    Edit
                   </button>
                   <button
                     onClick={() => handleDelete(w.id)}
                     disabled={deleting === w.id}
                     className="px-2.5 py-1 rounded-lg text-[11px] text-red-400/40 hover:text-red-400/70 hover:bg-red-500/[0.06] transition-colors disabled:opacity-30"
                   >
-                    {deleting === w.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Eliminar'}
+                    {deleting === w.id ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Delete'}
                   </button>
                 </div>
               </div>
@@ -481,7 +481,7 @@ export default function VocabularyPage() {
               className="mt-4 flex items-center justify-between"
             >
               <p className="text-[12px] text-white/20">
-                {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, words.length)} de {words.length} palabra{words.length !== 1 ? 's' : ''}
+                {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, words.length)} of {words.length} word{words.length !== 1 ? 's' : ''}
               </p>
 
               <div className="flex items-center gap-1">
@@ -495,14 +495,14 @@ export default function VocabularyPage() {
 
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .reduce<(number | '…')[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('…');
+                  .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('...');
                     acc.push(p);
                     return acc;
                   }, [])
                   .map((p, i) =>
-                    p === '…' ? (
-                      <span key={`el-${i}`} className="px-1 text-[12px] text-white/20">…</span>
+                    p === '...' ? (
+                      <span key={`el-${i}`} className="px-1 text-[12px] text-white/20">...</span>
                     ) : (
                       <button
                         key={p}
@@ -540,3 +540,4 @@ export default function VocabularyPage() {
     </div>
   );
 }
+

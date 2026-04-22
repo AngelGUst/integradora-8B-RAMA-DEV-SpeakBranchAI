@@ -1,6 +1,6 @@
 import type { ChangeEvent, ReactNode } from 'react';
 import { Info, Plus, Trash2 } from 'lucide-react';
-import type { QuestionType, Level } from '../../../types/question';
+import type { QuestionType, Level, Category } from '../../../types/question';
 import { INPUT, LABEL, SELECT, XP_MAP, type FormState, type ReadingQuestion } from './questionFormUtils';
 
 type ChangeHandler = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
@@ -9,18 +9,67 @@ interface Props {
   type: QuestionType;
   form: FormState;
   set: (key: keyof FormState) => ChangeHandler;
-  setOption: (idx: number) => (e: ChangeEvent<HTMLInputElement>) => void;
+  setValue: (key: keyof FormState, value: FormState[keyof FormState]) => void;
   onReadingQuestionsChange: (qs: ReadingQuestion[]) => void;
 }
 
-const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2'];
 const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const;
+const TARGET_CATEGORIES: Array<{ value: Category; title: string; description: string }> = [
+  {
+    value: 'PRACTICE',
+    title: 'Solo ejercicio',
+    description: 'General practice exercise for the student learning path.',
+  },
+  {
+    value: 'DIAGNOSTIC',
+    title: 'Diagnostic',
+    description: 'Use it to measure initial level and detect learning gaps.',
+  },
+  {
+    value: 'LEVEL_UP',
+    title: 'Level up',
+    description: 'Use it for promotion exams and level validation.',
+  },
+];
 
-export default function QuestionFormBody({ type, form, set, setOption, onReadingQuestionsChange }: Props) {
+export default function QuestionFormBody({ type, form, set, setValue, onReadingQuestionsChange }: Props) {
   return (
     <div className="space-y-4">
-      {/* ── Shared fields ── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-3 space-y-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35 mb-1">
+            Assessment section
+          </p>
+          <p className="text-[12px] text-white/45 leading-relaxed">
+            Mark the question for diagnostics or level-up and build stronger banks.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {TARGET_CATEGORIES.map((category) => {
+            const active = form.category === category.value;
+            return (
+              <button
+                key={category.value}
+                type="button"
+                onClick={() => setValue('category', category.value)}
+                className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+                  active
+                    ? 'border-violet-500/60 bg-violet-500/[0.12]'
+                    : 'border-white/[0.08] bg-white/[0.01] hover:border-violet-500/30 hover:bg-violet-500/[0.04]'
+                }`}
+              >
+                <p className="text-[11px] font-semibold tracking-[0.14em] text-white/75">{category.title}</p>
+                <p className="text-[11px] text-white/45 mt-1 leading-relaxed">{category.description}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* -- Shared fields -- */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={LABEL}>Level</label>
           <select value={form.level} onChange={set('level')} className={SELECT} style={{ colorScheme: 'dark' }}>
@@ -35,14 +84,6 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
             <option value="HARD">Hard</option>
           </select>
         </div>
-        <div>
-          <label className={LABEL}>Category</label>
-          <select value={form.category} onChange={set('category')} className={SELECT} style={{ colorScheme: 'dark' }}>
-            <option value="DIAGNOSTIC">Examen diagnóstico</option>
-            <option value="PRACTICE">Solo ejercicio</option>
-            <option value="LEVEL_UP">Examen subir nivel</option>
-          </select>
-        </div>
       </div>
 
       {/* XP preview */}
@@ -54,7 +95,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
         </span>
       </div>
 
-      {/* ── Type-specific fields ── */}
+      {/* -- Type-specific fields -- */}
       {type === 'SPEAKING' && (
         <div className="space-y-4">
           <Field label="Question text" required>
@@ -68,7 +109,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
           </Field>
           <Field label="Phonetic text">
             <input type="text" value={form.phonetic_text} onChange={set('phonetic_text')}
-              placeholder="IPA e.g. /ðə ˈwɛðər/" className={INPUT} />
+              placeholder="IPA e.g. /the weather/" className={INPUT} />
           </Field>
           <Field label="Audio URL">
             <input type="text" value={form.audio_url} onChange={set('audio_url')}
@@ -79,9 +120,9 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
 
       {type === 'READING' && (
         <div className="space-y-5">
-          <Field label="Texto del pasaje" required>
+          <Field label="Passage text" required>
             <textarea value={form.text} onChange={set('text')} rows={5}
-              placeholder="Escribe el texto que el estudiante leerá..."
+              placeholder="Write the text the student will read..."
               className={`${INPUT} resize-none`} />
           </Field>
 
@@ -89,7 +130,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className={LABEL}>
-                Preguntas <span className="text-violet-400/50">*</span>
+                Questions <span className="text-violet-400/50">*</span>
               </label>
               <button
                 type="button"
@@ -102,7 +143,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
                 className="flex items-center gap-1 text-[11px] font-semibold text-violet-400/70 hover:text-violet-300 transition-colors"
               >
                 <Plus className="h-3 w-3" />
-                Agregar pregunta
+                Add question
               </button>
             </div>
 
@@ -130,32 +171,32 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
 
       {type === 'LISTENING_SHADOWING' && (
         <div className="space-y-4">
-          <InfoBadge text="El navegador leerá el texto en voz alta (TTS). El alumno lo repite." />
+          <InfoBadge text="The browser will read the text aloud (TTS). The learner repeats it." />
           <Field label="Texto para escuchar (TTS)" required>
             <textarea value={form.correct_answer} onChange={set('correct_answer')} rows={3}
               placeholder="Ej: Every morning I wake up at seven and go for a run."
               className={`${INPUT} resize-none`} />
           </Field>
-          <Field label="Transcripción fonética">
+          <Field label="Phonetic transcription">
             <input type="text" value={form.phonetic_text} onChange={set('phonetic_text')}
-              placeholder="IPA opcional, ej: /ˈɛvri ˈmɔːrnɪŋ/" className={INPUT} />
+              placeholder="IPA opcional, ej: /:vri m-ːrnɪ9/" className={INPUT} />
           </Field>
-          <Field label="Texto mostrado después del intento">
+          <Field label="Text shown after the attempt">
             <input type="text" value={form.text} onChange={set('text')}
-              placeholder="Pista o traducción (opcional)" className={INPUT} />
+              placeholder="Hint or translation (optional)" className={INPUT} />
           </Field>
         </div>
       )}
 
       {type === 'LISTENING_COMPREHENSION' && (
         <div className="space-y-5">
-          <InfoBadge text="El navegador leerá el pasaje en voz alta (TTS). Máx. 3 reproducciones." />
+          <InfoBadge text="The browser will read the passage aloud (TTS). Max 3 replays." />
           <Field label="Pasaje de audio (TTS)" required>
             <textarea value={form.phonetic_text} onChange={set('phonetic_text')} rows={4}
               placeholder="Ej: Welcome to our city. There are many museums and parks to visit..."
               className={`${INPUT} resize-none`} />
           </Field>
-          <Field label="Título / descripción" required>
+          <Field label="Title / description" required>
             <input type="text" value={form.text} onChange={set('text')}
               placeholder="Ej: Listening sobre vida en la ciudad"
               className={INPUT} />
@@ -165,7 +206,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
           <div>
             <div className="flex items-center justify-between mb-3">
               <label className={LABEL}>
-                Preguntas <span className="text-violet-400/50">*</span>
+                Questions <span className="text-violet-400/50">*</span>
               </label>
               <button
                 type="button"
@@ -178,7 +219,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
                 className="flex items-center gap-1 text-[11px] font-semibold text-violet-400/70 hover:text-violet-300 transition-colors"
               >
                 <Plus className="h-3 w-3" />
-                Agregar pregunta
+                Add question
               </button>
             </div>
 
@@ -206,7 +247,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
 
       {type === 'WRITING' && (
         <div className="space-y-4">
-          <InfoBadge text="No correct answer needed — AI grades this" />
+          <InfoBadge text="No correct answer needed - AI grades this" />
           <Field label="Question prompt" required>
             <textarea value={form.text} onChange={set('text')} rows={3}
               placeholder="Instruction shown to student"
@@ -227,7 +268,7 @@ export default function QuestionFormBody({ type, form, set, setOption, onReading
   );
 }
 
-// ── Internal helpers ──────────────────────────────────────────
+// -- Internal helpers ------------------------------------------
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
@@ -241,35 +282,6 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function OptionsField({
-  form,
-  setOption,
-}: {
-  form: FormState;
-  setOption: (idx: number) => (e: ChangeEvent<HTMLInputElement>) => void;
-}) {
-  return (
-    <div>
-      <label className={LABEL}>
-        Options <span className="text-violet-400/50">*</span>
-      </label>
-      <div className="space-y-2">
-        {OPTION_LETTERS.map((letter, idx) => (
-          <div key={letter} className="flex items-center gap-3">
-            <span className="text-[11px] font-mono text-white/30 w-4 shrink-0">{letter}</span>
-            <input
-              type="text"
-              value={form.options[idx]}
-              onChange={setOption(idx)}
-              placeholder={`Option ${letter}`}
-              className={INPUT}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function InfoBadge({ text }: { text: string }) {
   return (
@@ -306,7 +318,7 @@ function ReadingQuestionBlock({
     <div className="rounded-xl border border-white/[0.07] bg-white/[0.01] p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/30">
-          Pregunta {index + 1}
+          Question {index + 1}
         </span>
         {canRemove && (
           <button
@@ -323,7 +335,7 @@ function ReadingQuestionBlock({
         type="text"
         value={rq.text}
         onChange={(e) => setField('text', e.target.value)}
-        placeholder="¿Cuál es la idea principal del texto?"
+        placeholder="What is the main idea of the text?"
         className={INPUT}
       />
 
@@ -335,7 +347,7 @@ function ReadingQuestionBlock({
               type="text"
               value={rq.options[idx]}
               onChange={(e) => setOpt(idx, e.target.value)}
-              placeholder={`Opción ${letter}`}
+              placeholder={`Option ${letter}`}
               className={INPUT}
             />
           </div>
@@ -343,7 +355,7 @@ function ReadingQuestionBlock({
       </div>
 
       <div>
-        <label className={LABEL}>Opción correcta</label>
+        <label className={LABEL}>Option correcta</label>
         <select
           value={rq.correct_option}
           onChange={(e) => setField('correct_option', e.target.value)}
@@ -356,3 +368,4 @@ function ReadingQuestionBlock({
     </div>
   );
 }
+

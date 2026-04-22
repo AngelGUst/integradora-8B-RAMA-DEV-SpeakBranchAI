@@ -6,8 +6,8 @@ export type CefrLevel = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
 /** Platform roles. Students use the learning interface; admins manage content. */
 export type UserRole = 'ADMIN' | 'STUDENT';
 
-/** Biological sex options as stored in the backend. */
-export type Gender = 'M' | 'F' | 'OTHER';
+/** Gender options as stored in the backend. */
+export type Gender = 'M' | 'F' | 'NB' | 'P';
 
 // ── Entity types ─────────────────────────────────────────────
 

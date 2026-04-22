@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'courses.apps.CoursesConfig',
     'django_extensions',
     'system_config.apps.SystemConfigConfig',
+    'dashboard.apps.DashboardConfig',
 ]
 
 # ---------------------------------------------------------------------------
@@ -61,6 +62,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'backend.middleware.CurrentUserMiddleware',         # Capturar usuario para auditoría
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -117,6 +119,8 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
 }
 
 
@@ -232,7 +236,9 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG')
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+SQL_DEBUG = os.getenv('SQL_DEBUG', '').lower() in {'1', 'true', 'yes'}
+DB_LOG_LEVEL = 'DEBUG' if SQL_DEBUG else 'WARNING'
 
 ROTATING_HANDLER = 'logging.handlers.RotatingFileHandler'
 
@@ -280,7 +286,7 @@ LOGGING = {
             'class': ROTATING_HANDLER,
             'filename': LOGS_DIR / 'database.log',
             'formatter': 'verbose',
-            'level': 'DEBUG',
+            'level': DB_LOG_LEVEL,
             'maxBytes': 1024 * 1024 * 5,
             'backupCount': 3,
         },
@@ -305,8 +311,8 @@ LOGGING = {
             'propagate': False,
         },
         'django.db.backends': {
-            'handlers': ['console', 'file_db'],
-            'level': 'DEBUG',
+            'handlers': ['file_db'],
+            'level': DB_LOG_LEVEL,
             'propagate': False,
         },
         'speakbranch': {

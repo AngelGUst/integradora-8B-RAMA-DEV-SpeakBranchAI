@@ -11,6 +11,9 @@ from questions.serializers import (
     QuestionVocabularyDetailSerializer,
 )
 
+# Constant to avoid string duplication
+MSG_QUESTION_NOT_FOUND = 'Pregunta no encontrada.'
+
 
 class QuestionVocabularyAddView(APIView):
     """
@@ -25,7 +28,7 @@ class QuestionVocabularyAddView(APIView):
             question = Question.objects.get(id=question_id, is_active=True)
         except Question.DoesNotExist:
             return Response(
-                {'detail': 'Pregunta no encontrada.'},
+                {'detail': MSG_QUESTION_NOT_FOUND},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -50,7 +53,7 @@ class QuestionVocabularyAddView(APIView):
             question = Question.objects.get(id=question_id, is_active=True)
         except Question.DoesNotExist:
             return Response(
-                {'detail': 'Pregunta no encontrada.'},
+                {'detail': MSG_QUESTION_NOT_FOUND},
                 status=status.HTTP_404_NOT_FOUND
             )
 
@@ -85,7 +88,7 @@ class QuestionVocabularyRemoveView(APIView):
             question = Question.objects.get(id=question_id, is_active=True)
         except Question.DoesNotExist:
             return Response(
-                {'detail': 'Pregunta no encontrada.'},
+                {'detail': MSG_QUESTION_NOT_FOUND},
                 status=status.HTTP_404_NOT_FOUND
             )
 

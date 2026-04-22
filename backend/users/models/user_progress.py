@@ -34,9 +34,17 @@ class UserProgress(models.Model):
     
     # XP Global
     total_xp = models.IntegerField(default=0)
+    level_start_xp = models.IntegerField(
+        default=0,
+        help_text='XP total al momento de entrar al nivel actual'
+    )
     
+    # Skill metrics (JSON storage for extended per-skill data)
+    skill_metrics = models.JSONField(default=dict)
+
     # Streaks
     streak_days = models.IntegerField(default=0)
+    streak_freeze = models.IntegerField(default=0)
     last_activity_date = models.DateField(null=True, blank=True)
     
     # Timestamps
@@ -73,7 +81,14 @@ class UserProgress(models.Model):
     def add_xp(self, xp_amount):
         """Añade XP al usuario (nunca baja de 0)"""
         self.total_xp = max(0, self.total_xp + xp_amount)
+        if self.level_start_xp > self.total_xp:
+            self.level_start_xp = self.total_xp
         self.save()
+
+    @property
+    def current_level_xp(self):
+        """XP acumulado desde que inició el nivel actual."""
+        return max(0, self.total_xp - self.level_start_xp)
     
     def get_recommended_difficulty(self, skill_avg):
         """

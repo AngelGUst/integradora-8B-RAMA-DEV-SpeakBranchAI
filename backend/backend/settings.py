@@ -166,9 +166,14 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',    # React / Next.js dev server
     'http://localhost:5173',    # Vite dev server
-    'http://192.168.0.179:5173',
+    'https://integradora-8-b-rama-dev-speak-bran.vercel.app' # Producción en Vercel
 ]
 
+# O permitir dinámicamente el del entorno
+frontend_url = os.getenv('FRONTEND_URL')
+if frontend_url and frontend_url not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(frontend_url)
+    
 # Allow credentials (cookies / Authorization header) on cross-origin requests
 CORS_ALLOW_CREDENTIALS = True
 
